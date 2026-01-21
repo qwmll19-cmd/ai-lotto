@@ -1,4 +1,4 @@
-from backend.app.services.sms.sms_client import (
+from app.services.sms.sms_client import (
     SmsClient,
     SmsSendRequest,
     SmsSendResult,

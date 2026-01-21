@@ -32,7 +32,11 @@
       "Bash(__NEW_LINE_abafee37880082b7__ echo \"\")",
       "Bash(cut:*)",
       "Bash(cd /Users/leewonseok/Projects/ai-lotto/react-app && npm run lint:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

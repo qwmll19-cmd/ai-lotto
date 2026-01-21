@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 from typing import List, Dict, Tuple
 import numpy as np
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.services.lotto.stats_calculator import LottoStatsCalculator
 
 
 class LottoMLTrainer:

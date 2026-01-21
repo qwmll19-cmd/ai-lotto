@@ -1,10 +1,10 @@
 """로또 ML 성능 평가 및 백테스팅"""
 from datetime import datetime
 from typing import Dict, List, Tuple
-from backend.app.services.lotto.generator import generate_20_lines
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
-from backend.app.services.lotto.ml_predictor import LottoMLPredictor
-from backend.app.services.lotto.ml_trainer import LottoMLTrainer
+from app.services.lotto.generator import generate_20_lines
+from app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.services.lotto.ml_predictor import LottoMLPredictor
+from app.services.lotto.ml_trainer import LottoMLTrainer
 import json
 
 

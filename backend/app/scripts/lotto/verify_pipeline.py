@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from backend.app.db.models import LottoDraw, LottoStatsCache
-from backend.app.db.session import SessionLocal
+from app.db.models import LottoDraw, LottoStatsCache
+from app.db.session import SessionLocal
 
 
 def main() -> None:

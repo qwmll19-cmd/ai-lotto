@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import LottoDraw, LottoRecommendLog, PlanPerformanceStats
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.db.models import LottoDraw, LottoRecommendLog, PlanPerformanceStats
+from app.services.lotto.stats_calculator import LottoStatsCalculator
 
 logger = logging.getLogger("result_matcher")
 

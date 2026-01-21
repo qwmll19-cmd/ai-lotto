@@ -10,12 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import FreeTrialApplication, LottoDraw, LottoRecommendLog
-from backend.app.db.session import get_db
-from backend.app.services.lotto import build_stats_from_draws, format_line, validate_phone, draws_to_dict_list, get_next_draw_no
-from backend.app.services.lotto.generator import generate_mixed_line
-from backend.app.services.sms import SmsSendRequest, get_sms_client
-from backend.app.rate_limit import limiter
+from app.db.models import FreeTrialApplication, LottoDraw, LottoRecommendLog
+from app.db.session import get_db
+from app.services.lotto import build_stats_from_draws, format_line, validate_phone, draws_to_dict_list, get_next_draw_no
+from app.services.lotto.generator import generate_mixed_line
+from app.services.sms import SmsSendRequest, get_sms_client
+from app.rate_limit import limiter
 
 router = APIRouter()
 logger = logging.getLogger("free_trial")

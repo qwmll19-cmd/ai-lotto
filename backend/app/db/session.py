@@ -1,7 +1,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from backend.app.config import resolve_db_url, settings
+from app.config import resolve_db_url, settings
 
 db_url = resolve_db_url(settings.DB_URL)
 connect_args = {"check_same_thread": False} if db_url.startswith("sqlite:///") else {}

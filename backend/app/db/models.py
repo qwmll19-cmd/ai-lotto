@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, JSON, CheckConstraint, UniqueConstraint, ForeignKey
 
-from backend.app.db.session import Base
+from app.db.session import Base
 
 
 class NewsDaily(Base):

@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import FreeTrialApplication, LottoRecommendLog, OpsRequestLog
-from backend.app.db.session import get_db
-from backend.app.api.auth import get_current_user, require_admin
+from app.db.models import FreeTrialApplication, LottoRecommendLog, OpsRequestLog
+from app.db.session import get_db
+from app.api.auth import get_current_user, require_admin
 
 router = APIRouter()
 

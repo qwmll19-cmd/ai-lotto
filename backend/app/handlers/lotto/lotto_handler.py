@@ -7,10 +7,10 @@ try:
 except Exception:  # telegram 미설치 환경 대응
     Update = InlineKeyboardButton = InlineKeyboardMarkup = None
     ContextTypes = None
-from backend.app.db.session import SessionLocal
-from backend.app.db.models import LottoStatsCache, LottoRecommendLog, LottoDraw
-from backend.app.services.lotto.generator import generate_20_lines
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.db.session import SessionLocal
+from app.db.models import LottoStatsCache, LottoRecommendLog, LottoDraw
+from app.services.lotto.generator import generate_20_lines
+from app.services.lotto.stats_calculator import LottoStatsCalculator
 
 async def lotto_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """로또 번호 20줄 생성"""

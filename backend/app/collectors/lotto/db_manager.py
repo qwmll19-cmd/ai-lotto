@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 from datetime import datetime, date
-from backend.app.db.models import LottoDraw
+from app.db.models import LottoDraw
 
 class LottoDBManager:
     def __init__(self, db: Session):

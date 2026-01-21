@@ -8,7 +8,7 @@ import time
 import logging
 from typing import Optional, Dict, Tuple
 from datetime import datetime, timedelta
-from backend.app.config import settings
+from app.config import settings
 
 BASE_URL = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={}"
 LATEST_URL = "https://dhlottery.co.kr/gameResult.do?method=byWin"

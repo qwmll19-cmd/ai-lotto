@@ -1,11 +1,11 @@
-from backend.app.api.auth import router as auth_router
-from backend.app.api.free_trial import router as free_trial_router
-from backend.app.api.lotto import router as lotto_router
-from backend.app.api.ops import router as ops_router
-from backend.app.api.admin import router as admin_router
-from backend.app.api.subscription import router as subscription_router
-from backend.app.api.oauth import router as oauth_router
-from backend.app.api.guest import router as guest_router
+from app.api.auth import router as auth_router
+from app.api.free_trial import router as free_trial_router
+from app.api.lotto import router as lotto_router
+from app.api.ops import router as ops_router
+from app.api.admin import router as admin_router
+from app.api.subscription import router as subscription_router
+from app.api.oauth import router as oauth_router
+from app.api.guest import router as guest_router
 
 __all__ = [
     "auth_router",

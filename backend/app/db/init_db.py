@@ -8,10 +8,10 @@ if __package__ is None:
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
 
-from backend.app.db import models  # noqa: F401
+from app.db import models  # noqa: F401
 from sqlalchemy import text
 
-from backend.app.db.session import Base, engine, db_url
+from app.db.session import Base, engine, db_url
 
 
 def init_db() -> None:

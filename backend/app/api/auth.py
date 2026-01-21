@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from backend.app.config import get_cookie_settings, settings
-from backend.app.db.session import get_db
-from backend.app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification
-from backend.app.services.auth import hash_password, verify_password, hash_token, verify_token
-from backend.app.services.jwt import decode_jwt, encode_jwt
-from backend.app.services.sms import get_sms_client, SmsSendRequest
-from backend.app.rate_limit import limiter
+from app.config import get_cookie_settings, settings
+from app.db.session import get_db
+from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification
+from app.services.auth import hash_password, verify_password, hash_token, verify_token
+from app.services.jwt import decode_jwt, encode_jwt
+from app.services.sms import get_sms_client, SmsSendRequest
+from app.rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

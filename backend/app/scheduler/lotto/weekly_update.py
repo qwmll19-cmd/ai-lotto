@@ -4,13 +4,13 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from backend.app.collectors.lotto.api_client import LottoAPIClient
-from backend.app.collectors.lotto.db_manager import LottoDBManager
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
-from backend.app.services.lotto.result_matcher import match_all_pending_logs, get_plan_performance_summary
-from backend.app.services.lotto.ml_trainer import LottoMLTrainer
-from backend.app.db.session import SessionLocal
-from backend.app.db.models import MLTrainingLog
+from app.collectors.lotto.api_client import LottoAPIClient
+from app.collectors.lotto.db_manager import LottoDBManager
+from app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.services.lotto.result_matcher import match_all_pending_logs, get_plan_performance_summary
+from app.services.lotto.ml_trainer import LottoMLTrainer
+from app.db.session import SessionLocal
+from app.db.models import MLTrainingLog
 
 
 async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat_id=None):

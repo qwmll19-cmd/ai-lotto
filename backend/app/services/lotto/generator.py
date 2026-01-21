@@ -85,7 +85,7 @@ def generate_20_lines(user_id: int, stats: Dict, ai_weights: Dict = None) -> Dic
     default_weights = {'logic1': 0.33, 'logic2': 0.33, 'logic3': 0.34}
     if ai_weights is None:
         try:
-            from backend.app.services.lotto.ml_trainer import LottoMLTrainer
+            from app.services.lotto.ml_trainer import LottoMLTrainer
             trainer = LottoMLTrainer()
             if trainer.load_model():
                 ai_weights = trainer.get_ai_weights()

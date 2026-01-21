@@ -4,7 +4,7 @@ import logging
 import logging.config
 from pathlib import Path
 
-from backend.app.config import resolve_log_path, settings
+from app.config import resolve_log_path, settings
 
 
 def setup_logging() -> None:

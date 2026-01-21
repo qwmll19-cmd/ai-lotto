@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from backend.app.db.models import LottoStatsCache, LottoDraw
-from backend.app.db.session import SessionLocal
-from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.db.models import LottoStatsCache, LottoDraw
+from app.db.session import SessionLocal
+from app.services.lotto.stats_calculator import LottoStatsCalculator
 
 
 def build_cache() -> bool:

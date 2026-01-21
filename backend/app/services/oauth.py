@@ -10,8 +10,8 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
-from backend.app.config import settings
-from backend.app.db.models import User, SocialAccount
+from app.config import settings
+from app.db.models import User, SocialAccount
 
 logger = logging.getLogger("oauth")
 

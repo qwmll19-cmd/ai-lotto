@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from backend.app.db.models import LottoRecommendLog, LottoDraw
+from app.db.models import LottoRecommendLog, LottoDraw
 
 logger = logging.getLogger(__name__)
 

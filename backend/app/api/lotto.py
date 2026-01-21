@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from backend.app.api.auth import get_current_user
-from backend.app.db.models import LottoDraw, LottoRecommendLog, LottoStatsCache
-from backend.app.db.session import get_db
-from backend.app.services.lotto import build_stats_from_draws, draws_to_dict_list, LottoStatsCalculator, PoolService
+from app.api.auth import get_current_user
+from app.db.models import LottoDraw, LottoRecommendLog, LottoStatsCache
+from app.db.session import get_db
+from app.services.lotto import build_stats_from_draws, draws_to_dict_list, LottoStatsCalculator, PoolService
 
 logger = logging.getLogger(__name__)
 
@@ -711,7 +711,7 @@ def recommend_numbers(
     check_only=True 시 기존 발급 내역만 조회 (새 번호 발급 안 함)
     """
     import random
-    from backend.app.services.lotto.generator import generate_free_line
+    from app.services.lotto.generator import generate_free_line
 
     plan_type = (user.subscription_type or "free").lower()
     max_lines = PLAN_LINE_LIMITS.get(plan_type, 1)
@@ -961,7 +961,7 @@ def get_fixed_candidates(
     - check_only=True: 저장된 번호만 조회, 없으면 빈 배열 반환
     """
     import random
-    from backend.app.services.lotto.generator import get_top_candidates
+    from app.services.lotto.generator import get_top_candidates
 
     try:
         plan_type = (user.subscription_type or "free").lower()

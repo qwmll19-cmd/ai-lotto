@@ -10,11 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from backend.app.config import settings, get_cookie_settings
-from backend.app.db.session import get_db
-from backend.app.services.jwt import encode_jwt
-from backend.app.services.auth import hash_token
-from backend.app.services.oauth import (
+from app.config import settings, get_cookie_settings
+from app.db.session import get_db
+from app.services.jwt import encode_jwt
+from app.services.auth import hash_token
+from app.services.oauth import (
     OAuthError,
     generate_oauth_state,
     verify_oauth_state,

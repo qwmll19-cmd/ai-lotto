@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
-from backend.app.config import settings
+from app.config import settings
 
 
 @dataclass(frozen=True)

@@ -11,14 +11,14 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from backend.app.api.auth import get_current_user, require_admin
-from backend.app.db.models import (
+from app.api.auth import get_current_user, require_admin
+from app.db.models import (
     User, FreeTrialApplication, Payment, Subscription,
     LottoDraw, LottoRecommendLog, LottoStatsCache,
     PlanPerformanceStats, MLTrainingLog, SocialAccount
 )
-from backend.app.db.session import get_db
-from backend.app.schemas.pagination import PaginatedResponse
+from app.db.session import get_db
+from app.schemas.pagination import PaginatedResponse
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -711,7 +711,7 @@ def rebuild_lotto_cache(
     admin: User = Depends(require_admin)
 ):
     """통계 캐시 재생성"""
-    from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+    from app.services.lotto.stats_calculator import LottoStatsCalculator
     import json
 
     draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
@@ -1044,7 +1044,7 @@ def trigger_match(
     admin: User = Depends(require_admin)
 ):
     """특정 회차 수동 매칭"""
-    from backend.app.services.lotto.result_matcher import match_all_pending_logs
+    from app.services.lotto.result_matcher import match_all_pending_logs
 
     result = match_all_pending_logs(db, draw_no)
 
@@ -1065,8 +1065,8 @@ def trigger_ml_retrain(
     admin: User = Depends(require_admin)
 ):
     """수동 ML 재학습"""
-    from backend.app.services.lotto.ml_trainer import LottoMLTrainer
-    from backend.app.services.lotto.result_matcher import get_plan_performance_summary
+    from app.services.lotto.ml_trainer import LottoMLTrainer
+    from app.services.lotto.result_matcher import get_plan_performance_summary
 
     draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
     if not draws:
@@ -1165,7 +1165,7 @@ def get_ml_logic_analysis(
     - logic1/logic2/logic3 각각의 상위 번호 적중률
     - 회차별 AI 예측 vs 실제 당첨 비교
     """
-    from backend.app.services.lotto.stats_calculator import LottoStatsCalculator
+    from app.services.lotto.stats_calculator import LottoStatsCalculator
 
     # 최근 N회차 데이터 조회
     draws = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).limit(recent_draws).all()
@@ -1358,7 +1358,7 @@ def run_backtest(
       2. 실제 당첨번호와 비교
       3. 적중률 계산
     """
-    from backend.app.services.lotto.performance_evaluator import evaluate_single_draw, backtest_multiple_draws
+    from app.services.lotto.performance_evaluator import evaluate_single_draw, backtest_multiple_draws
 
     # 전체 회차 데이터 조회
     draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
@@ -1464,7 +1464,7 @@ def run_single_backtest(
     admin: User = Depends(require_admin)
 ):
     """단일 회차 백테스팅"""
-    from backend.app.services.lotto.performance_evaluator import evaluate_single_draw
+    from app.services.lotto.performance_evaluator import evaluate_single_draw
 
     draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
     if not draws:

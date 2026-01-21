@@ -6,13 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from backend.app.api import auth_router, free_trial_router, lotto_router, ops_router, admin_router, subscription_router, oauth_router, guest_router
-from backend.app.config import get_frontend_origins, validate_production_settings
-from backend.app.db.session import SessionLocal
-from backend.app.db.models import OpsRequestLog
-from backend.app.db.init_db import init_db
-from backend.app.logging_config import setup_logging
-from backend.app.rate_limit import limiter, rate_limit_exceeded_handler
+from app.api import auth_router, free_trial_router, lotto_router, ops_router, admin_router, subscription_router, oauth_router, guest_router
+from app.config import get_frontend_origins, validate_production_settings
+from app.db.session import SessionLocal
+from app.db.models import OpsRequestLog
+from app.db.init_db import init_db
+from app.logging_config import setup_logging
+from app.rate_limit import limiter, rate_limit_exceeded_handler
 
 app = FastAPI(title="AI Lotto API")
 

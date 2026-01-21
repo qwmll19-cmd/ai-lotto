@@ -2,7 +2,7 @@
 import random
 from typing import List, Dict, Tuple
 from itertools import combinations
-from backend.app.services.lotto.ml_trainer import LottoMLTrainer
+from app.services.lotto.ml_trainer import LottoMLTrainer
 
 
 class LottoMLPredictor:

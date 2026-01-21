@@ -10,13 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 
-from backend.app.api.auth import require_admin
-from backend.app.db.models import Subscription, LottoDraw, LottoRecommendLog, User
-from backend.app.db.session import get_db
-from backend.app.services.lotto import build_stats_from_draws, format_line, draws_to_dict_list, get_next_draw_no
-from backend.app.services.lotto.generator import generate_basic_lines, generate_premium_lines, generate_vip_lines
-from backend.app.services.sms import SmsSendRequest, get_sms_client
-from backend.app.config.constants import PLAN_CONFIG
+from app.api.auth import require_admin
+from app.db.models import Subscription, LottoDraw, LottoRecommendLog, User
+from app.db.session import get_db
+from app.services.lotto import build_stats_from_draws, format_line, draws_to_dict_list, get_next_draw_no
+from app.services.lotto.generator import generate_basic_lines, generate_premium_lines, generate_vip_lines
+from app.services.sms import SmsSendRequest, get_sms_client
+from app.config.constants import PLAN_CONFIG
 
 router = APIRouter()
 logger = logging.getLogger("subscription")

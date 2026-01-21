@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.db.models import LottoDraw
-from backend.app.db.session import get_db
-from backend.app.services.lotto import LottoStatsCalculator, draws_to_dict_list
+from app.db.models import LottoDraw
+from app.db.session import get_db
+from app.services.lotto import LottoStatsCalculator, draws_to_dict_list
 
 router = APIRouter(prefix="/api/guest", tags=["guest"])
 

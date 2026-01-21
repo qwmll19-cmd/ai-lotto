@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 from typing import Optional
 
-from backend.app.collectors.lotto.api_client import LottoAPIClient
-from backend.app.collectors.lotto.db_manager import LottoDBManager
-from backend.app.db.session import SessionLocal
+from app.collectors.lotto.api_client import LottoAPIClient
+from app.collectors.lotto.db_manager import LottoDBManager
+from app.db.session import SessionLocal
 
 
 def fetch_draws(start: Optional[int] = None, end: Optional[int] = None, delay: float = 0.3) -> int:

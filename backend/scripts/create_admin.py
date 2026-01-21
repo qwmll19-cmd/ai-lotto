@@ -7,9 +7,9 @@ import os
 # 프로젝트 루트를 path에 추가
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.app.db.session import SessionLocal
-from backend.app.db.models import User
-from backend.app.services.auth import hash_password
+from app.db.session import SessionLocal
+from app.db.models import User
+from app.services.auth import hash_password
 
 
 def create_admin(identifier: str, password: str):

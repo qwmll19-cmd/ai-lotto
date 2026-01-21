@@ -5,7 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from backend.app.config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
