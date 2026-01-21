@@ -72,7 +72,7 @@ function Signup() {
           </div>
           <div className="auth-benefits__item">
             <span className="auth-benefits__check">✓</span>
-            <span>기본 통계 조회 및 히스토리 30일 보관</span>
+            <span>기본 통계 조회 및 히스토리 14일 보관</span>
           </div>
           <div className="auth-benefits__item">
             <span className="auth-benefits__check">✓</span>

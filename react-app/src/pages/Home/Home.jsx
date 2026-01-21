@@ -32,7 +32,7 @@ function Home() {
               <ul className="pricing-preview__features">
                 <li>✓ 매주 AI 추천 (1줄)</li>
                 <li>✓ 기본 통계 조회</li>
-                <li>✓ 히스토리 30일 보관</li>
+                <li>✓ 히스토리 14일 보관</li>
               </ul>
               <Link to="/signup" className="btn btn--ghost btn--full">무료로 시작</Link>
             </div>

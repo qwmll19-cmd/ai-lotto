@@ -37,7 +37,7 @@ function Pricing() {
       features: [
         { text: '매주 AI 추천 (5줄)', included: true },
         { text: '상세 통계 및 분석', included: true },
-        { text: '히스토리 30일 보관', included: true },
+        { text: '히스토리 14일 보관', included: true },
         { text: '번호 제외 설정', included: false },
         { text: '번호 고정 설정', included: false },
         { text: '우선 고객 지원', included: false },
