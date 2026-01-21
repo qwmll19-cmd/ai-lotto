@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>회원가입 – 내 로또 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #fff5f8;
+      --primary: #ff4f8b;
+      --text-main: #222222;
+      --text-sub: #666666;
+      --border-soft: rgba(0,0,0,0.05);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      background:radial-gradient(circle at top left,#fff5fb 0%,#ffffff 45%);
+      color:var(--text-main);
+    }
+    a{text-decoration:none;color:inherit;}
+    .header{max-width:860px;margin:0 auto;padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:center;}
+    .logo{display:flex;align-items:center;gap:8px;cursor:pointer;}
+    .logo-mark{width:26px;height:26px;border-radius:10px;background:linear-gradient(135deg,#ff4f8b,#ff9bb9);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .logo-text-main{font-weight:700;font-size:18px;}
+    .logo-text-sub{font-size:11px;color:var(--text-sub);}
+    .nav{display:flex;gap:14px;align-items:center;font-size:13px;color:#555;}
+
+    .card{max-width:520px;margin:30px auto 60px;padding:20px;border-radius:20px;background:var(--bg-soft);box-shadow:0 18px 40px rgba(0,0,0,0.06);border:1px solid var(--border-soft);} 
+    .title{font-size:20px;font-weight:700;margin-bottom:6px;}
+    .sub{font-size:13px;color:var(--text-sub);margin-bottom:14px;}
+    .form{display:flex;flex-direction:column;gap:10px;}
+    .form label{font-size:12px;color:#555;display:flex;flex-direction:column;gap:6px;}
+    .form input{border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:10px 12px;font-size:13px;background:#fff;}
+    .checkbox{flex-direction:row;align-items:center;gap:8px;font-size:12px;color:#666;}
+    .checkbox input{margin:0;}
+    .btn{border:none;border-radius:999px;background:var(--primary);color:#fff;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 10px 25px rgba(255,79,139,0.35);} 
+    .result{font-size:12px;color:#ff296f;margin-top:6px;}
+    .footer{border-top:1px solid rgba(0,0,0,0.04);padding:16px 20px 24px;font-size:11px;color:#999;text-align:center;}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" id="logo-home">
+      <div class="logo-mark">AI</div>
+      <div>
+        <div class="logo-text-main">내 로또 AI</div>
+        <div class="logo-text-sub">매주 업데이트되는 데이터 기반 로또 번호</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="index.html">메인</a>
+      <a href="login.html">로그인</a>
+      <a href="trial.html">무료 체험</a>
+    </nav>
+  </header>
+
+  <section class="card">
+    <div class="title">회원가입</div>
+    <div class="sub">이메일 또는 휴대폰으로 간단하게 가입하세요.</div>
+    <form class="form" id="signup-form">
+      <label>
+        이메일 또는 휴대폰
+        <input type="text" name="identifier" placeholder="example@email.com" required />
+      </label>
+      <label>
+        비밀번호
+        <input type="password" name="password" placeholder="비밀번호" required />
+      </label>
+      <label>
+        비밀번호 확인
+        <input type="password" name="password_confirm" placeholder="비밀번호 확인" required />
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="consent_terms" required />
+        이용약관 및 개인정보처리방침에 동의합니다(필수)
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="consent_marketing" />
+        광고/마케팅 수신에 동의합니다(선택)
+      </label>
+      <button class="btn" type="submit">회원가입 완료</button>
+      <div class="result" id="signup-result"></div>
+    </form>
+  </section>
+
+  <footer class="footer">
+    본 서비스는 통계·패턴 분석을 기반으로 한 정보 제공 서비스이며, 특정 회차의 당첨을 보장하지 않습니다.
+  </footer>
+
+  <script>
+    document.getElementById('logo-home').addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+
+    var form = document.getElementById('signup-form');
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var result = document.getElementById('signup-result');
+        if (result) result.textContent = '회원가입 요청이 접수되었습니다. (백엔드 연동 전)';
+      });
+    }
+  </script>
+</body>
+</html>

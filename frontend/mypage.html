@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>내 조합 – 내 로또 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #fff5f8;
+      --primary: #ff4f8b;
+      --text-main: #222222;
+      --text-sub: #666666;
+      --border-soft: rgba(0,0,0,0.05);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      background:radial-gradient(circle at top left,#fff5fb 0%,#ffffff 45%);
+      color:var(--text-main);
+    }
+    a{text-decoration:none;color:inherit;}
+    .header{max-width:980px;margin:0 auto;padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:center;}
+    .logo{display:flex;align-items:center;gap:8px;cursor:pointer;}
+    .logo-mark{width:26px;height:26px;border-radius:10px;background:linear-gradient(135deg,#ff4f8b,#ff9bb9);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .logo-text-main{font-weight:700;font-size:18px;}
+    .logo-text-sub{font-size:11px;color:var(--text-sub);}
+    .nav{display:flex;gap:14px;align-items:center;font-size:13px;color:#555;}
+
+    .page{max-width:980px;margin:20px auto 60px;padding:0 20px;}
+    .card{background:var(--bg-soft);border-radius:20px;padding:18px;border:1px solid var(--border-soft);box-shadow:0 18px 40px rgba(0,0,0,0.06);margin-bottom:16px;}
+    .title{font-size:20px;font-weight:700;margin-bottom:6px;}
+    .sub{font-size:13px;color:var(--text-sub);margin-bottom:12px;}
+    .numbers{font-size:15px;font-weight:600;}
+    .table{width:100%;border-collapse:collapse;font-size:13px;}
+    .table th,.table td{padding:10px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:left;}
+    .footer{border-top:1px solid rgba(0,0,0,0.04);padding:16px 20px 24px;font-size:11px;color:#999;text-align:center;}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" id="logo-home">
+      <div class="logo-mark">AI</div>
+      <div>
+        <div class="logo-text-main">내 로또 AI</div>
+        <div class="logo-text-sub">매주 업데이트되는 데이터 기반 로또 번호</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="index.html">메인</a>
+      <a href="trial.html">무료 체험</a>
+      <a href="login.html">로그인</a>
+    </nav>
+  </header>
+
+  <div class="page">
+    <section class="card">
+      <div class="title">이번 주 추천 번호</div>
+      <div class="sub">로그인 후 개인화된 추천 번호를 확인할 수 있습니다.</div>
+      <div class="numbers">예시: 8, 9, 12, 21, 29, 33</div>
+    </section>
+
+    <section class="card">
+      <div class="title">과거 회차 결과</div>
+      <div class="sub">최근 회차 결과를 표로 확인할 수 있습니다.</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>회차</th>
+            <th>당첨 번호</th>
+            <th>결과</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1205회</td>
+            <td>8, 9, 12, 21, 29, 33</td>
+            <td>대기</td>
+          </tr>
+          <tr>
+            <td>1204회</td>
+            <td>3, 11, 19, 25, 30, 41</td>
+            <td>대기</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <footer class="footer">
+    본 서비스는 통계·패턴 분석을 기반으로 한 정보 제공 서비스이며, 특정 회차의 당첨을 보장하지 않습니다.
+  </footer>
+
+  <script>
+    document.getElementById('logo-home').addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

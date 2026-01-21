@@ -1,0 +1,45 @@
+<section class="signup" id="signup">
+  <div class="container signup-grid">
+    <div class="signup-copy">
+      <h2>AI 번호 무료로 받아보기</h2>
+      <p>
+        이름과 휴대폰 번호를 입력하고 조합 개수를 선택하세요.
+        체험 신청 후 안내 문자로 조합을 전달합니다.
+      </p>
+      <ul class="signup-points">
+        <li>신청 후 즉시 접수 안내</li>
+        <li>동의 항목 체크 필수</li>
+        <li>최대 40개 조합 선택 가능</li>
+      </ul>
+    </div>
+    <form class="signup-form" id="lotto-form">
+      <label>
+        이름
+        <input type="text" name="name" placeholder="이름" required />
+      </label>
+      <label>
+        휴대폰 번호
+        <input type="tel" name="phone" placeholder="휴대폰 번호" required />
+      </label>
+      <label>
+        받는 조합 개수
+        <select name="combo_count" required>
+          <option value="20">20개</option>
+          <option value="30">30개</option>
+          <option value="40">40개</option>
+        </select>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="consent_terms" required />
+        개인정보 수집 및 이용에 동의합니다(필수)
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="consent_marketing" />
+        광고/마케팅 수신에 동의합니다(선택)
+      </label>
+      <button class="cta" type="submit">📩 AI 추천번호 문자로 받기 (무료)</button>
+      <p class="form-note">* 서비스 문구/약관은 최종 확정 후 반영됩니다.</p>
+      <div class="form-result" id="form-result"></div>
+    </form>
+  </div>
+</section>

@@ -1,0 +1,122 @@
+.site-header {
+  background: var(--bg-dark);
+  color: #f9f5ee;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+  padding: 16px 0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.nav {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.breadcrumb {
+  background: #efe5d5;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.breadcrumb .container {
+  padding: 10px 0;
+  color: var(--muted);
+}
+
+.crumb-sep {
+  margin: 0 8px;
+}
+
+.hero {
+  padding: 70px 0 60px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  align-items: center;
+}
+
+.benefits {
+  padding: 60px 0;
+}
+
+.section-title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.how {
+  padding: 60px 0;
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.assurance {
+  padding: 0 0 60px;
+}
+
+.signup {
+  padding: 60px 0;
+}
+
+.signup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+}
+
+.site-footer {
+  background: #11100c;
+  color: #e5ded1;
+  padding: 50px 0 30px;
+  margin-top: auto;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 24px;
+  padding-top: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #a89f90;
+}

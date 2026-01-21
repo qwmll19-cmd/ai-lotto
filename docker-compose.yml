@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: ai-lotto-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_lotto
+      POSTGRES_USER: ${DB_USER:-ai_lotto}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/lotto/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ai_lotto} -d ai_lotto"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-lotto-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AI_LOTTO_APP_ENV: ${APP_ENV:-prod}
+      AI_LOTTO_DB_URL: postgresql://${DB_USER:-ai_lotto}:${DB_PASSWORD}@db:5432/ai_lotto
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      AI_LOTTO_JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-21600}
+      AI_LOTTO_JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-1209600}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost,http://localhost:80}
+      AI_LOTTO_SMS_PROVIDER: ${SMS_PROVIDER:-stub}
+      AI_LOTTO_SMS_API_KEY: ${SMS_API_KEY:-}
+      AI_LOTTO_SMS_API_SECRET: ${SMS_API_SECRET:-}
+      AI_LOTTO_SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+      AI_LOTTO_ADMIN_IDENTIFIERS: ${ADMIN_IDENTIFIERS:-}
+    volumes:
+      - backend_logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./react-app
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+    container_name: ai-lotto-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  backend_logs:

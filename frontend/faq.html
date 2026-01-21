@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>FAQ – 내 로또 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #fff5f8;
+      --primary: #ff4f8b;
+      --text-main: #222222;
+      --text-sub: #666666;
+      --border-soft: rgba(0,0,0,0.05);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:radial-gradient(circle at top left,#fff5fb 0%,#ffffff 45%);color:var(--text-main);} 
+    a{text-decoration:none;color:inherit;}
+    .header{max-width:980px;margin:0 auto;padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:center;}
+    .logo{display:flex;align-items:center;gap:8px;cursor:pointer;}
+    .logo-mark{width:26px;height:26px;border-radius:10px;background:linear-gradient(135deg,#ff4f8b,#ff9bb9);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .logo-text-main{font-weight:700;font-size:18px;}
+    .logo-text-sub{font-size:11px;color:var(--text-sub);}
+    .nav{display:flex;gap:14px;align-items:center;font-size:13px;color:#555;}
+    .nav-link:hover{color:var(--primary);} 
+    .nav-cta{padding:7px 14px;border-radius:999px;background:#fff0f5;color:#ff4f8b;font-size:12px;font-weight:600;}
+
+    .page{max-width:860px;margin:20px auto 60px;padding:0 20px;}
+    .card{background:var(--bg-soft);border-radius:22px;padding:18px;border:1px solid var(--border-soft);box-shadow:0 18px 40px rgba(0,0,0,0.06);}
+    .title{font-size:22px;font-weight:700;margin-bottom:10px;}
+    .faq{display:flex;flex-direction:column;gap:10px;}
+    .faq-item{background:#fff;border-radius:16px;padding:14px;border:1px solid rgba(0,0,0,0.06);} 
+    .q{font-size:14px;font-weight:600;margin-bottom:6px;}
+    .a{font-size:12px;color:#666;line-height:1.6;}
+    .footer{border-top:1px solid rgba(0,0,0,0.04);padding:16px 20px 24px;font-size:11px;color:#999;text-align:center;}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" id="logo-home">
+      <div class="logo-mark">AI</div>
+      <div>
+        <div class="logo-text-main">내 로또 AI</div>
+        <div class="logo-text-sub">매주 업데이트되는 데이터 기반 로또 번호</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-link" href="index.html#hero">AI 번호</a>
+      <a class="nav-link" href="about.html">서비스 소개</a>
+      <a class="nav-link" href="faq.html">FAQ</a>
+      <a class="nav-link" href="support.html">고객센터</a>
+      <a class="nav-cta" href="login.html">내 조합 보기</a>
+      <a class="nav-cta" href="signup.html">회원가입</a>
+    </nav>
+  </header>
+
+  <div class="page">
+    <section class="card">
+      <div class="title">자주 묻는 질문</div>
+      <div class="faq">
+        <div class="faq-item">
+          <div class="q">Q. 정말 당첨 확률이 올라가나요?</div>
+          <div class="a">로또는 독립 추첨이므로 당첨을 보장할 수 없습니다. 본 서비스는 통계 기반 정보 제공용입니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="q">Q. 로직은 공개되나요?</div>
+          <div class="a">핵심 알고리즘과 수식은 서비스 자산 보호를 위해 비공개이며, 큰 흐름만 안내합니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="q">Q. 무료 체험 이후에는 어떻게 되나요?</div>
+          <div class="a">현재는 무료 체험만 제공되며, 유료 전환은 안내 후 선택 방식으로 진행됩니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="q">Q. 환불/책임은 어떻게 되나요?</div>
+          <div class="a">정보 제공 서비스로서 당첨 및 수익 보장은 하지 않으며, 이용 결과 책임은 사용자에게 있습니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="q">Q. 번호는 어떻게 전달되나요?</div>
+          <div class="a">현재는 문자/SMS 방식으로 전달되며, 추후 카카오 알림톡을 추가할 예정입니다.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    본 서비스는 통계·패턴 분석을 기반으로 한 정보 제공 서비스이며, 특정 회차의 당첨을 보장하지 않습니다.
+  </footer>
+
+  <script>
+    document.getElementById('logo-home').addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

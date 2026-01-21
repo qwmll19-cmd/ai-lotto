@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip3 install:*)",
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python3 -m backend.app.scripts.lotto.build_cache:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(node --check:*)",
+      "Bash(tree:*)",
+      "Bash(pkill:*)",
+      "Bash(npm install:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(PYTHONPATH=/Users/leewonseok/Projects/ai-lotto python3:*)",
+      "Bash(PYTHONPATH=. python3:*)",
+      "Bash(__NEW_LINE_db0e582c3b8f1af4__ echo \"\")",
+      "Bash(__NEW_LINE_c45220f0022a1a31__ echo \"\")",
+      "Bash(tail:*)",
+      "Bash(npm run dev:*)",
+      "Bash(kill:*)",
+      "Bash(__NEW_LINE_51dcce3efe8276e3__ sleep 1)",
+      "Bash(__NEW_LINE_51dcce3efe8276e3__ echo \"\")",
+      "Bash(__NEW_LINE_abafee37880082b7__ sleep 1)",
+      "Bash(__NEW_LINE_abafee37880082b7__ echo \"\")",
+      "Bash(cut:*)",
+      "Bash(cd /Users/leewonseok/Projects/ai-lotto/react-app && npm run lint:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}

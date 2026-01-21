@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>서비스 소개 – 내 로또 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #fff5f8;
+      --primary: #ff4f8b;
+      --text-main: #222222;
+      --text-sub: #666666;
+      --border-soft: rgba(0,0,0,0.05);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      background:radial-gradient(circle at top left,#fff5fb 0%,#ffffff 45%);
+      color:var(--text-main);
+    }
+    a{text-decoration:none;color:inherit;}
+    .header{max-width:980px;margin:0 auto;padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:center;}
+    .logo{display:flex;align-items:center;gap:8px;cursor:pointer;}
+    .logo-mark{width:26px;height:26px;border-radius:10px;background:linear-gradient(135deg,#ff4f8b,#ff9bb9);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .logo-text-main{font-weight:700;font-size:18px;}
+    .logo-text-sub{font-size:11px;color:var(--text-sub);}
+    .nav{display:flex;gap:14px;align-items:center;font-size:13px;color:#555;}
+    .nav-link:hover{color:var(--primary);} 
+    .nav-cta{padding:7px 14px;border-radius:999px;background:#fff0f5;color:#ff4f8b;font-size:12px;font-weight:600;}
+
+    .page{max-width:980px;margin:20px auto 60px;padding:0 20px;}
+    .hero{background:var(--bg-soft);border-radius:22px;padding:20px;border:1px solid var(--border-soft);box-shadow:0 18px 40px rgba(0,0,0,0.06);margin-bottom:18px;}
+    .title{font-size:22px;font-weight:700;margin-bottom:8px;}
+    .sub{font-size:13px;color:var(--text-sub);line-height:1.6;}
+    .steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px;}
+    @media(max-width:700px){.steps{grid-template-columns:1fr;}}
+    .step-card{background:#fff;border-radius:16px;padding:14px;border:1px solid rgba(0,0,0,0.06);}
+    .step-title{font-size:14px;font-weight:600;margin-bottom:6px;}
+    .step-text{font-size:12px;color:#666;line-height:1.5;}
+    .note{font-size:12px;color:#888;margin-top:12px;}
+    .footer{border-top:1px solid rgba(0,0,0,0.04);padding:16px 20px 24px;font-size:11px;color:#999;text-align:center;}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" id="logo-home">
+      <div class="logo-mark">AI</div>
+      <div>
+        <div class="logo-text-main">내 로또 AI</div>
+        <div class="logo-text-sub">매주 업데이트되는 데이터 기반 로또 번호</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-link" href="index.html#hero">AI 번호</a>
+      <a class="nav-link" href="about.html">서비스 소개</a>
+      <a class="nav-link" href="faq.html">FAQ</a>
+      <a class="nav-link" href="support.html">고객센터</a>
+      <a class="nav-cta" href="login.html">내 조합 보기</a>
+      <a class="nav-cta" href="signup.html">회원가입</a>
+    </nav>
+  </header>
+
+  <div class="page">
+    <section class="hero">
+      <div class="title">로또 번호, 이렇게 만들어집니다</div>
+      <div class="sub">
+        누적된 로또 당첨 데이터를 기반으로 패턴과 흐름을 분석합니다.
+        비효율적인 조합을 우선 제외한 뒤, 균형 잡힌 후보군에서 번호를 추천합니다.
+      </div>
+      <div class="steps">
+        <div class="step-card">
+          <div class="step-title">1) 데이터 수집</div>
+          <div class="step-text">20년 이상 로또 당첨번호와 최근 회차 데이터를 수집·정제합니다.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-title">2) 패턴 분석</div>
+          <div class="step-text">출현 빈도, 구간 분포, 홀짝 밸런스를 분석해 점수화합니다.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-title">3) 비효율 조합 필터링</div>
+          <div class="step-text">극단적인 합계/구간 편중 조합은 우선 제외합니다.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-title">4) 후보군 추천</div>
+          <div class="step-text">필터를 통과한 후보군에서 균형 잡힌 조합을 추천합니다.</div>
+        </div>
+      </div>
+      <div class="note">정확한 알고리즘과 세부 수식은 서비스 핵심 자산 보호를 위해 비공개입니다.</div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    본 서비스는 통계·패턴 분석을 기반으로 한 정보 제공 서비스이며, 특정 회차의 당첨을 보장하지 않습니다.
+  </footer>
+
+  <script>
+    document.getElementById('logo-home').addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

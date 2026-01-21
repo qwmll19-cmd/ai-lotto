@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>무료 체험 신청 – 내 로또 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #fff5f8;
+      --primary: #ff4f8b;
+      --primary-soft: #fff0f5;
+      --text-main: #222222;
+      --text-sub: #666666;
+      --border-soft: rgba(0,0,0,0.05);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      background:radial-gradient(circle at top left,#fff5fb 0%,#ffffff 45%);
+      color:var(--text-main);
+      -webkit-font-smoothing:antialiased;
+    }
+    a{text-decoration:none;color:inherit;}
+
+    .header{
+      max-width:960px;margin:0 auto;padding:16px 20px 10px;
+      display:flex;justify-content:space-between;align-items:center;
+    }
+    .logo{display:flex;align-items:center;gap:8px;cursor:pointer;}
+    .logo-mark{
+      width:26px;height:26px;border-radius:10px;
+      background:linear-gradient(135deg,#ff4f8b,#ff9bb9);
+      color:#fff;font-size:13px;font-weight:700;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .logo-text-main{font-weight:700;font-size:18px;}
+    .logo-text-sub{font-size:11px;color:var(--text-sub);}
+    .nav{display:flex;gap:14px;align-items:center;font-size:13px;color:#555;}
+    .nav-link:hover{color:var(--primary);}
+
+    .signup{
+      max-width:720px;margin:0 auto 60px;padding:0 20px 40px;
+    }
+    .signup-box{
+      background:var(--bg-soft);
+      border-radius:24px;
+      box-shadow:0 18px 40px rgba(0,0,0,0.06);
+      padding:22px 22px 18px;
+      border:1px solid var(--border-soft);
+    }
+    .signup-title{font-size:22px;font-weight:700;margin-bottom:6px;}
+    .signup-sub{font-size:13px;color:var(--text-sub);margin-bottom:14px;}
+    .signup-form{display:flex;flex-direction:column;gap:10px;}
+    .signup-form label{font-size:12px;color:#555;display:flex;flex-direction:column;gap:6px;}
+    .signup-form input,.signup-form select{
+      border:1px solid rgba(0,0,0,0.08);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      background:#fff;
+    }
+    .signup-form .checkbox{flex-direction:row;align-items:center;gap:8px;font-size:12px;color:#666;}
+    .signup-form .checkbox input{margin:0;}
+    .btn-primary{
+      border:none;border-radius:999px;
+      background:var(--primary);color:#fff;
+      padding:10px 18px;font-size:14px;
+      font-weight:600;cursor:pointer;
+      display:inline-flex;align-items:center;gap:6px;
+      box-shadow:0 10px 25px rgba(255,79,139,0.35);
+      justify-content:center;
+    }
+    .form-result{font-size:12px;color:#ff296f;margin-top:6px;line-height:1.5;}
+    .footer{border-top:1px solid rgba(0,0,0,0.04);padding:16px 20px 24px;font-size:11px;color:#999;text-align:center;}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo" id="logo-home">
+      <div class="logo-mark">AI</div>
+      <div>
+        <div class="logo-text-main">내 로또 AI</div>
+        <div class="logo-text-sub">매주 업데이트되는 데이터 기반 로또 번호</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-link" href="index.html">메인으로</a>
+      <a class="nav-link" href="login.html">내 조합 보기</a>
+      <a class="nav-link" href="signup.html">회원가입</a>
+    </nav>
+  </header>
+
+  <section class="signup" id="signup-form">
+    <div class="signup-box">
+      <div class="signup-title">무료 체험 신청</div>
+      <div class="signup-sub">받고 싶은 조합 개수만 선택하면 바로 시작됩니다.</div>
+      <form class="signup-form" id="lotto-form">
+        <label>
+          이름
+          <input type="text" name="name" placeholder="이름" required />
+        </label>
+        <label>
+          휴대폰 번호
+          <input type="tel" name="phone" placeholder="01012345678" required />
+        </label>
+        <label>
+          받는 조합 개수
+          <select name="combo_count" required>
+            <option value="5">5줄</option>
+            <option value="10">10줄</option>
+            <option value="20" selected>20줄</option>
+          </select>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="consent_terms" required />
+          개인정보 수집 및 이용에 동의합니다(필수)
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="consent_marketing" />
+          광고/마케팅 수신에 동의합니다(선택)
+        </label>
+        <button class="btn-primary" type="submit">📩 AI 추천 번호 무료로 받아보기</button>
+        <div class="form-result" id="form-result"></div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="footer">
+    본 서비스는 통계·패턴 분석을 기반으로 한 정보 제공 서비스이며, 특정 회차의 당첨을 보장하지 않습니다.
+  </footer>
+
+  <script>
+    document.getElementById('logo-home').addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+
+    var form = document.getElementById('lotto-form');
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var result = document.getElementById('form-result');
+        var submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        if (result) result.textContent = '신청을 처리 중입니다...';
+
+        var payload = {
+          name: form.querySelector('[name="name"]').value.trim(),
+          phone: form.querySelector('[name="phone"]').value.trim(),
+          combo_count: Number(form.querySelector('[name="combo_count"]').value || 20),
+          consent_terms: Boolean(form.querySelector('[name="consent_terms"]').checked),
+          consent_marketing: Boolean(form.querySelector('[name="consent_marketing"]').checked)
+        };
+
+        fetch('http://127.0.0.1:8000/api/apply-free-trial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+          .then(function (res) {
+            if (!res.ok) throw new Error(res.data.detail || '요청에 실패했습니다.');
+            if (result) {
+              result.textContent = '신청이 완료되었습니다. AI 추천 번호는 문자로 발송됩니다.';
+            }
+          })
+          .catch(function (err) {
+            if (result) result.textContent = '에러: ' + (err.message || '요청에 실패했습니다.');
+          })
+          .finally(function () {
+            if (submitBtn) submitBtn.disabled = false;
+          });
+      });
+    }
+  </script>
+</body>
+</html>

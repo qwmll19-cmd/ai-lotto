@@ -1,0 +1,1 @@
+"""Lotto data pipeline scripts."""

@@ -1,0 +1,36 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+}
+
+.page {
+  padding-bottom: 40px;
+}
+
+.page-head {
+  max-width: 1080px;
+  margin: 40px auto 24px;
+  padding: 0 20px;
+}
+
+.page-head h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.page-head p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .page-head h1 {
+    font-size: 22px;
+  }
+}
