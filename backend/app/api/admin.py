@@ -97,7 +97,7 @@ def get_admin_dashboard(
 
 class UserListItem(BaseModel):
     id: int
-    identifier: str
+    identifier: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
     phone_number: Optional[str] = None
