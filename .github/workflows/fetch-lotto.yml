@@ -1,0 +1,35 @@
+name: Fetch Lotto Data
+
+on:
+  schedule:
+    # 매주 토요일 8시 50분 KST = 토요일 11:50 UTC
+    - cron: '50 11 * * 6'
+  workflow_dispatch:  # 수동 실행도 가능
+
+jobs:
+  fetch-lotto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger lotto fetch API
+        run: |
+          echo "로또 데이터 수집 시작..."
+          echo "시간: $(date)"
+
+          # Render 백엔드의 로또 데이터 수집 엔드포인트 호출
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.BACKEND_URL }}/api/admin/cron/fetch-lotto" \
+            -H "Authorization: Bearer ${{ secrets.CRON_API_KEY }}" \
+            -H "Content-Type: application/json")
+
+          # HTTP 상태 코드와 응답 본문 분리
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "로또 데이터 수집 성공!"
+          else
+            echo "로또 데이터 수집 실패!"
+            exit 1
+          fi

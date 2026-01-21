@@ -100,6 +100,9 @@ class Settings:
     # 관리자
     ADMIN_IDENTIFIERS: str = os.getenv("AI_LOTTO_ADMIN_IDENTIFIERS", "")
 
+    # Cron Job API 키 (외부 스케줄러에서 호출할 때 사용)
+    CRON_API_KEY: str = os.getenv("AI_LOTTO_CRON_API_KEY", "")
+
 
 settings = Settings()
 

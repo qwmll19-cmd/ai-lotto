@@ -11,7 +11,9 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
+from fastapi import Header
 from app.api.auth import get_current_user, require_admin
+from app.config import settings
 from app.db.models import (
     User, FreeTrialApplication, Payment, Subscription,
     LottoDraw, LottoRecommendLog, LottoStatsCache,
@@ -1656,3 +1658,150 @@ def delete_social_account(
     db.delete(account)
     db.commit()
     return {"ok": True, "message": "소셜 계정 연동이 해제되었습니다."}
+
+
+# ============================================
+# Cron Job용 엔드포인트 (API 키 인증)
+# ============================================
+
+def verify_cron_api_key(authorization: str = Header(None)):
+    """Cron Job API 키 검증"""
+    if not settings.CRON_API_KEY:
+        raise HTTPException(status_code=500, detail="CRON_API_KEY가 설정되지 않았습니다.")
+
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization 헤더가 필요합니다.")
+
+    # Bearer 토큰 형식 또는 직접 키 형식 모두 지원
+    token = authorization
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]
+
+    if token != settings.CRON_API_KEY:
+        raise HTTPException(status_code=403, detail="유효하지 않은 API 키입니다.")
+
+    return True
+
+
+@router.post("/cron/fetch-lotto")
+def cron_fetch_lotto(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_cron_api_key)
+):
+    """
+    Cron Job용 로또 데이터 자동 수집 엔드포인트
+
+    매주 토요일 8:50 PM KST에 자동 실행됨
+    - 동행복권 API에서 최신 회차 데이터 수집
+    - 통계 캐시 자동 갱신
+    - 미매칭 추천 로그 자동 매칭
+    """
+    from app.collectors.lotto.api_client import LottoAPIClient
+    from app.collectors.lotto.db_manager import LottoDBManager
+
+    try:
+        api = LottoAPIClient(delay=0.5)
+        db_manager = LottoDBManager(db)
+
+        # DB의 최신 회차 확인
+        latest_db = db_manager.get_max_draw_no() or 0
+
+        # API에서 최신 회차 확인
+        latest_api = api.get_latest_draw_no()
+
+        if latest_api <= latest_db:
+            logger.info(f"Cron fetch: 이미 최신 데이터 보유 (DB: {latest_db}회차, API: {latest_api}회차)")
+            return {
+                "ok": True,
+                "message": "이미 최신 데이터입니다.",
+                "latest_db": latest_db,
+                "latest_api": latest_api,
+                "saved_count": 0
+            }
+
+        # 새 회차 데이터 수집
+        saved_count = 0
+        new_draws = []
+        for draw_no in range(latest_db + 1, latest_api + 1):
+            draw_info = api.get_lotto_draw(draw_no, retries=3)
+            if draw_info is None:
+                logger.warning(f"Cron fetch: {draw_no}회차 데이터 조회 실패")
+                continue
+            if db_manager.save_draw(draw_info):
+                saved_count += 1
+                new_draws.append(draw_no)
+                logger.info(f"Cron fetch: {draw_no}회차 저장 완료")
+
+        # 통계 캐시 갱신
+        if saved_count > 0:
+            _rebuild_cache_internal(db)
+            logger.info(f"Cron fetch: 통계 캐시 갱신 완료")
+
+            # 새 회차에 대해 미매칭 추천 로그 매칭
+            from app.services.lotto.result_matcher import match_all_pending_logs
+            for draw_no in new_draws:
+                try:
+                    match_result = match_all_pending_logs(db, draw_no)
+                    logger.info(f"Cron fetch: {draw_no}회차 매칭 완료 - {match_result.get('matched_count', 0)}건")
+                except Exception as e:
+                    logger.error(f"Cron fetch: {draw_no}회차 매칭 실패 - {e}")
+
+        return {
+            "ok": True,
+            "message": f"{saved_count}개 회차 저장 완료",
+            "latest_db": latest_db,
+            "latest_api": latest_api,
+            "saved_count": saved_count,
+            "new_draws": new_draws
+        }
+
+    except Exception as e:
+        logger.exception(f"Cron fetch error: {e}")
+        raise HTTPException(status_code=500, detail=f"데이터 수집 실패: {str(e)}")
+
+
+def _rebuild_cache_internal(db: Session):
+    """통계 캐시 재생성 (내부용)"""
+    from app.services.lotto.stats_calculator import LottoStatsCalculator
+    import json
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
+    if not draws:
+        return
+
+    draws_dict = [
+        {
+            "draw_no": d.draw_no,
+            "n1": d.n1, "n2": d.n2, "n3": d.n3,
+            "n4": d.n4, "n5": d.n5, "n6": d.n6,
+            "bonus": d.bonus,
+        }
+        for d in draws
+    ]
+
+    most_common, least_common = LottoStatsCalculator.calculate_most_least(draws_dict)
+    ai_scores = {
+        "logic1": LottoStatsCalculator.calculate_ai_scores_logic1(draws_dict),
+        "logic2": LottoStatsCalculator.calculate_ai_scores_logic2(draws_dict),
+        "logic3": LottoStatsCalculator.calculate_ai_scores_logic3(draws_dict),
+    }
+
+    cache = db.query(LottoStatsCache).filter(LottoStatsCache.id == 1).first()
+    if cache:
+        cache.updated_at = datetime.utcnow()
+        cache.total_draws = len(draws)
+        cache.most_common = json.dumps(most_common)
+        cache.least_common = json.dumps(least_common)
+        cache.ai_scores = json.dumps(ai_scores)
+    else:
+        cache = LottoStatsCache(
+            id=1,
+            updated_at=datetime.utcnow(),
+            total_draws=len(draws),
+            most_common=json.dumps(most_common),
+            least_common=json.dumps(least_common),
+            ai_scores=json.dumps(ai_scores),
+        )
+        db.add(cache)
+
+    db.commit()
