@@ -2049,6 +2049,15 @@
   background: rgba(255, 79, 139, 0.2);
 }
 
+.admin__btn--warning {
+  background: rgba(255, 165, 0, 0.15);
+  color: #e69500;
+}
+
+.admin__btn--warning:hover {
+  background: rgba(255, 165, 0, 0.25);
+}
+
 .admin__pagination {
   display: flex;
   align-items: center;

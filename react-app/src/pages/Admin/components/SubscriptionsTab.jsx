@@ -168,6 +168,13 @@ function SubscriptionsTab({
                         >
                           연장
                         </button>
+                        <button
+                          className="admin__btn admin__btn--warning"
+                          onClick={() => handleExtend(sub.id, 36500)}
+                          title="100년 연장 (무제한)"
+                        >
+                          무제한
+                        </button>
                       </div>
                       <button
                         className="admin__btn admin__btn--danger"
