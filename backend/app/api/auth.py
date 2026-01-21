@@ -21,6 +21,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # 더미 해시값 (타이밍 공격 방지용)
 _DUMMY_HASH = hash_password("dummy_password_for_timing_attack_prevention")
 
+# 이메일 형식 검증 정규식
+_EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+
+def _is_email(value: str) -> bool:
+    """이메일 형식인지 확인"""
+    return bool(_EMAIL_REGEX.match(value))
+
 
 class SignupRequest(BaseModel):
     identifier: str = Field(..., min_length=3, max_length=200)
@@ -88,35 +96,49 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 @router.post("/signup", response_model=AuthResponse)
 @limiter.limit("5/minute")
 def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
-    identifier = payload.identifier.strip()
+    import logging
+    logger = logging.getLogger("auth")
 
-    # 기존 계정 확인 (identifier 또는 email로)
-    existing = db.query(User).filter(
-        (User.identifier == identifier) | (User.email == identifier)
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="이미 등록된 계정입니다.")
+    try:
+        identifier = payload.identifier.strip()
+        logger.info(f"회원가입 시도: {identifier[:3]}***")
 
-    # 이메일 형식이면 email 필드에도 저장 (소셜 로그인 통합용)
-    email = identifier if _is_email(identifier) else None
+        # 기존 계정 확인 (identifier 또는 email로)
+        existing = db.query(User).filter(
+            (User.identifier == identifier) | (User.email == identifier)
+        ).first()
+        if existing:
+            logger.warning(f"회원가입 실패 - 이미 존재하는 계정: {identifier[:3]}***")
+            raise HTTPException(status_code=400, detail="이미 등록된 계정입니다.")
 
-    user = User(
-        identifier=identifier,
-        email=email,
-        password_hash=hash_password(payload.password),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+        # 이메일 형식이면 email 필드에도 저장 (소셜 로그인 통합용)
+        email = identifier if _is_email(identifier) else None
 
-    access_token, refresh_token = _create_tokens(user.id, user.identifier)
-    user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
-    db.add(user)
-    db.commit()
+        user = User(
+            identifier=identifier,
+            email=email,
+            password_hash=hash_password(payload.password),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
-    _set_auth_cookies(response, access_token, refresh_token)
-    return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
+        access_token, refresh_token = _create_tokens(user.id, user.identifier)
+        user.refresh_token_hash = hash_token(refresh_token)
+        user.refresh_token_updated_at = datetime.utcnow()
+        db.add(user)
+        db.commit()
+
+        _set_auth_cookies(response, access_token, refresh_token)
+        logger.info(f"회원가입 성공: user_id={user.id}")
+        return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"회원가입 오류: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"회원가입 처리 중 오류가 발생했습니다: {str(e)}")
 
 
 @router.post("/login", response_model=AuthResponse)

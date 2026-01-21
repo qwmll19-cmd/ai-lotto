@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, TypedDict
 from urllib.parse import urlencode
 
@@ -11,7 +11,8 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import User, SocialAccount
+from app.db.models import User, SocialAccount, OAuthState
+from app.db.session import SessionLocal
 
 logger = logging.getLogger("oauth")
 
@@ -34,34 +35,58 @@ class OAuthError(Exception):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CSRF State 관리 (메모리 기반, 프로덕션에서는 Redis 권장)
+# CSRF State 관리 (DB 기반 - 멀티 인스턴스 지원)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-_oauth_states: dict[str, datetime] = {}
-
 
 def generate_oauth_state() -> str:
-    """CSRF 방지용 state 생성"""
+    """CSRF 방지용 state 생성 (DB 저장)"""
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = datetime.utcnow()
-    _cleanup_expired_states()
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    db = SessionLocal()
+    try:
+        # 만료된 state 정리
+        db.query(OAuthState).filter(OAuthState.expires_at < datetime.utcnow()).delete()
+
+        # 새 state 저장
+        oauth_state = OAuthState(state=state, expires_at=expires_at)
+        db.add(oauth_state)
+        db.commit()
+    except Exception as e:
+        logger.error(f"OAuth state 저장 실패: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
     return state
 
 
 def verify_oauth_state(state: str) -> bool:
-    """state 검증 (5분 유효)"""
-    if state not in _oauth_states:
+    """state 검증 (5분 유효, DB에서 조회 후 삭제)"""
+    if not state:
         return False
-    created_at = _oauth_states.pop(state)
-    elapsed = (datetime.utcnow() - created_at).total_seconds()
-    return elapsed < 300  # 5분
 
+    db = SessionLocal()
+    try:
+        oauth_state = db.query(OAuthState).filter(
+            OAuthState.state == state,
+            OAuthState.expires_at > datetime.utcnow()
+        ).first()
 
-def _cleanup_expired_states() -> None:
-    """만료된 state 정리"""
-    now = datetime.utcnow()
-    expired = [k for k, v in _oauth_states.items() if (now - v).total_seconds() > 300]
-    for key in expired:
-        _oauth_states.pop(key, None)
+        if not oauth_state:
+            logger.warning(f"OAuth state 검증 실패: state={state[:10]}...")
+            return False
+
+        # 사용한 state 삭제 (일회용)
+        db.delete(oauth_state)
+        db.commit()
+        return True
+    except Exception as e:
+        logger.error(f"OAuth state 검증 오류: {e}")
+        db.rollback()
+        return False
+    finally:
+        db.close()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -229,8 +254,20 @@ async def fetch_kakao_profile(access_token: str) -> OAuthProfile:
                 raise OAuthError("카카오 프로필 조회 실패", "profile_error")
 
             data = response.json()
+
+            # 디버깅: 카카오에서 받은 전체 데이터 로깅
+            logger.info("Kakao raw response keys: %s", list(data.keys()))
             kakao_account = data.get("kakao_account", {})
+            logger.info("Kakao account keys: %s", list(kakao_account.keys()))
             profile = kakao_account.get("profile", {})
+            logger.info("Kakao profile keys: %s", list(profile.keys()))
+
+            # 이름 필드 확인 (여러 가능한 필드에서 찾기)
+            name = (
+                profile.get("nickname") or
+                kakao_account.get("name") or
+                data.get("properties", {}).get("nickname")
+            )
 
             # 전화번호 정규화 (+82 10-1234-5678 → 01012345678)
             phone = kakao_account.get("phone_number", "")
@@ -239,10 +276,18 @@ async def fetch_kakao_profile(access_token: str) -> OAuthProfile:
                 if phone.startswith("82"):
                     phone = "0" + phone[2:]
 
+            # 이메일 여러 위치에서 찾기
+            email = kakao_account.get("email")
+
+            logger.info(
+                "Kakao profile parsed: id=%s, name=%s, email=%s, phone=%s",
+                data.get("id"), name, email, phone[:4] + "****" if phone else None
+            )
+
             return OAuthProfile(
                 provider_user_id=str(data.get("id", "")),
-                email=kakao_account.get("email"),
-                name=profile.get("nickname"),
+                email=email,
+                name=name,
                 phone_number=phone or None,
                 profile_image_url=profile.get("profile_image_url"),
             )

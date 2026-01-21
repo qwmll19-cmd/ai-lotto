@@ -7798,3 +7798,86 @@
     font-size: 16px;
   }
 }
+
+/* ================================
+   InApp Browser Guide
+   ================================ */
+.inapp-guide {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+  padding: 16px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.inapp-guide__content {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inapp-guide__icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.inapp-guide__text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.inapp-guide__text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.inapp-guide__text p {
+  margin: 0;
+  font-size: 13px;
+  color: #a16207;
+  line-height: 1.4;
+}
+
+.inapp-guide__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.inapp-guide__actions .btn--sm {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .inapp-guide__content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .inapp-guide__actions {
+    width: 100%;
+    justify-content: center;
+  }
+}

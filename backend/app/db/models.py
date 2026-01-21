@@ -377,6 +377,16 @@ class SmsVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class OAuthState(Base):
+    """OAuth CSRF State (인스턴스간 공유를 위해 DB 저장)"""
+    __tablename__ = "oauth_states"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    state = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+
 class MLTrainingLog(Base):
     """ML 학습 로그"""
     __tablename__ = "ml_training_logs"

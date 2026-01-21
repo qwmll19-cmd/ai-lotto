@@ -27,33 +27,33 @@ export const statsPatterns = [
 
 export const historyRows = [
   {
+    round: 1207,
+    numbers: '3, 14, 15, 23, 35, 45',
+    bonus: 26,
+    ai: '추천 있음',
+    date: '2026-01-18',
+  },
+  {
     round: 1206,
     numbers: '1, 3, 17, 26, 27, 42',
     bonus: 23,
-    ai: '추천 있음',
-    date: '2026-01-10',
+    ai: '추천 없음',
+    date: '2026-01-11',
   },
   {
     round: 1205,
     numbers: '1, 4, 16, 23, 31, 41',
     bonus: 7,
-    ai: '추천 없음',
-    date: '2026-01-03',
-  },
-  {
-    round: 1204,
-    numbers: '7, 12, 20, 28, 37, 44',
-    bonus: 9,
     ai: '추천 있음',
-    date: '2025-12-27',
+    date: '2026-01-04',
   },
 ]
 
 export const latestDrawMock = {
-  draw_no: 1206,
-  numbers: [1, 3, 17, 26, 27, 42],
-  bonus: 23,
-  draw_date: '2026-01-10',
+  draw_no: 1207,
+  numbers: [3, 14, 15, 23, 35, 45],
+  bonus: 26,
+  draw_date: '2026-01-18',
 }
 
 export const mypageSummary = [

@@ -139,9 +139,14 @@ def _parse_bool(value: str, default: bool = False) -> bool:
 
 
 def get_cookie_settings() -> tuple[bool, str]:
+    """
+    쿠키 보안 설정 반환
+    - OAuth 콜백을 위해 SameSite=lax 사용
+    - strict는 외부 리다이렉트에서 쿠키 전송 안됨
+    """
     secure_default = settings.APP_ENV == "prod"
     secure = _parse_bool(settings.COOKIE_SECURE, secure_default)
-    samesite = settings.COOKIE_SAMESITE or ("strict" if secure else "lax")
+    samesite = settings.COOKIE_SAMESITE or "lax"
     return secure, samesite
 
 
