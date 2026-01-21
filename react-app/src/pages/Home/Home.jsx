@@ -38,8 +38,7 @@ function Home() {
             </div>
 
             {/* Basic */}
-            <div className="pricing-preview__card pricing-preview__card--popular">
-              <div className="pricing-preview__badge">인기</div>
+            <div className="pricing-preview__card">
               <h3>Basic</h3>
               <p className="pricing-preview__subtitle">더 많은 추천이 필요한 분께</p>
               <div className="pricing-preview__price">
@@ -56,7 +55,8 @@ function Home() {
             </div>
 
             {/* Premium */}
-            <div className="pricing-preview__card">
+            <div className="pricing-preview__card pricing-preview__card--popular">
+              <div className="pricing-preview__badge">인기</div>
               <h3>Premium</h3>
               <p className="pricing-preview__subtitle">본격적인 분석이 필요한 분께</p>
               <div className="pricing-preview__price">

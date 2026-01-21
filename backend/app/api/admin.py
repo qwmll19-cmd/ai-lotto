@@ -1805,3 +1805,58 @@ def _rebuild_cache_internal(db: Session):
         db.add(cache)
 
     db.commit()
+
+
+class LottoDrawImport(BaseModel):
+    draw_no: int
+    draw_date: str
+    n1: int
+    n2: int
+    n3: int
+    n4: int
+    n5: int
+    n6: int
+    bonus: int
+
+
+@router.post("/cron/import-draws")
+def cron_import_draws(
+    draws: list[LottoDrawImport],
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_cron_api_key)
+):
+    """로또 데이터 일괄 업로드 (마이그레이션용)"""
+    saved_count = 0
+    skipped_count = 0
+
+    for draw in draws:
+        existing = db.query(LottoDraw).filter(LottoDraw.draw_no == draw.draw_no).first()
+        if existing:
+            skipped_count += 1
+            continue
+
+        new_draw = LottoDraw(
+            draw_no=draw.draw_no,
+            draw_date=draw.draw_date,
+            n1=draw.n1,
+            n2=draw.n2,
+            n3=draw.n3,
+            n4=draw.n4,
+            n5=draw.n5,
+            n6=draw.n6,
+            bonus=draw.bonus,
+        )
+        db.add(new_draw)
+        saved_count += 1
+
+    db.commit()
+
+    if saved_count > 0:
+        _rebuild_cache_internal(db)
+
+    return {
+        "ok": True,
+        "message": f"{saved_count}개 저장, {skipped_count}개 스킵",
+        "saved_count": saved_count,
+        "skipped_count": skipped_count
+    }
