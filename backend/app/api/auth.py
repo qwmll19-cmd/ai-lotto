@@ -15,6 +15,9 @@ from app.services.auth import hash_password, verify_password, hash_token, verify
 from app.services.jwt import decode_jwt, encode_jwt
 from app.services.sms import get_sms_client, SmsSendRequest
 from app.rate_limit import limiter
+import logging
+
+logger = logging.getLogger("auth")
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -96,9 +99,6 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 @router.post("/signup", response_model=AuthResponse)
 @limiter.limit("5/minute")
 def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
-    import logging
-    logger = logging.getLogger("auth")
-
     try:
         identifier = payload.identifier.strip()
         logger.info(f"회원가입 시도: {identifier[:3]}***")

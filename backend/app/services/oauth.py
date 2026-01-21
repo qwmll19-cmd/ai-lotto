@@ -52,13 +52,14 @@ def generate_oauth_state() -> str:
         oauth_state = OAuthState(state=state, expires_at=expires_at)
         db.add(oauth_state)
         db.commit()
+        logger.debug(f"OAuth state 생성 성공: {state[:10]}...")
+        return state
     except Exception as e:
         logger.error(f"OAuth state 저장 실패: {e}")
         db.rollback()
+        raise OAuthError("OAuth 인증을 시작할 수 없습니다. 잠시 후 다시 시도해주세요.", "state_error")
     finally:
         db.close()
-
-    return state
 
 
 def verify_oauth_state(state: str) -> bool:

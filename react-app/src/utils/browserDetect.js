@@ -5,7 +5,6 @@
 
 export function isInAppBrowser() {
   const ua = navigator.userAgent || navigator.vendor || window.opera || ''
-  const uaLower = ua.toLowerCase()
 
   // 카카오톡 인앱 브라우저
   if (/kakaotalk/i.test(ua)) return { isInApp: true, app: 'kakaotalk' }
@@ -26,7 +25,7 @@ export function isInAppBrowser() {
   if (/twitter/i.test(ua)) return { isInApp: true, app: 'twitter' }
 
   // 일반 웹뷰 감지 (안드로이드)
-  if (/wv\)/.test(uaLower) || /webview/i.test(ua)) return { isInApp: true, app: 'webview' }
+  if (/wv\)/i.test(ua) || /webview/i.test(ua)) return { isInApp: true, app: 'webview' }
 
   // iOS 웹뷰 감지
   if (/(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(ua)) return { isInApp: true, app: 'ios_webview' }
@@ -38,8 +37,6 @@ export function isInAppBrowser() {
  * 외부 브라우저로 열기 URL 생성
  */
 export function getExternalBrowserUrl(url) {
-  const { app } = isInAppBrowser()
-
   // 안드로이드: intent scheme 사용
   if (/android/i.test(navigator.userAgent)) {
     return `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
