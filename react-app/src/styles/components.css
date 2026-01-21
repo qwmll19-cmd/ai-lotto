@@ -5115,6 +5115,31 @@
   border-color: var(--primary);
 }
 
+.auth-form__input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.auth-form__input-group input {
+  flex: 1;
+}
+
+.auth-form__input-group .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.auth-form__verified {
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
 .auth-form__consents {
   display: flex;
   flex-direction: column;

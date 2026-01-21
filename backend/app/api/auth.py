@@ -33,9 +33,20 @@ def _is_email(value: str) -> bool:
     return bool(_EMAIL_REGEX.match(value))
 
 
+# 전화번호 형식 검증 정규식
+_PHONE_REGEX = re.compile(r'^01[016789]\d{7,8}$')
+
+
+def _is_phone(value: str) -> bool:
+    """전화번호 형식인지 확인 (숫자만)"""
+    digits = re.sub(r'\D', '', value)
+    return bool(_PHONE_REGEX.match(digits))
+
+
 class SignupRequest(BaseModel):
     identifier: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=200)
+    sms_verified_token: Optional[str] = None  # 전화번호 인증 시 필요
 
 
 class LoginRequest(BaseModel):
@@ -103,20 +114,56 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         identifier = payload.identifier.strip()
         logger.info(f"회원가입 시도: {identifier[:3]}***")
 
-        # 기존 계정 확인 (identifier 또는 email로)
+        # 전화번호 형식인지 확인
+        digits = re.sub(r'\D', '', identifier)
+        is_phone = _is_phone(digits)
+        is_email = _is_email(identifier)
+
+        # 이메일도 전화번호도 아닌 경우 거부
+        if not is_email and not is_phone:
+            raise HTTPException(status_code=400, detail="올바른 이메일 또는 휴대폰 번호를 입력해주세요.")
+
+        # 전화번호인 경우 SMS 인증 토큰 필수
+        if is_phone:
+            if not payload.sms_verified_token:
+                raise HTTPException(status_code=400, detail="휴대폰 인증이 필요합니다.")
+
+            # 인증 토큰 검증
+            verification = db.query(SmsVerification).filter(
+                SmsVerification.phone == digits,
+                SmsVerification.purpose == "signup",
+                SmsVerification.verified_at.isnot(None),
+            ).order_by(SmsVerification.verified_at.desc()).first()
+
+            if not verification:
+                raise HTTPException(status_code=400, detail="휴대폰 인증을 먼저 완료해주세요.")
+
+            # 토큰 검증 (10분 이내 인증된 것만 허용)
+            if not verify_token(payload.sms_verified_token, verification.code):
+                raise HTTPException(status_code=400, detail="인증 정보가 유효하지 않습니다.")
+
+            ten_min_ago = datetime.utcnow() - timedelta(minutes=10)
+            if verification.verified_at < ten_min_ago:
+                raise HTTPException(status_code=400, detail="인증이 만료되었습니다. 다시 인증해주세요.")
+
+            # 인증에 사용된 전화번호와 입력한 전화번호가 같은지 확인
+            identifier = digits  # 정규화된 전화번호 사용
+
+        # 기존 계정 확인 (identifier, email, phone_number로)
         existing = db.query(User).filter(
-            (User.identifier == identifier) | (User.email == identifier)
+            (User.identifier == identifier) |
+            (User.email == identifier) |
+            (User.phone_number == identifier)
         ).first()
         if existing:
             logger.warning(f"회원가입 실패 - 이미 존재하는 계정: {identifier[:3]}***")
             raise HTTPException(status_code=400, detail="이미 등록된 계정입니다.")
 
-        # 이메일 형식이면 email 필드에도 저장 (소셜 로그인 통합용)
-        email = identifier if _is_email(identifier) else None
-
+        # 사용자 생성
         user = User(
             identifier=identifier,
-            email=email,
+            email=identifier if is_email else None,
+            phone_number=digits if is_phone else None,
             password_hash=hash_password(payload.password),
         )
         db.add(user)
@@ -130,7 +177,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         db.commit()
 
         _set_auth_cookies(response, access_token, refresh_token)
-        logger.info(f"회원가입 성공: user_id={user.id}")
+        logger.info(f"회원가입 성공: user_id={user.id}, type={'phone' if is_phone else 'email'}")
         return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
 
     except HTTPException:
@@ -268,6 +315,167 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 회원가입용 SMS 인증 API
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class SignupSmsRequest(BaseModel):
+    phone: str = Field(..., min_length=10, max_length=20)
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        digits = re.sub(r'\D', '', v)
+        if len(digits) < 10 or len(digits) > 11:
+            raise ValueError('올바른 휴대폰 번호를 입력해주세요.')
+        return digits
+
+
+class SignupSmsResponse(BaseModel):
+    message: str
+    sent: bool = False
+
+
+class SignupVerifyRequest(BaseModel):
+    phone: str = Field(..., min_length=10, max_length=20)
+    code: str = Field(..., min_length=6, max_length=6)
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        return re.sub(r'\D', '', v)
+
+
+class SignupVerifyResponse(BaseModel):
+    verified: bool
+    verified_token: Optional[str] = None  # 회원가입 시 전달할 토큰
+    message: str
+
+
+def _generate_sms_code() -> str:
+    """6자리 인증코드 생성"""
+    return str(random.randint(100000, 999999))
+
+
+@router.post("/signup/send-sms", response_model=SignupSmsResponse)
+@limiter.limit("3/minute")
+def signup_send_sms(request: Request, payload: SignupSmsRequest, db: Session = Depends(get_db)):
+    """
+    회원가입용 SMS 인증코드 발송
+    - 이미 등록된 번호인지 확인
+    - 6자리 인증코드 SMS 발송
+    """
+    phone = payload.phone
+
+    # 이미 등록된 번호인지 확인
+    existing = db.query(User).filter(
+        (User.phone_number == phone) | (User.identifier == phone)
+    ).first()
+    if existing:
+        return SignupSmsResponse(
+            message="이미 가입된 휴대폰 번호입니다.",
+            sent=False,
+        )
+
+    # 기존 미인증 코드 삭제
+    db.query(SmsVerification).filter(
+        SmsVerification.phone == phone,
+        SmsVerification.purpose == "signup",
+        SmsVerification.verified_at.is_(None),
+    ).delete(synchronize_session=False)
+    db.flush()
+
+    # 새 인증코드 생성
+    code = _generate_sms_code()
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    verification = SmsVerification(
+        phone=phone,
+        code=code,
+        purpose="signup",
+        expires_at=expires_at,
+    )
+    db.add(verification)
+    db.commit()
+
+    # SMS 발송
+    sms_client = get_sms_client()
+    message = f"[팡팡로또] 회원가입 인증코드: {code}\n5분 내에 입력해주세요."
+
+    result = sms_client.send(SmsSendRequest(to=phone, content=message))
+
+    return SignupSmsResponse(
+        message="인증코드가 발송되었습니다.",
+        sent=result.success,
+    )
+
+
+@router.post("/signup/verify-sms", response_model=SignupVerifyResponse)
+@limiter.limit("10/minute")
+def signup_verify_sms(request: Request, payload: SignupVerifyRequest, db: Session = Depends(get_db)):
+    """
+    회원가입용 SMS 인증코드 확인
+    - 인증 성공 시 회원가입에 사용할 토큰 발급
+    """
+    phone = payload.phone
+
+    # 인증코드 조회
+    verification = db.query(SmsVerification).filter(
+        SmsVerification.phone == phone,
+        SmsVerification.purpose == "signup",
+        SmsVerification.verified_at.is_(None),
+    ).order_by(SmsVerification.created_at.desc()).first()
+
+    if not verification:
+        return SignupVerifyResponse(
+            verified=False,
+            message="인증코드를 먼저 요청해주세요.",
+        )
+
+    # 만료 확인
+    if verification.expires_at < datetime.utcnow():
+        return SignupVerifyResponse(
+            verified=False,
+            message="인증코드가 만료되었습니다. 다시 요청해주세요.",
+        )
+
+    # 시도 횟수 확인 (5회 제한)
+    if verification.attempts >= 5:
+        return SignupVerifyResponse(
+            verified=False,
+            message="인증 시도 횟수를 초과했습니다. 다시 요청해주세요.",
+        )
+
+    # 시도 횟수 증가
+    verification.attempts += 1
+    db.add(verification)
+
+    # 코드 확인
+    if verification.code != payload.code:
+        db.commit()
+        remaining = 5 - verification.attempts
+        return SignupVerifyResponse(
+            verified=False,
+            message=f"인증코드가 일치하지 않습니다. ({remaining}회 남음)",
+        )
+
+    # 인증 성공
+    verification.verified_at = datetime.utcnow()
+
+    # 인증 토큰 생성 (회원가입 시 검증용)
+    verified_token = hash_token(verification.code)
+    verification.code = verified_token  # 토큰으로 교체 (보안)
+
+    db.add(verification)
+    db.commit()
+
+    return SignupVerifyResponse(
+        verified=True,
+        verified_token=verified_token,
+        message="인증이 완료되었습니다.",
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 비밀번호 찾기/재설정 API (SMS 인증)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -326,11 +534,6 @@ class VerifyResetTokenResponse(BaseModel):
     valid: bool
     identifier: Optional[str] = None
     message: Optional[str] = None
-
-
-def _generate_sms_code() -> str:
-    """6자리 인증코드 생성"""
-    return str(random.randint(100000, 999999))
 
 
 def _generate_reset_token() -> str:
