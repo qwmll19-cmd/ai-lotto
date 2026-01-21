@@ -5,7 +5,7 @@ import { useNotification } from '../../context/NotificationContext.jsx'
 import { updateUserPlan } from '../../api/authApi.js'
 
 function Checkout() {
-  const { isAuthed } = useAuth()
+  const { isAuthed, setUser } = useAuth()
   const { success, error: showError } = useNotification()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -97,21 +97,19 @@ function Checkout() {
       const result = await updateUserPlan(selectedPlan.id, paymentMethod, 30)
       console.log('플랜 업데이트 결과:', result)
 
-      // 로컬스토리지에서 기존 사용자 정보 직접 업데이트
-      const storageKey = 'ai_lotto_user'
-      const storedUser = localStorage.getItem(storageKey)
-      if (storedUser) {
-        const userData = JSON.parse(storedUser)
-        userData.tier = selectedPlan.id.toUpperCase()
-        localStorage.setItem(storageKey, JSON.stringify(userData))
+      // API 응답의 success 필드 확인 후에만 상태 업데이트
+      if (result.success) {
+        // AuthContext의 setUser를 통해 업데이트 (로컬스토리지도 자동 동기화)
+        setUser(prev => prev ? { ...prev, tier: result.plan_type } : null)
+        success(`${selectedPlan.name} 플랜 구독이 완료되었습니다!`, '결제 완료')
+
+        // 약간의 지연 후 페이지 이동
+        setTimeout(() => {
+          window.location.href = '/mypage?tab=subscription'
+        }, 100)
+      } else {
+        throw new Error(result.message || '플랜 업데이트에 실패했습니다.')
       }
-
-      success(`${selectedPlan.name} 플랜 구독이 완료되었습니다!`, '결제 완료')
-
-      // 약간의 지연 후 페이지 이동 (로컬스토리지 저장 보장)
-      setTimeout(() => {
-        window.location.href = '/mypage?tab=subscription'
-      }, 100)
     } catch (err) {
       showError(err?.message || '결제 처리 중 오류가 발생했습니다.', '오류')
     } finally {

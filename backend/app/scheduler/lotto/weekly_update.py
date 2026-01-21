@@ -189,5 +189,5 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
         try:
             if bot and admin_chat_id:
                 await bot.send_message(chat_id=admin_chat_id, text=error_msg)
-        except:
+        except Exception:
             pass

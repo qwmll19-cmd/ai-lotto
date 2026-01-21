@@ -34,7 +34,9 @@ def get_next_draw_no(db) -> int:
     """다음 회차 번호 반환 (DB 세션 필요)"""
     from app.db.models import LottoDraw
     latest = db.query(LottoDraw.draw_no).order_by(LottoDraw.draw_no.desc()).first()
-    return (latest[0] + 1) if latest and latest[0] else 1
+    return (latest[0] + 1) if latest is not None else 1
+
+
 from .generator import generate_15_lines, generate_20_lines, generate_free_line, generate_free_lines, generate_mixed_line, generate_paid_lines, generate_basic_lines, generate_premium_lines, generate_vip_lines, lucky_number
 from .ml_trainer import LottoMLTrainer
 from .result_matcher import (

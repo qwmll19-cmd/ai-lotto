@@ -589,7 +589,7 @@ def request_free_recommendation(
             try:
                 lines_data = json.loads(log.lines)
                 weekly_usage += len(lines_data) if isinstance(lines_data, list) else 1
-            except:
+            except (json.JSONDecodeError, TypeError):
                 weekly_usage += 1
 
     if weekly_usage >= weekly_limit:
@@ -616,7 +616,7 @@ def request_free_recommendation(
 
     if existing_log:
         # 기존 레코드에 새 줄 추가
-        existing_lines = json.loads(existing_log.lines) if existing_log.lines else []
+        existing_lines = _parse_json(existing_log.lines, "free_weekly existing_log.lines") or []
         existing_lines.append(line)
         existing_log.lines = json.dumps(existing_lines)
         existing_log.recommend_time = datetime.utcnow()
@@ -850,7 +850,7 @@ def recommend_numbers(
             LottoRecommendLog.plan_type == plan_type,
         ).first()
         if existing_log:
-            existing_lines = json.loads(existing_log.lines) if existing_log.lines else []
+            existing_lines = _parse_json(existing_log.lines, "paid existing_log.lines") or []
             return {
                 "numbers": existing_lines,
                 "target_draw_no": target_draw_no,
@@ -1017,10 +1017,9 @@ def get_fixed_candidates(
             # settings_data가 문자열이면 JSON 파싱
             settings = existing_log.settings_data
             if isinstance(settings, str):
-                import json
                 try:
                     settings = json.loads(settings)
-                except:
+                except (json.JSONDecodeError, TypeError):
                     settings = {}
             saved_candidates = settings.get("fixed_candidates", []) if isinstance(settings, dict) else []
             if saved_candidates:
@@ -1074,14 +1073,13 @@ def get_fixed_candidates(
             candidates = sorted(random.sample(top_pool, min(2, len(top_pool))))
 
         # 로그에 저장 (기존 로그가 있으면 업데이트, 없으면 새로 생성)
-        import json
         if existing_log:
             # 기존 settings_data 파싱
             settings = existing_log.settings_data
             if isinstance(settings, str):
                 try:
                     settings = json.loads(settings)
-                except:
+                except (json.JSONDecodeError, TypeError):
                     settings = {}
             elif settings is None:
                 settings = {}
