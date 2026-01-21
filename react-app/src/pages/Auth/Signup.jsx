@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { useOAuthError } from '../../hooks/useOAuthError.js'
-import InAppBrowserGuide from '../../components/InAppBrowserGuide.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
@@ -62,7 +61,6 @@ function Signup() {
 
   return (
     <div className="page auth-page auth-page--centered">
-      <InAppBrowserGuide />
       <div className="auth-card auth-card--centered">
         <h2>회원가입</h2>
         <p>간단한 정보만 입력하면 바로 시작할 수 있습니다.</p>
