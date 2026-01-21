@@ -179,7 +179,58 @@ def update_user(
     if payload.is_admin is not None:
         user.is_admin = payload.is_admin
     if payload.subscription_type is not None:
+        old_type = user.subscription_type
         user.subscription_type = payload.subscription_type
+
+        # 구독 타입이 free가 아닌 유료로 변경되면 Subscription 레코드 생성/업데이트
+        if payload.subscription_type != "free" and payload.subscription_type != old_type:
+            plan_line_counts = {"basic": 5, "premium": 10, "vip": 20}
+            line_count = plan_line_counts.get(payload.subscription_type, 5)
+
+            # 기존 활성 구독이 있으면 업데이트, 없으면 생성
+            existing_sub = db.query(Subscription).filter(
+                Subscription.user_id == user_id,
+                Subscription.status == "active"
+            ).first()
+
+            now = datetime.utcnow()
+            expires_at = payload.subscription_expires_at or (now + timedelta(days=30))
+
+            if existing_sub:
+                existing_sub.plan_type = payload.subscription_type
+                existing_sub.line_count = line_count
+                existing_sub.expires_at = expires_at
+            else:
+                new_sub = Subscription(
+                    user_id=user_id,
+                    name=user.name or user.identifier or f"User_{user_id}",
+                    phone=user.phone_number or "-",
+                    plan_type=payload.subscription_type,
+                    line_count=line_count,
+                    status="active",
+                    payment_status="confirmed",
+                    payment_method="manual",
+                    approved_by=admin.identifier or f"admin_{admin.id}",
+                    approved_at=now,
+                    started_at=now,
+                    expires_at=expires_at,
+                )
+                db.add(new_sub)
+
+            # User의 만료일도 설정
+            user.subscription_expires_at = expires_at
+
+        # free로 변경하면 활성 구독 취소
+        elif payload.subscription_type == "free" and old_type != "free":
+            active_subs = db.query(Subscription).filter(
+                Subscription.user_id == user_id,
+                Subscription.status == "active"
+            ).all()
+            for sub in active_subs:
+                sub.status = "cancelled"
+                sub.cancelled_at = datetime.utcnow()
+            user.subscription_expires_at = None
+
     if payload.subscription_expires_at is not None:
         user.subscription_expires_at = payload.subscription_expires_at
 
