@@ -98,7 +98,7 @@ def naver_login():
         raise HTTPException(status_code=500, detail=e.message)
 
 
-@router.get("/naver/callback")
+@router.api_route("/naver/callback", methods=["GET", "POST"])
 async def naver_callback(
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
@@ -188,7 +188,7 @@ def kakao_login():
         raise HTTPException(status_code=500, detail=e.message)
 
 
-@router.get("/kakao/callback")
+@router.api_route("/kakao/callback", methods=["GET", "POST"])
 async def kakao_callback(
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
