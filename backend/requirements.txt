@@ -30,3 +30,6 @@ passlib[bcrypt]>=1.7.4,<2.0.0
 
 # Environment
 python-dotenv>=1.0.0,<2.0.0
+
+# HTTP Async Client (OAuth)
+httpx>=0.24.0,<1.0.0
