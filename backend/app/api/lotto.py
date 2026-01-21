@@ -574,15 +574,23 @@ def request_free_recommendation(
             is_first_week = True
             weekly_limit += 1
 
-    # 이번 주 사용량 계산
+    # 이번 주 사용량 계산 (lines 배열의 총 길이)
     week_start = _get_week_start()
-    weekly_usage = (
+    weekly_logs = (
         db.query(LottoRecommendLog)
         .filter(LottoRecommendLog.account_user_id == user.id)
         .filter(LottoRecommendLog.plan_type == "free_weekly")
         .filter(LottoRecommendLog.recommend_time >= week_start)
-        .count()
+        .all()
     )
+    weekly_usage = 0
+    for log in weekly_logs:
+        if log.lines:
+            try:
+                lines_data = json.loads(log.lines)
+                weekly_usage += len(lines_data) if isinstance(lines_data, list) else 1
+            except:
+                weekly_usage += 1
 
     if weekly_usage >= weekly_limit:
         raise HTTPException(
@@ -597,16 +605,34 @@ def request_free_recommendation(
     latest_draw = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).first()
     target_draw_no = (latest_draw.draw_no + 1) if latest_draw else 1
 
-    log = LottoRecommendLog(
-        user_id=user.id,
-        account_user_id=user.id,
-        target_draw_no=target_draw_no,
-        lines=json.dumps([line]),
-        recommend_time=datetime.utcnow(),
-        plan_type="free_weekly",
-        is_matched=False,
+    # 기존 레코드가 있으면 lines에 추가, 없으면 새로 생성
+    existing_log = (
+        db.query(LottoRecommendLog)
+        .filter(LottoRecommendLog.account_user_id == user.id)
+        .filter(LottoRecommendLog.target_draw_no == target_draw_no)
+        .filter(LottoRecommendLog.plan_type == "free_weekly")
+        .first()
     )
-    db.add(log)
+
+    if existing_log:
+        # 기존 레코드에 새 줄 추가
+        existing_lines = json.loads(existing_log.lines) if existing_log.lines else []
+        existing_lines.append(line)
+        existing_log.lines = json.dumps(existing_lines)
+        existing_log.recommend_time = datetime.utcnow()
+    else:
+        # 새 레코드 생성
+        log = LottoRecommendLog(
+            user_id=user.id,
+            account_user_id=user.id,
+            target_draw_no=target_draw_no,
+            lines=json.dumps([line]),
+            recommend_time=datetime.utcnow(),
+            plan_type="free_weekly",
+            is_matched=False,
+        )
+        db.add(log)
+
     db.commit()
 
     return {
