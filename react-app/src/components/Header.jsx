@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useNotification } from '../context/NotificationContext.jsx'
 
@@ -10,6 +10,8 @@ function Header() {
   const [showNotifications, setShowNotifications] = useState(false)
   const profileRef = useRef(null)
   const notificationRef = useRef(null)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -35,29 +37,62 @@ function Header() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <Link className="brand" to="/">
+        <a
+          className="brand"
+          href="/"
+          onClick={(e) => {
+            e.preventDefault()
+            if (location.pathname === '/') {
+              // 이미 홈페이지에 있으면 상단으로 스크롤
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            } else {
+              // 다른 페이지에서는 홈으로 이동
+              navigate('/')
+            }
+          }}
+        >
           <span className="brand__mark">팡팡</span>
           <span className="brand__text">
             <span className="brand__title">팡팡로또</span>
             <span className="brand__subtitle">AI 데이터 기반 로또 번호 추천</span>
           </span>
-        </Link>
+        </a>
         <nav className="site-nav">
           <Link className="site-nav__link site-nav__link--primary" to="/recommend">번호 추천</Link>
-          <Link
+          <a
             className="site-nav__link"
-            to="/#why"
+            href="/#why"
             onClick={(e) => {
-              // 이미 홈페이지에 있으면 직접 스크롤
-              if (window.location.pathname === '/') {
-                e.preventDefault()
+              e.preventDefault()
+              const scrollToWhy = () => {
                 const element = document.getElementById('why')
                 if (element) {
-                  element.scrollIntoView({ behavior: 'smooth' })
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 }
               }
+
+              if (location.pathname === '/') {
+                // 이미 홈페이지에 있으면 직접 스크롤
+                scrollToWhy()
+              } else {
+                // 다른 페이지에서는 홈으로 이동 후 스크롤
+                navigate('/')
+                // 페이지 로딩 완료 대기 (최대 500ms, 50ms 간격 체크)
+                let attempts = 0
+                const maxAttempts = 10
+                const checkAndScroll = () => {
+                  const element = document.getElementById('why')
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  } else if (attempts < maxAttempts) {
+                    attempts++
+                    setTimeout(checkAndScroll, 50)
+                  }
+                }
+                setTimeout(checkAndScroll, 50)
+              }
             }}
-          >AI 시스템</Link>
+          >AI 시스템</a>
           <Link className="site-nav__link" to="/stats">통계</Link>
           <Link className="site-nav__link" to="/history">히스토리</Link>
           <Link className="site-nav__link" to="/pricing">요금제</Link>

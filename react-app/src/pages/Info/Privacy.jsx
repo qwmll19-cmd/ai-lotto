@@ -109,9 +109,9 @@ function Privacy() {
           아래와 같이 개인정보 보호책임자를 지정하고 있습니다:
         </p>
         <ul>
-          <li><strong>개인정보 보호책임자:</strong> [추후 기재]</li>
-          <li><strong>연락처:</strong> [추후 기재]</li>
-          <li><strong>이메일:</strong> [추후 기재]</li>
+          <li><strong>개인정보 보호책임자:</strong> 이원석 (대표)</li>
+          <li><strong>연락처:</strong> 050-6913-9992</li>
+          <li><strong>이메일:</strong> qwmll19@gmail.com</li>
         </ul>
 
         <h2>제10조 (권익침해 구제방법)</h2>

@@ -6,8 +6,8 @@ import { useOAuthError } from '../../hooks/useOAuthError.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
-// 이메일 형식 검증
-const isEmail = (value) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)
+// 아이디 형식 검증 (영문, 숫자, 언더스코어만, 3~10자)
+const isValidId = (value) => /^[a-zA-Z0-9_]{3,10}$/.test(value)
 
 // 전화번호 형식 검증 (숫자만)
 const isPhone = (value) => {
@@ -20,6 +20,7 @@ function Signup() {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [phone, setPhone] = useState('')
   const [consentTerms, setConsentTerms] = useState(false)
   const [consentMarketing, setConsentMarketing] = useState(false)
   const [message, setMessage] = useState('')
@@ -35,10 +36,8 @@ function Signup() {
   const [smsLoading, setSmsLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
 
-  // 입력값이 전화번호인지 확인
-  const identifierDigits = identifier.replace(/\D/g, '')
-  const isPhoneInput = isPhone(identifier)
-  const isEmailInput = isEmail(identifier)
+  const phoneDigits = phone.replace(/\D/g, '')
+  const isPhoneValid = isPhone(phone)
 
   // OAuth 에러 처리
   useOAuthError(showError, '/signup', '회원가입 실패')
@@ -51,76 +50,25 @@ function Signup() {
     }
   }, [countdown])
 
-  // identifier 변경 시 SMS 인증 상태 초기화
+  // 전화번호 변경 시 SMS 인증 상태 초기화
   useEffect(() => {
     setSmsSent(false)
     setSmsVerified(false)
     setSmsVerifiedToken('')
     setSmsCode('')
-  }, [identifier])
+  }, [phone])
 
-  // SMS 인증코드 발송
-  const handleSendSms = async () => {
-    if (!isPhoneInput) {
+  // 인증하기 버튼 클릭 (임시: SMS 연동 전까지 바로 인증완료 처리)
+  const handleVerifyPhone = () => {
+    if (!isPhoneValid) {
       setMessage('올바른 휴대폰 번호를 입력해주세요.')
       return
     }
 
-    setSmsLoading(true)
-    setMessage('')
-
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/signup/send-sms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: identifierDigits }),
-      })
-      const data = await res.json()
-
-      if (data.sent) {
-        setSmsSent(true)
-        setCountdown(300) // 5분 카운트다운
-        success('인증코드가 발송되었습니다.')
-      } else {
-        setMessage(data.message || '인증코드 발송에 실패했습니다.')
-      }
-    } catch {
-      setMessage('서버 오류가 발생했습니다.')
-    } finally {
-      setSmsLoading(false)
-    }
-  }
-
-  // SMS 인증코드 확인
-  const handleVerifySms = async () => {
-    if (smsCode.length !== 6) {
-      setMessage('6자리 인증코드를 입력해주세요.')
-      return
-    }
-
-    setSmsLoading(true)
-    setMessage('')
-
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/signup/verify-sms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: identifierDigits, code: smsCode }),
-      })
-      const data = await res.json()
-
-      if (data.verified) {
-        setSmsVerified(true)
-        setSmsVerifiedToken(data.verified_token)
-        success('휴대폰 인증이 완료되었습니다.')
-      } else {
-        setMessage(data.message || '인증에 실패했습니다.')
-      }
-    } catch {
-      setMessage('서버 오류가 발생했습니다.')
-    } finally {
-      setSmsLoading(false)
-    }
+    // TODO: SMS 연동 후 실제 인증 로직으로 변경
+    setSmsVerified(true)
+    setSmsVerifiedToken('temp_token_' + phoneDigits) // 임시 토큰
+    success('휴대폰 인증이 완료되었습니다.')
   }
 
   const handleSubmit = async (event) => {
@@ -131,23 +79,18 @@ function Signup() {
       setMessage('필수 약관에 동의해야 합니다.')
       return
     }
-    if (!identifier.trim() || !password) {
-      setMessage('이메일/휴대폰과 비밀번호를 입력하세요.')
+    if (!identifier.trim()) {
+      setMessage('아이디를 입력해주세요.')
       return
     }
-
-    // 이메일도 전화번호도 아닌 경우
-    if (!isEmailInput && !isPhoneInput) {
-      setMessage('올바른 이메일 또는 휴대폰 번호를 입력해주세요.')
+    if (!isValidId(identifier.trim())) {
+      setMessage('아이디는 영문, 숫자, 언더스코어(_)만 사용 가능하며 3~10자여야 합니다.')
       return
     }
-
-    // 전화번호인 경우 SMS 인증 필수
-    if (isPhoneInput && !smsVerified) {
-      setMessage('휴대폰 인증을 먼저 완료해주세요.')
+    if (!password) {
+      setMessage('비밀번호를 입력해주세요.')
       return
     }
-
     if (password.length < 6) {
       setMessage('비밀번호는 6자 이상이어야 합니다.')
       return
@@ -156,14 +99,21 @@ function Signup() {
       setMessage('비밀번호가 일치하지 않습니다.')
       return
     }
+    if (!isPhoneValid) {
+      setMessage('올바른 휴대폰 번호를 입력해주세요.')
+      return
+    }
+    if (!smsVerified) {
+      setMessage('휴대폰 인증을 먼저 완료해주세요.')
+      return
+    }
 
     setLoading(true)
     const result = await signup({
-      identifier: isPhoneInput ? identifierDigits : identifier.trim(),
+      identifier: identifier.trim(),
       password,
-      consentTerms,
-      consentMarketing,
-      sms_verified_token: isPhoneInput ? smsVerifiedToken : undefined,
+      phone: phoneDigits,
+      sms_verified_token: smsVerifiedToken,
     })
     setLoading(false)
 
@@ -205,57 +155,16 @@ function Signup() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-form__field">
-            <label htmlFor="identifier">이메일 또는 휴대폰</label>
-            <div className="auth-form__input-group">
-              <input
-                id="identifier"
-                type="text"
-                placeholder="example@email.com 또는 01012345678"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                autoComplete="username"
-                disabled={smsVerified}
-              />
-              {isPhoneInput && !smsVerified && (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--sm"
-                  onClick={handleSendSms}
-                  disabled={smsLoading || (smsSent && countdown > 0)}
-                >
-                  {smsLoading ? '발송중...' : smsSent && countdown > 0 ? formatCountdown(countdown) : '인증요청'}
-                </button>
-              )}
-              {smsVerified && (
-                <span className="auth-form__verified">인증완료</span>
-              )}
-            </div>
+            <label htmlFor="identifier">아이디</label>
+            <input
+              id="identifier"
+              type="text"
+              placeholder="영문, 숫자, 언더스코어 3~10자"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              autoComplete="username"
+            />
           </div>
-
-          {/* SMS 인증코드 입력 (전화번호이고 발송됐고 아직 미인증) */}
-          {isPhoneInput && smsSent && !smsVerified && (
-            <div className="auth-form__field">
-              <label htmlFor="smsCode">인증코드</label>
-              <div className="auth-form__input-group">
-                <input
-                  id="smsCode"
-                  type="text"
-                  placeholder="6자리 인증코드"
-                  value={smsCode}
-                  onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                />
-                <button
-                  type="button"
-                  className="btn btn--primary btn--sm"
-                  onClick={handleVerifySms}
-                  disabled={smsLoading || smsCode.length !== 6}
-                >
-                  {smsLoading ? '확인중...' : '확인'}
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="auth-form__field">
             <label htmlFor="password">비밀번호</label>
@@ -268,6 +177,7 @@ function Signup() {
               autoComplete="new-password"
             />
           </div>
+
           <div className="auth-form__field">
             <label htmlFor="confirm">비밀번호 확인</label>
             <input
@@ -278,6 +188,35 @@ function Signup() {
               onChange={(event) => setConfirm(event.target.value)}
               autoComplete="new-password"
             />
+          </div>
+
+          <div className="auth-form__field">
+            <label htmlFor="phone">휴대폰 번호</label>
+            <div className="auth-form__input-group">
+              <input
+                id="phone"
+                type="tel"
+                placeholder="01012345678"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value.replace(/\D/g, ''))}
+                autoComplete="tel"
+                disabled={smsVerified}
+                maxLength={11}
+              />
+              {!smsVerified && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={handleVerifyPhone}
+                  disabled={!isPhoneValid}
+                >
+                  인증하기
+                </button>
+              )}
+              {smsVerified && (
+                <span className="auth-form__verified">인증완료</span>
+              )}
+            </div>
           </div>
 
           <div className="auth-form__consents">

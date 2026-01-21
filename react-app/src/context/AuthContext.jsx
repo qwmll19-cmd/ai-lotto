@@ -30,9 +30,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => loadUserFromStorage())
   const [authLoading, setAuthLoading] = useState(true)
 
-  const signup = async ({ identifier, password, consentTerms, consentMarketing, sms_verified_token }) => {
+  const signup = async ({ identifier, password, phone, sms_verified_token }) => {
     try {
-      const response = await apiSignup({ identifier, password, consentTerms, consentMarketing, sms_verified_token })
+      const response = await apiSignup({ identifier, password, phone, sms_verified_token })
       const nextUser = {
         id: response.user_id,
         identifier: response.identifier || identifier,

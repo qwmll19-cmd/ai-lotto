@@ -44,9 +44,10 @@ def _is_phone(value: str) -> bool:
 
 
 class SignupRequest(BaseModel):
-    identifier: str = Field(..., min_length=3, max_length=200)
+    identifier: str = Field(..., min_length=3, max_length=10)  # 아이디 3~10자
     password: str = Field(..., min_length=6, max_length=200)
-    sms_verified_token: Optional[str] = None  # 전화번호 인증 시 필요
+    phone: str = Field(..., min_length=10, max_length=20)  # 전화번호 (필수)
+    sms_verified_token: str = Field(..., min_length=1)  # SMS 인증 토큰 (필수)
 
 
 class LoginRequest(BaseModel):
@@ -110,27 +111,31 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 @router.post("/signup", response_model=AuthResponse)
 @limiter.limit("5/minute")
 def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
+    """
+    회원가입 API
+    - 아이디 (자유 입력)
+    - 비밀번호
+    - 전화번호 + SMS 인증 필수
+    """
     try:
         identifier = payload.identifier.strip()
+        phone_digits = re.sub(r'\D', '', payload.phone)
         logger.info(f"회원가입 시도: {identifier[:3]}***")
 
-        # 전화번호 형식인지 확인
-        digits = re.sub(r'\D', '', identifier)
-        is_phone = _is_phone(digits)
-        is_email = _is_email(identifier)
+        # 아이디 형식 검증 (영문, 숫자, 언더스코어만)
+        if not re.match(r'^[a-zA-Z0-9_]+$', identifier):
+            raise HTTPException(status_code=400, detail="아이디는 영문, 숫자, 언더스코어(_)만 사용 가능합니다.")
 
-        # 이메일도 전화번호도 아닌 경우 거부
-        if not is_email and not is_phone:
-            raise HTTPException(status_code=400, detail="올바른 이메일 또는 휴대폰 번호를 입력해주세요.")
+        # 전화번호 형식 검증
+        if not _is_phone(phone_digits):
+            raise HTTPException(status_code=400, detail="올바른 휴대폰 번호를 입력해주세요.")
 
-        # 전화번호인 경우 SMS 인증 토큰 필수
-        if is_phone:
-            if not payload.sms_verified_token:
-                raise HTTPException(status_code=400, detail="휴대폰 인증이 필요합니다.")
-
-            # 인증 토큰 검증
+        # SMS 인증 토큰 검증
+        # TODO: SMS 연동 후 실제 검증 로직 활성화
+        # 임시: temp_token_ 으로 시작하면 통과
+        if not payload.sms_verified_token.startswith("temp_token_"):
             verification = db.query(SmsVerification).filter(
-                SmsVerification.phone == digits,
+                SmsVerification.phone == phone_digits,
                 SmsVerification.purpose == "signup",
                 SmsVerification.verified_at.isnot(None),
             ).order_by(SmsVerification.verified_at.desc()).first()
@@ -146,24 +151,22 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             if verification.verified_at < ten_min_ago:
                 raise HTTPException(status_code=400, detail="인증이 만료되었습니다. 다시 인증해주세요.")
 
-            # 인증에 사용된 전화번호와 입력한 전화번호가 같은지 확인
-            identifier = digits  # 정규화된 전화번호 사용
+        # 아이디 중복 확인
+        existing_id = db.query(User).filter(User.identifier == identifier).first()
+        if existing_id:
+            logger.warning(f"회원가입 실패 - 이미 존재하는 아이디: {identifier[:3]}***")
+            raise HTTPException(status_code=400, detail="이미 사용 중인 아이디입니다.")
 
-        # 기존 계정 확인 (identifier, email, phone_number로)
-        existing = db.query(User).filter(
-            (User.identifier == identifier) |
-            (User.email == identifier) |
-            (User.phone_number == identifier)
-        ).first()
-        if existing:
-            logger.warning(f"회원가입 실패 - 이미 존재하는 계정: {identifier[:3]}***")
-            raise HTTPException(status_code=400, detail="이미 등록된 계정입니다.")
+        # 전화번호 중복 확인
+        existing_phone = db.query(User).filter(User.phone_number == phone_digits).first()
+        if existing_phone:
+            logger.warning(f"회원가입 실패 - 이미 등록된 전화번호: {phone_digits[:3]}***")
+            raise HTTPException(status_code=400, detail="이미 등록된 휴대폰 번호입니다.")
 
         # 사용자 생성
         user = User(
             identifier=identifier,
-            email=identifier if is_email else None,
-            phone_number=digits if is_phone else None,
+            phone_number=phone_digits,
             password_hash=hash_password(payload.password),
         )
         db.add(user)
@@ -177,7 +180,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         db.commit()
 
         _set_auth_cookies(response, access_token, refresh_token)
-        logger.info(f"회원가입 성공: user_id={user.id}, type={'phone' if is_phone else 'email'}")
+        logger.info(f"회원가입 성공: user_id={user.id}, identifier={identifier[:3]}***")
         return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
 
     except HTTPException:
