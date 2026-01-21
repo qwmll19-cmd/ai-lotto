@@ -103,6 +103,10 @@ class Settings:
     # Cron Job API 키 (외부 스케줄러에서 호출할 때 사용)
     CRON_API_KEY: str = os.getenv("AI_LOTTO_CRON_API_KEY", "")
 
+    # 네이버 검색 API (로또 데이터 수집용, 로그인용과 별도)
+    NAVER_SEARCH_CLIENT_ID: str = os.getenv("NAVER_SEARCH_CLIENT_ID", "")
+    NAVER_SEARCH_CLIENT_SECRET: str = os.getenv("NAVER_SEARCH_CLIENT_SECRET", "")
+
 
 settings = Settings()
 

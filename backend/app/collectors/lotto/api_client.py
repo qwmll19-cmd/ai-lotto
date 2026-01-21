@@ -187,11 +187,14 @@ class LottoAPIClient:
         return None
 
     def _get_naver_news(self, query: str, display: int = 10) -> list:
-        if not settings.NAVER_CLIENT_ID or not settings.NAVER_CLIENT_SECRET:
+        # 검색 전용 API 키 우선, 없으면 로그인용 키 사용
+        client_id = settings.NAVER_SEARCH_CLIENT_ID or settings.NAVER_CLIENT_ID
+        client_secret = settings.NAVER_SEARCH_CLIENT_SECRET or settings.NAVER_CLIENT_SECRET
+        if not client_id or not client_secret:
             return []
         headers = {
-            "X-Naver-Client-Id": settings.NAVER_CLIENT_ID,
-            "X-Naver-Client-Secret": settings.NAVER_CLIENT_SECRET,
+            "X-Naver-Client-Id": client_id,
+            "X-Naver-Client-Secret": client_secret,
         }
         params = {
             "query": query,
