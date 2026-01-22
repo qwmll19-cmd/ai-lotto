@@ -117,8 +117,8 @@ function Signup() {
     })
     setLoading(false)
 
-    if (result.message && !result.ok) {
-      setMessage(result.message)
+    if (!result.ok) {
+      setMessage(result.message || '회원가입에 실패했습니다.')
       return
     }
     success('회원가입이 완료되었습니다!', '환영합니다')
