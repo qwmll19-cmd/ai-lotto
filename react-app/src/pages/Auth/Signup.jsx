@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
@@ -31,12 +31,8 @@ function Signup() {
   const navigate = useNavigate()
 
   // SMS 인증 관련 상태
-  const [smsCode, setSmsCode] = useState('')
-  const [smsSent, setSmsSent] = useState(false)
   const [smsVerified, setSmsVerified] = useState(false)
   const [smsVerifiedToken, setSmsVerifiedToken] = useState('')
-  const [smsLoading, setSmsLoading] = useState(false)
-  const [countdown, setCountdown] = useState(0)
 
   const phoneDigits = phone.replace(/\D/g, '')
   const isPhoneValid = isPhone(phone)
@@ -44,21 +40,16 @@ function Signup() {
   // OAuth 에러 처리
   useOAuthError(showError, '/signup', '회원가입 실패')
 
-  // 카운트다운 타이머
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
+  // 전화번호 변경 핸들러 (인증 상태 초기화 포함)
+  const handlePhoneChange = (value) => {
+    const digits = value.replace(/\D/g, '')
+    setPhone(digits)
+    // 전화번호 변경 시 인증 상태 초기화
+    if (smsVerified) {
+      setSmsVerified(false)
+      setSmsVerifiedToken('')
     }
-  }, [countdown])
-
-  // 전화번호 변경 시 SMS 인증 상태 초기화
-  useEffect(() => {
-    setSmsSent(false)
-    setSmsVerified(false)
-    setSmsVerifiedToken('')
-    setSmsCode('')
-  }, [phone])
+  }
 
   // 인증하기 버튼 클릭 (임시: SMS 연동 전까지 바로 인증완료 처리)
   const handleVerifyPhone = () => {
@@ -134,13 +125,6 @@ function Signup() {
     }
     success('회원가입이 완료되었습니다!', '환영합니다')
     navigate('/mypage')
-  }
-
-  // 카운트다운 포맷 (mm:ss)
-  const formatCountdown = (seconds) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   return (
@@ -252,7 +236,7 @@ function Signup() {
                 type="tel"
                 placeholder="01012345678"
                 value={phone}
-                onChange={(event) => setPhone(event.target.value.replace(/\D/g, ''))}
+                onChange={(event) => handlePhoneChange(event.target.value)}
                 autoComplete="tel"
                 disabled={smsVerified}
                 maxLength={11}
