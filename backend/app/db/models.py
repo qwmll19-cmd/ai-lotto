@@ -219,8 +219,8 @@ class LottoRecommendLog(Base):
     __tablename__ = "lotto_recommend_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    account_user_id = Column(Integer, nullable=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # 세션 기반 임시 ID (FK 아님)
+    account_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     target_draw_no = Column(Integer, nullable=False, index=True)
     lines = Column(Text, nullable=False)  # JSON string: 추천한 번호 조합들 (공개된 번호)
     recommend_time = Column(DateTime, default=datetime.utcnow)
@@ -263,7 +263,7 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     order_id = Column(String(100), nullable=False, unique=True, index=True)
     payment_key = Column(String(200), nullable=True)  # PG사 결제키
     amount = Column(Integer, nullable=False)
@@ -285,8 +285,8 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=True, index=True)  # 계정 연동 시
-    payment_id = Column(Integer, nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # 계정 연동 시
+    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # 구독자 정보
     name = Column(String(100), nullable=False)
