@@ -7906,3 +7906,37 @@
     justify-content: center;
   }
 }
+
+
+/* OAuth 콜백 페이지 */
+.oauth-callback-page {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oauth-callback {
+  text-align: center;
+  padding: 40px;
+}
+
+.oauth-callback__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border-soft);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+.oauth-callback__status {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+

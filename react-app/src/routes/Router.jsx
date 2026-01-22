@@ -6,6 +6,7 @@ import Home from '../pages/Home/Home.jsx'
 import Login from '../pages/Auth/Login.jsx'
 import Signup from '../pages/Auth/Signup.jsx'
 import ForgotPassword from '../pages/Auth/ForgotPassword.jsx'
+import OAuthCallback from '../pages/Auth/OAuthCallback.jsx'
 import MyPage from '../pages/Account/MyPage.jsx'
 import Dashboard from '../pages/Lotto/Dashboard.jsx'
 import Stats from '../pages/Lotto/Stats.jsx'
@@ -37,6 +38,7 @@ function Router() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route
             path="/mypage"
             element={

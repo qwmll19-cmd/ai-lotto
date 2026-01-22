@@ -917,3 +917,111 @@ def update_user_plan(
         subscription_id=subscription_id,
         expires_at=expires_at if payload.plan_type != 'free' else None,
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# OAuth One-Time Token 교환 API
+# (카카오톡 인앱 브라우저 등 쿠키 제한 환경 지원)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 메모리 기반 토큰 저장소 (프로덕션에서는 Redis 권장)
+_oauth_tokens: dict = {}
+
+
+class ExchangeTokenRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+
+
+class ExchangeTokenResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: Optional[int] = None
+    identifier: Optional[str] = None
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    is_admin: bool = False
+    tier: str = "FREE"
+    first_week_bonus_used: bool = False
+    weekly_free_used_at: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+def create_oauth_one_time_token(user_id: int) -> str:
+    """OAuth 콜백용 일회성 토큰 생성 (5분 유효)"""
+    token = secrets.token_urlsafe(32)
+    _oauth_tokens[token] = {
+        "user_id": user_id,
+        "expires_at": datetime.utcnow() + timedelta(minutes=5),
+    }
+    # 만료된 토큰 정리
+    _cleanup_expired_tokens()
+    return token
+
+
+def _cleanup_expired_tokens():
+    """만료된 토큰 정리"""
+    now = datetime.utcnow()
+    expired = [k for k, v in _oauth_tokens.items() if v["expires_at"] < now]
+    for k in expired:
+        del _oauth_tokens[k]
+
+
+@router.post("/exchange-token", response_model=ExchangeTokenResponse)
+def exchange_oauth_token(
+    payload: ExchangeTokenRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    OAuth one-time token을 실제 JWT로 교환
+    - 카카오톡 인앱 브라우저 등 쿠키 제한 환경 지원
+    - 토큰은 1회 사용 후 삭제됨
+    """
+    token = payload.token
+
+    # 토큰 검증
+    token_data = _oauth_tokens.pop(token, None)
+    if not token_data:
+        return ExchangeTokenResponse(
+            success=False,
+            message="유효하지 않거나 만료된 토큰입니다.",
+        )
+
+    # 만료 확인
+    if token_data["expires_at"] < datetime.utcnow():
+        return ExchangeTokenResponse(
+            success=False,
+            message="토큰이 만료되었습니다.",
+        )
+
+    # 사용자 조회
+    user = db.query(User).filter(User.id == token_data["user_id"]).first()
+    if not user:
+        return ExchangeTokenResponse(
+            success=False,
+            message="사용자를 찾을 수 없습니다.",
+        )
+
+    # JWT 생성 및 쿠키 설정
+    identifier = user.identifier or f"oauth_{user.id}"
+    access_token, refresh_token = _create_tokens(user.id, identifier)
+    _set_auth_cookies(response, access_token, refresh_token)
+
+    # refresh_token_hash 저장
+    user.refresh_token_hash = hash_token(refresh_token)
+    user.refresh_token_updated_at = datetime.utcnow()
+    db.commit()
+
+    return ExchangeTokenResponse(
+        success=True,
+        message="로그인 성공",
+        user_id=user.id,
+        identifier=user.identifier,
+        name=user.name,
+        phone_number=user.phone_number,
+        is_admin=user.is_admin,
+        tier=user.subscription_type or "FREE",
+        first_week_bonus_used=user.first_week_bonus_used,
+        weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+    )

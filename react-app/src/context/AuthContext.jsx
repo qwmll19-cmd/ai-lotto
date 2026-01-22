@@ -45,8 +45,9 @@ export function AuthProvider({ children }) {
       setUser(nextUser)
       saveUserToStorage(nextUser)
       return { ok: true }
-    } catch {
-      return { ok: false, message: '회원가입에 실패했습니다.' }
+    } catch (err) {
+      // 서버에서 반환한 에러 메시지 전달
+      return { ok: false, message: err?.message || '회원가입에 실패했습니다.' }
     }
   }
 

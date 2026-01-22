@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -26,12 +26,32 @@ from app.services.oauth import (
     fetch_kakao_profile,
     social_login,
 )
+from app.api.auth import create_oauth_one_time_token
 
 router = APIRouter(prefix="/auth", tags=["oauth"])
 logger = logging.getLogger("oauth")
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
+
+
+def _is_inapp_browser(user_agent: str) -> bool:
+    """인앱 브라우저 감지 (카카오톡, 네이버, 인스타그램 등)"""
+    if not user_agent:
+        return False
+    ua_lower = user_agent.lower()
+    inapp_keywords = [
+        "kakaotalk",
+        "kakao",
+        "naver",
+        "instagram",
+        "fban",
+        "fbav",  # Facebook
+        "line",
+        "wechat",
+        "micromessenger",
+    ]
+    return any(keyword in ua_lower for keyword in inapp_keywords)
 
 
 def _set_auth_cookies(response: Response, user_id: int, identifier: str) -> str:
@@ -100,6 +120,7 @@ def naver_login():
 
 @router.api_route("/naver/callback", methods=["GET", "POST"])
 async def naver_callback(
+    request: Request,
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
@@ -114,6 +135,8 @@ async def naver_callback(
     3. 프로필 조회
     4. 회원 처리 (신규/기존)
     5. JWT 발급 및 프론트엔드로 리다이렉트
+       - 인앱 브라우저: one-time token 방식
+       - 일반 브라우저: 쿠키 방식
     """
     # 에러 처리
     if error:
@@ -140,23 +163,31 @@ async def naver_callback(
         # 회원 처리
         user = social_login(db, "NAVER", profile, access_token)
 
-        # JWT 발급 및 쿠키 설정
-        # identifier가 없으면 소셜 로그인용 식별자 생성
-        identifier = user.identifier or f"naver_{user.id}"
+        # 인앱 브라우저 감지
+        user_agent = request.headers.get("user-agent", "")
+        is_inapp = _is_inapp_browser(user_agent)
 
-        response = RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/mypage?login=success",
-            status_code=302,
-        )
+        if is_inapp:
+            # 인앱 브라우저: one-time token 방식 사용
+            one_time_token = create_oauth_one_time_token(user.id)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+            logger.info("Naver login (inapp) success: user_id=%s, ua=%s", user.id, user_agent[:50])
+        else:
+            # 일반 브라우저: 쿠키 방식 사용
+            identifier = user.identifier or f"naver_{user.id}"
+            redirect_url = f"{settings.FRONTEND_URL}/mypage?login=success"
 
-        refresh_token = _set_auth_cookies(response, user.id, identifier)
+        response = RedirectResponse(url=redirect_url, status_code=302)
 
-        # refresh_token_hash 저장
-        user.refresh_token_hash = hash_token(refresh_token)
-        user.refresh_token_updated_at = datetime.utcnow()
+        if not is_inapp:
+            # 일반 브라우저에서만 쿠키 설정
+            identifier = user.identifier or f"naver_{user.id}"
+            refresh_token = _set_auth_cookies(response, user.id, identifier)
+            user.refresh_token_hash = hash_token(refresh_token)
+            user.refresh_token_updated_at = datetime.utcnow()
+
         db.commit()
-
-        logger.info("Naver login success: user_id=%s", user.id)
+        logger.info("Naver login success: user_id=%s, inapp=%s", user.id, is_inapp)
         return response
 
     except OAuthError as e:
@@ -190,6 +221,7 @@ def kakao_login():
 
 @router.api_route("/kakao/callback", methods=["GET", "POST"])
 async def kakao_callback(
+    request: Request,
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
@@ -204,6 +236,8 @@ async def kakao_callback(
     3. 프로필 조회
     4. 회원 처리 (신규/기존)
     5. JWT 발급 및 프론트엔드로 리다이렉트
+       - 인앱 브라우저: one-time token 방식
+       - 일반 브라우저: 쿠키 방식
     """
     # 에러 처리
     if error:
@@ -230,22 +264,30 @@ async def kakao_callback(
         # 회원 처리
         user = social_login(db, "KAKAO", profile, access_token)
 
-        # JWT 발급 및 쿠키 설정
-        identifier = user.identifier or f"kakao_{user.id}"
+        # 인앱 브라우저 감지
+        user_agent = request.headers.get("user-agent", "")
+        is_inapp = _is_inapp_browser(user_agent)
 
-        response = RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/mypage?login=success",
-            status_code=302,
-        )
+        if is_inapp:
+            # 인앱 브라우저: one-time token 방식 사용
+            one_time_token = create_oauth_one_time_token(user.id)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+            logger.info("Kakao login (inapp) success: user_id=%s, ua=%s", user.id, user_agent[:50])
+        else:
+            # 일반 브라우저: 쿠키 방식 사용
+            redirect_url = f"{settings.FRONTEND_URL}/mypage?login=success"
 
-        refresh_token = _set_auth_cookies(response, user.id, identifier)
+        response = RedirectResponse(url=redirect_url, status_code=302)
 
-        # refresh_token_hash 저장
-        user.refresh_token_hash = hash_token(refresh_token)
-        user.refresh_token_updated_at = datetime.utcnow()
+        if not is_inapp:
+            # 일반 브라우저에서만 쿠키 설정
+            identifier = user.identifier or f"kakao_{user.id}"
+            refresh_token = _set_auth_cookies(response, user.id, identifier)
+            user.refresh_token_hash = hash_token(refresh_token)
+            user.refresh_token_updated_at = datetime.utcnow()
+
         db.commit()
-
-        logger.info("Kakao login success: user_id=%s", user.id)
+        logger.info("Kakao login success: user_id=%s, inapp=%s", user.id, is_inapp)
         return response
 
     except OAuthError as e:

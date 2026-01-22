@@ -24,13 +24,14 @@ function Home() {
             {/* Free */}
             <div className="pricing-preview__card">
               <h3>Free</h3>
-              <p className="pricing-preview__subtitle">로또 AI를 처음 사용해보는 분께</p>
+              <p className="pricing-preview__subtitle">로또 AI를 처음 체험해보는 분께</p>
               <div className="pricing-preview__price">
                 <span className="pricing-preview__amount">₩0</span>
                 <span className="pricing-preview__period">/월</span>
               </div>
               <ul className="pricing-preview__features">
                 <li>✓ 매주 AI 추천 (1줄)</li>
+                <li className="pricing-preview__bonus">✓ 가입 첫 회차 보너스 +1줄</li>
                 <li>✓ 기본 통계 조회</li>
                 <li>✓ 히스토리 14일 보관</li>
               </ul>
@@ -40,7 +41,7 @@ function Home() {
             {/* Basic */}
             <div className="pricing-preview__card">
               <h3>Basic</h3>
-              <p className="pricing-preview__subtitle">더 많은 추천이 필요한 분께</p>
+              <p className="pricing-preview__subtitle">더 많은 조합이 필요한 분께</p>
               <div className="pricing-preview__price">
                 <span className="pricing-preview__amount">₩4,900</span>
                 <span className="pricing-preview__period">/월</span>
@@ -48,8 +49,7 @@ function Home() {
               <ul className="pricing-preview__features">
                 <li>✓ 매주 AI 추천 (5줄)</li>
                 <li>✓ 상세 통계 및 분석</li>
-                <li>✓ 히스토리 무제한 보관</li>
-                <li>✓ 번호 제외 설정</li>
+                <li>✓ 히스토리 14일 보관</li>
               </ul>
               <Link to="/checkout?plan=basic" className="btn btn--primary btn--full">시작하기</Link>
             </div>
@@ -58,14 +58,15 @@ function Home() {
             <div className="pricing-preview__card pricing-preview__card--popular">
               <div className="pricing-preview__badge">인기</div>
               <h3>Premium</h3>
-              <p className="pricing-preview__subtitle">본격적인 분석이 필요한 분께</p>
+              <p className="pricing-preview__subtitle">본격적인 AI 분석이 필요한 분께</p>
               <div className="pricing-preview__price">
                 <span className="pricing-preview__amount">₩9,900</span>
                 <span className="pricing-preview__period">/월</span>
               </div>
               <ul className="pricing-preview__features">
                 <li>✓ 매주 AI 추천 (10줄)</li>
-                <li>✓ 프리미엄 AI 분석</li>
+                <li>✓ AI 핵심 조합 1줄 포함</li>
+                <li>✓ 히스토리 60일 보관</li>
                 <li>✓ 고급 패턴 분석</li>
               </ul>
               <Link to="/checkout?plan=premium" className="btn btn--ghost btn--full">시작하기</Link>
@@ -74,7 +75,7 @@ function Home() {
             {/* VIP */}
             <div className="pricing-preview__card">
               <h3>VIP</h3>
-              <p className="pricing-preview__subtitle">프로 사용자를 위한 최고의 선택</p>
+              <p className="pricing-preview__subtitle">최대 당첨 확률을 원하는 분께</p>
               <div className="pricing-preview__price">
                 <span className="pricing-preview__amount">₩13,900</span>
                 <span className="pricing-preview__period">/월</span>
@@ -82,6 +83,7 @@ function Home() {
               <ul className="pricing-preview__features">
                 <li>✓ 매주 AI 추천 (20줄)</li>
                 <li>✓ AI 핵심 조합 2줄 포함</li>
+                <li>✓ 히스토리 90일 보관</li>
                 <li>✓ 우선 고객 지원</li>
               </ul>
               <Link to="/checkout?plan=vip" className="btn btn--ghost btn--full">시작하기</Link>
