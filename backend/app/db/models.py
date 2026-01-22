@@ -128,6 +128,10 @@ class User(Base):
     subscription_type = Column(String(20), default="free")  # free, basic, premium, vip
     subscription_expires_at = Column(DateTime, nullable=True)
 
+    # 무료 추천 관련
+    first_week_bonus_used = Column(Boolean, default=False)  # 첫 주 보너스 사용 여부
+    weekly_free_used_at = Column(DateTime, nullable=True)  # 주간 무료 추천 마지막 사용 시간
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -369,10 +373,11 @@ class SmsVerification(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     phone = Column(String(20), nullable=False, index=True)
-    code = Column(String(6), nullable=False)  # 6자리 인증코드
+    code = Column(String(10), nullable=False)  # 6자리 인증코드 (여유분 포함)
     purpose = Column(String(50), nullable=False, default="password_reset")  # password_reset, signup 등
     expires_at = Column(DateTime, nullable=False)
     verified_at = Column(DateTime, nullable=True)  # 인증 완료 시간
+    verified_token = Column(String(64), nullable=True)  # 인증 완료 후 발급된 토큰
     attempts = Column(Integer, default=0)  # 인증 시도 횟수
     created_at = Column(DateTime, default=datetime.utcnow)
 

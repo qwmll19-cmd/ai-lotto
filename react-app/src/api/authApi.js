@@ -51,27 +51,6 @@ export function resetPassword(resetToken, newPassword) {
   })
 }
 
-// OTP 인증번호 발송 (간편 가입용)
-export function sendOtp(phone) {
-  return request('/api/auth/send-otp', {
-    method: 'POST',
-    body: JSON.stringify({ phone }),
-  })
-}
-
-// OTP 검증 + 간편 가입
-export function verifyOtpSignup({ phone, code, consentTerms, consentMarketing }) {
-  return request('/api/auth/verify-otp-signup', {
-    method: 'POST',
-    body: JSON.stringify({
-      phone,
-      code,
-      consent_terms: consentTerms,
-      consent_marketing: consentMarketing,
-    }),
-  })
-}
-
 // 플랜 업데이트 (결제 완료 시)
 export function updateUserPlan(planType, paymentMethod = 'card', durationDays = 30) {
   return request('/api/auth/update-plan', {

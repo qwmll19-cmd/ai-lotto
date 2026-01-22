@@ -662,18 +662,9 @@ def get_free_recommendation_status(
             is_first_week = True
             weekly_limit += 1
 
-    # 이번 주 사용량
+    # 이번 주 받은 번호 목록 조회
     week_start = _get_week_start()
-    weekly_usage = (
-        db.query(LottoRecommendLog)
-        .filter(LottoRecommendLog.account_user_id == user.id)
-        .filter(LottoRecommendLog.plan_type == "free_weekly")
-        .filter(LottoRecommendLog.recommend_time >= week_start)
-        .count()
-    )
-
-    # 이번 주 받은 번호 목록
-    weekly_lines = (
+    weekly_logs = (
         db.query(LottoRecommendLog)
         .filter(LottoRecommendLog.account_user_id == user.id)
         .filter(LottoRecommendLog.plan_type == "free_weekly")
@@ -682,11 +673,14 @@ def get_free_recommendation_status(
         .all()
     )
 
+    # 실제 발급된 줄 수 계산 (레코드 수가 아닌 실제 줄 수)
     lines = []
-    for log in weekly_lines:
+    for log in weekly_logs:
         parsed = _parse_json(log.lines, f"free_status_log_{log.id}")
         if parsed:
             lines.extend(parsed)
+
+    weekly_usage = len(lines)
 
     return {
         "weekly_used": weekly_usage,

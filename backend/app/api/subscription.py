@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 
-from app.api.auth import require_admin
+from app.api.auth import require_admin, get_current_user
 from app.db.models import Subscription, LottoDraw, LottoRecommendLog, User
 from app.db.session import get_db
 from app.services.lotto import build_stats_from_draws, format_line, draws_to_dict_list, get_next_draw_no
@@ -146,14 +146,16 @@ def subscribe(payload: SubscribeRequest, db: Session = Depends(get_db)) -> Subsc
 
 @router.get("/api/subscription/status", response_model=SubscriptionStatusResponse)
 def get_subscription_status(
-    phone: str = Query(..., min_length=8),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ) -> SubscriptionStatusResponse:
-    """내 구독 상태 조회"""
-    digits = "".join(ch for ch in phone if ch.isdigit())
+    """내 구독 상태 조회 (인증 필요)"""
+    # 현재 로그인한 사용자의 전화번호로 구독 조회
+    if not current_user.phone_number:
+        raise HTTPException(status_code=400, detail="등록된 전화번호가 없습니다.")
 
     subscription = db.query(Subscription).filter(
-        Subscription.phone == digits
+        Subscription.phone == current_user.phone_number
     ).order_by(Subscription.created_at.desc()).first()
 
     if not subscription:

@@ -132,9 +132,9 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             raise HTTPException(status_code=400, detail="올바른 휴대폰 번호를 입력해주세요.")
 
         # SMS 인증 토큰 검증
-        # TODO: SMS 연동 후 실제 검증 로직 활성화
-        # 임시: temp_token_ 으로 시작하면 통과
-        if not payload.sms_verified_token.startswith("temp_token_"):
+        # dev 환경에서만 SMS_SKIP_VERIFICATION=true로 우회 가능
+        skip_sms = settings.SMS_SKIP_VERIFICATION and payload.sms_verified_token.startswith("temp_token_")
+        if not skip_sms:
             verification = db.query(SmsVerification).filter(
                 SmsVerification.phone == phone_digits,
                 SmsVerification.purpose == "signup",
@@ -144,8 +144,8 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             if not verification:
                 raise HTTPException(status_code=400, detail="휴대폰 인증을 먼저 완료해주세요.")
 
-            # 토큰 검증 (10분 이내 인증된 것만 허용)
-            if not verify_token(payload.sms_verified_token, verification.code):
+            # 토큰 검증 (저장된 토큰과 직접 비교)
+            if payload.sms_verified_token != verification.verified_token:
                 raise HTTPException(status_code=400, detail="인증 정보가 유효하지 않습니다.")
 
             ten_min_ago = datetime.utcnow() - timedelta(minutes=10)
@@ -466,9 +466,9 @@ def signup_verify_sms(request: Request, payload: SignupVerifyRequest, db: Sessio
     # 인증 성공
     verification.verified_at = datetime.utcnow()
 
-    # 인증 토큰 생성 (회원가입 시 검증용)
-    verified_token = hash_token(verification.code)
-    verification.code = verified_token  # 토큰으로 교체 (보안)
+    # 인증 토큰 생성 (회원가입 시 검증용) - 별도 필드에 저장
+    verified_token = secrets.token_urlsafe(32)
+    verification.verified_token = verified_token
 
     db.add(verification)
     db.commit()

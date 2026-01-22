@@ -72,6 +72,8 @@ class Settings:
     SMS_API_KEY: str = os.getenv("AI_LOTTO_SMS_API_KEY", "")
     SMS_API_SECRET: str = os.getenv("AI_LOTTO_SMS_API_SECRET", "")
     SMS_SENDER_ID: str = os.getenv("AI_LOTTO_SMS_SENDER_ID", "")
+    # SMS 인증 우회 (dev 환경에서만 True, prod에서는 반드시 False)
+    SMS_SKIP_VERIFICATION: bool = os.getenv("AI_LOTTO_SMS_SKIP_VERIFICATION", "false").lower() in {"1", "true", "yes"}
 
     # 이메일 설정 (SendGrid)
     EMAIL_PROVIDER: str = os.getenv("AI_LOTTO_EMAIL_PROVIDER", "stub")

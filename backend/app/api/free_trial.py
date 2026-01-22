@@ -85,7 +85,8 @@ def _generate_lines(db: Session, phone: str, combo_count: int) -> List[List[int]
 
 
 @router.post("/api/apply-free-trial", response_model=ApplyFreeTrialResponse)
-def apply_free_trial(payload: ApplyFreeTrialRequest, db: Session = Depends(get_db)) -> ApplyFreeTrialResponse:
+@limiter.limit("3/minute")
+def apply_free_trial(request: Request, payload: ApplyFreeTrialRequest, db: Session = Depends(get_db)) -> ApplyFreeTrialResponse:
     if not payload.consent_terms:
         raise HTTPException(status_code=400, detail="약관 동의가 필요합니다.")
 
