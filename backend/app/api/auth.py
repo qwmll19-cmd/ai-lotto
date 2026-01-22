@@ -44,6 +44,7 @@ def _is_phone(value: str) -> bool:
 
 
 class SignupRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)  # 이름 2~50자
     identifier: str = Field(..., min_length=3, max_length=10)  # 아이디 3~10자
     password: str = Field(..., min_length=6, max_length=200)
     phone: str = Field(..., min_length=10, max_length=20)  # 전화번호 (필수)
@@ -165,6 +166,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
 
         # 사용자 생성
         user = User(
+            name=payload.name.strip(),
             identifier=identifier,
             phone_number=phone_digits,
             password_hash=hash_password(payload.password),

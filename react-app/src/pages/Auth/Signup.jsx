@@ -17,6 +17,7 @@ const isPhone = (value) => {
 
 function Signup() {
   const { error: showError, success } = useNotification()
+  const [name, setName] = useState('')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -79,6 +80,14 @@ function Signup() {
       setMessage('필수 약관에 동의해야 합니다.')
       return
     }
+    if (!name.trim()) {
+      setMessage('이름을 입력해주세요.')
+      return
+    }
+    if (name.trim().length < 2) {
+      setMessage('이름은 2자 이상이어야 합니다.')
+      return
+    }
     if (!identifier.trim()) {
       setMessage('아이디를 입력해주세요.')
       return
@@ -110,6 +119,7 @@ function Signup() {
 
     setLoading(true)
     const result = await signup({
+      name: name.trim(),
       identifier: identifier.trim(),
       password,
       phone: phoneDigits,
@@ -154,6 +164,18 @@ function Signup() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-form__field">
+            <label htmlFor="name">이름</label>
+            <input
+              id="name"
+              type="text"
+              placeholder="실명을 입력하세요"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoComplete="name"
+            />
+          </div>
+
           <div className="auth-form__field">
             <label htmlFor="identifier">아이디</label>
             <input

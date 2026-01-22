@@ -30,11 +30,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => loadUserFromStorage())
   const [authLoading, setAuthLoading] = useState(true)
 
-  const signup = async ({ identifier, password, phone, sms_verified_token }) => {
+  const signup = async ({ name, identifier, password, phone, sms_verified_token }) => {
     try {
-      const response = await apiSignup({ identifier, password, phone, sms_verified_token })
+      const response = await apiSignup({ name, identifier, password, phone, sms_verified_token })
       const nextUser = {
         id: response.user_id,
+        name: response.name || name,
         identifier: response.identifier || identifier,
         isAdmin: response.is_admin || false,
         tier: response.tier || 'FREE',

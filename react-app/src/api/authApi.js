@@ -7,10 +7,11 @@ export function login(payload) {
   })
 }
 
-export function signup({ identifier, password, phone, sms_verified_token }) {
+export function signup({ name, identifier, password, phone, sms_verified_token }) {
   return request('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify({
+      name,
       identifier,
       password,
       phone,
