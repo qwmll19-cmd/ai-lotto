@@ -1666,6 +1666,51 @@
     justify-content: flex-start;
   }
 
+  /* 모바일에서 드롭다운 위치 수정 */
+  .site-nav__user-area {
+    position: static;
+  }
+
+  .profile-wrapper,
+  .notification-wrapper {
+    position: static;
+  }
+
+  .profile-dropdown,
+  .notification-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    overflow-y: auto;
+    animation: slideUp 0.2s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .profile-dropdown__item {
+    padding: 16px 20px;
+    font-size: 15px;
+  }
+
+  .notification-dropdown__item {
+    padding: 14px 16px;
+  }
+
   .ai-principle__steps {
     grid-template-columns: 1fr;
   }
@@ -2301,6 +2346,222 @@
   .admin__tab {
     padding: 6px 12px;
     font-size: 12px;
+  }
+}
+
+/* 관리자 페이지 모바일 최적화 */
+@media (max-width: 768px) {
+  .admin-header {
+    padding: 0 12px;
+    height: auto;
+    min-height: 56px;
+  }
+
+  .admin-header__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .admin-header__brand {
+    gap: 8px;
+  }
+
+  .admin-header__logo {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .admin-header__title {
+    font-size: 14px;
+  }
+
+  .admin-header__right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .admin-header__user {
+    font-size: 11px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-header__link,
+  .admin-header__logout {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .admin-main {
+    padding: 16px 12px;
+  }
+
+  .admin-main__head {
+    margin-bottom: 16px;
+  }
+
+  .admin-main__head h1 {
+    font-size: 20px;
+  }
+
+  .admin-main__head p {
+    font-size: 12px;
+  }
+
+  /* 탭 가로 스크롤 */
+  .admin__tabs {
+    display: flex;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin__tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* 통계 카드 */
+  .admin__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .admin__stat-card {
+    padding: 12px;
+  }
+
+  .admin__stat-value {
+    font-size: 20px;
+  }
+
+  .admin__stat-label {
+    font-size: 11px;
+  }
+
+  /* 섹션 */
+  .admin__section {
+    padding: 16px 12px;
+    margin-bottom: 16px;
+  }
+
+  .admin__section-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  /* 테이블 카드형 레이아웃 */
+  .admin__table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin__table {
+    font-size: 11px;
+    min-width: 600px;
+  }
+
+  .admin__table th,
+  .admin__table td {
+    padding: 8px 6px;
+  }
+
+  /* 폼 요소 */
+  .admin__form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin__form-group {
+    width: 100%;
+  }
+
+  .admin__form-group input,
+  .admin__form-group select {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  /* 버튼 그룹 */
+  .admin__actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .admin__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 페이지네이션 */
+  .admin__pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .admin__pagination button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* 필터 영역 */
+  .admin__filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin__filters select,
+  .admin__filters input {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  /* 카드 내 액션 버튼 */
+  .admin__card-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .admin__card-actions button {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin__stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin__table {
+    min-width: 500px;
+  }
+
+  .admin-header__right {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-header__user {
+    width: 100%;
   }
 }
 

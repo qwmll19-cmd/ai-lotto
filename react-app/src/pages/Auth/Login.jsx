@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
@@ -11,11 +11,18 @@ function Login() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, isAuthed, authLoading } = useAuth()
   const { success, error: showError } = useNotification()
   const navigate = useNavigate()
   const location = useLocation()
   const redirectTo = location.state?.from?.pathname || '/mypage'
+
+  // 이미 로그인된 사용자는 리다이렉트
+  useEffect(() => {
+    if (!authLoading && isAuthed) {
+      navigate(redirectTo, { replace: true })
+    }
+  }, [isAuthed, authLoading, navigate, redirectTo])
 
   // OAuth 에러 처리
   useOAuthError(showError, '/login', '로그인 실패')
