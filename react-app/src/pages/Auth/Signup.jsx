@@ -26,6 +26,7 @@ function Signup() {
   const [consentMarketing, setConsentMarketing] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const { signup } = useAuth()
   const navigate = useNavigate()
 
@@ -163,6 +164,37 @@ function Signup() {
           </div>
         </div>
 
+        {!showForm && (
+          <div className="social-login-buttons">
+            <button
+              type="button"
+              className="btn btn--primary btn--full"
+              onClick={() => setShowForm(true)}
+            >
+              간편가입
+            </button>
+            <a
+              href={`${API_BASE}/auth/naver`}
+              className="btn btn--social btn--naver btn--full"
+            >
+              <svg className="social-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.5 10.5L6.24 2H2v16h4.5v-8.5L13.76 18H18V2h-4.5v8.5z"/>
+              </svg>
+              네이버로 시작하기
+            </a>
+            <a
+              href={`${API_BASE}/auth/kakao`}
+              className="btn btn--social btn--kakao btn--full"
+            >
+              <svg className="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.86 5.33 4.64 6.74l-.96 3.57c-.07.26.21.47.44.33l4.26-2.83c.53.06 1.07.09 1.62.09 5.52 0 10-3.58 10-8S17.52 3 12 3z"/>
+              </svg>
+              카카오로 시작하기
+            </a>
+          </div>
+        )}
+
+        {showForm && (
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-form__field">
             <label htmlFor="name">이름</label>
@@ -275,32 +307,16 @@ function Signup() {
               '무료로 시작하기'
             )}
           </button>
+
+          <button
+            type="button"
+            className="btn btn--ghost btn--full"
+            onClick={() => setShowForm(false)}
+          >
+            뒤로가기
+          </button>
         </form>
-
-        <div className="auth-card__divider">
-          <span>또는</span>
-        </div>
-
-        <div className="social-login-buttons">
-          <a
-            href={`${API_BASE}/auth/naver`}
-            className="btn btn--social btn--naver btn--full"
-          >
-            <svg className="social-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.5 10.5L6.24 2H2v16h4.5v-8.5L13.76 18H18V2h-4.5v8.5z"/>
-            </svg>
-            네이버로 시작하기
-          </a>
-          <a
-            href={`${API_BASE}/auth/kakao`}
-            className="btn btn--social btn--kakao btn--full"
-          >
-            <svg className="social-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.86 5.33 4.64 6.74l-.96 3.57c-.07.26.21.47.44.33l4.26-2.83c.53.06 1.07.09 1.62.09 5.52 0 10-3.58 10-8S17.52 3 12 3z"/>
-            </svg>
-            카카오로 시작하기
-          </a>
-        </div>
+        )}
 
         <div className="auth-card__signup">
           이미 계정이 있으신가요?{' '}
