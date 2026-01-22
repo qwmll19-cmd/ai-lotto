@@ -28,6 +28,9 @@ function Footer() {
           </p>
           <p className="site-footer__business-info">
             <span>통신판매업신고: {businessInfo.salesNumber}</span>
+          </p>
+          <p className="site-footer__business-info">
+            <span>주소: {businessInfo.address}</span>
             <span className="site-footer__divider">|</span>
             <button
               type="button"

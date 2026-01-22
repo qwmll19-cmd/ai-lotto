@@ -18,6 +18,9 @@ export const businessInfo = {
   // 통신판매업 신고번호
   salesNumber: '제2025-전북완주-0230호',
 
+  // 영업소 소재지 주소
+  address: '전북특별자치도 완주군 고산면 서봉소농길 40-14',
+
   // 연락처
   phone: '050-6913-9992',
   email: 'qwmll19@gmail.com',
