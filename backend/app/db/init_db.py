@@ -93,7 +93,7 @@ def _ensure_social_accounts_table() -> None:
 
 
 def _ensure_oauth_one_time_tokens_table() -> None:
-    """oauth_one_time_tokens 테이블 생성 (다중 워커 환경 OAuth 지원)"""
+    """oauth_one_time_tokens 테이블 생성 및 컬럼 추가 (다중 워커 환경 OAuth 지원)"""
     with engine.connect() as conn:
         result = conn.execute(
             text("SELECT name FROM sqlite_master WHERE type='table' AND name='oauth_one_time_tokens'")
@@ -107,11 +107,19 @@ def _ensure_oauth_one_time_tokens_table() -> None:
                     expires_at DATETIME NOT NULL,
                     used_at DATETIME,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    is_new_user BOOLEAN DEFAULT 0,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             """))
             conn.execute(text("CREATE INDEX ix_oauth_one_time_tokens_token ON oauth_one_time_tokens(token)"))
             conn.commit()
+        else:
+            # 기존 테이블에 is_new_user 컬럼 추가
+            result = conn.execute(text("PRAGMA table_info(oauth_one_time_tokens)"))
+            columns = {row[1] for row in result.fetchall()}
+            if "is_new_user" not in columns:
+                conn.execute(text("ALTER TABLE oauth_one_time_tokens ADD COLUMN is_new_user BOOLEAN DEFAULT 0"))
+                conn.commit()
 
 
 if __name__ == "__main__":

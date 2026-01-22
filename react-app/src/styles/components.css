@@ -1676,6 +1676,23 @@
     position: static;
   }
 
+  /* 모바일 드롭다운 배경 오버레이 */
+  .dropdown-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
   .profile-dropdown,
   .notification-dropdown {
     position: fixed;
@@ -1689,6 +1706,7 @@
     box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
     overflow-y: auto;
     animation: slideUp 0.2s ease-out;
+    z-index: 1000;
   }
 
   @keyframes slideUp {
@@ -5598,6 +5616,41 @@
 .auth-card__signup a {
   color: var(--primary);
   font-weight: 600;
+}
+
+/* 소셜 회원가입 환영 메시지 */
+.social-signup-welcome {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #fff5f8 0%, #fef3f7 100%);
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+
+.social-signup-welcome__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.social-signup-welcome__info {
+  font-size: 16px;
+  color: var(--text-main);
+}
+
+.social-signup-welcome__info strong {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 /* 소셜 로그인 버튼 */

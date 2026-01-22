@@ -164,6 +164,7 @@ class OAuthOneTimeToken(Base):
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)  # 사용 시 기록
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_new_user = Column(Boolean, default=False)  # 신규 가입 여부
 
 
 class FreeTrialApplication(Base):

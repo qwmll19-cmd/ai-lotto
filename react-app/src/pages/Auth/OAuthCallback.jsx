@@ -69,12 +69,24 @@ function OAuthCallback() {
           }
 
           setUser(userData)
-          setStatus('로그인 성공!')
 
-          // 마이페이지로 이동
-          setTimeout(() => {
-            navigate('/mypage?login=success', { replace: true })
-          }, 500)
+          // 신규 가입자는 동의 페이지로 이동
+          if (data.is_new_user) {
+            setStatus('회원가입 진행 중...')
+            setTimeout(() => {
+              const params = new URLSearchParams({
+                name: data.name || '회원',
+                provider: data.identifier?.includes('kakao') ? '카카오' : '네이버',
+              })
+              navigate(`/social-signup?${params.toString()}`, { replace: true })
+            }, 500)
+          } else {
+            setStatus('로그인 성공!')
+            // 기존 사용자는 마이페이지로 이동
+            setTimeout(() => {
+              navigate('/mypage?login=success', { replace: true })
+            }, 500)
+          }
         } else {
           throw new Error(data.message || '토큰 교환 실패')
         }

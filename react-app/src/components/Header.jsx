@@ -122,45 +122,48 @@ function Header() {
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="notification-dropdown">
-                    <div className="notification-dropdown__header">
-                      <span>알림</span>
-                      {unreadCount > 0 && (
-                        <button
-                          type="button"
-                          className="notification-dropdown__mark-all"
-                          onClick={() => markAllAsRead()}
-                        >
-                          모두 읽음
-                        </button>
+                  <>
+                    <div className="dropdown-overlay" onClick={() => setShowNotifications(false)} />
+                    <div className="notification-dropdown">
+                      <div className="notification-dropdown__header">
+                        <span>알림</span>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            className="notification-dropdown__mark-all"
+                            onClick={() => markAllAsRead()}
+                          >
+                            모두 읽음
+                          </button>
+                        )}
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="notification-dropdown__empty">
+                          새로운 알림이 없습니다.
+                        </div>
+                      ) : (
+                        <div className="notification-dropdown__list">
+                          {notifications.slice(0, 5).map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : ''}`}
+                            >
+                              <div className={`notification-dropdown__icon notification-dropdown__icon--${notification.type}`}>
+                                {notification.type === 'success' && '✓'}
+                                {notification.type === 'error' && '✕'}
+                                {notification.type === 'warning' && '!'}
+                                {notification.type === 'info' && 'i'}
+                              </div>
+                              <div className="notification-dropdown__content">
+                                {notification.title && <strong>{notification.title}</strong>}
+                                <p>{notification.message}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {notifications.length === 0 ? (
-                      <div className="notification-dropdown__empty">
-                        새로운 알림이 없습니다.
-                      </div>
-                    ) : (
-                      <div className="notification-dropdown__list">
-                        {notifications.slice(0, 5).map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : ''}`}
-                          >
-                            <div className={`notification-dropdown__icon notification-dropdown__icon--${notification.type}`}>
-                              {notification.type === 'success' && '✓'}
-                              {notification.type === 'error' && '✕'}
-                              {notification.type === 'warning' && '!'}
-                              {notification.type === 'info' && 'i'}
-                            </div>
-                            <div className="notification-dropdown__content">
-                              {notification.title && <strong>{notification.title}</strong>}
-                              <p>{notification.message}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -184,60 +187,63 @@ function Header() {
                   </svg>
                 </button>
                 {showProfileMenu && (
-                  <div className="profile-dropdown">
-                    <div className="profile-dropdown__header">
-                      <span className="profile-dropdown__name">{user?.name || user?.identifier}</span>
-                      <span className="profile-dropdown__plan">{user?.tier || 'Free'} 플랜</span>
+                  <>
+                    <div className="dropdown-overlay" onClick={() => setShowProfileMenu(false)} />
+                    <div className="profile-dropdown">
+                      <div className="profile-dropdown__header">
+                        <span className="profile-dropdown__name">{user?.name || user?.identifier}</span>
+                        <span className="profile-dropdown__plan">{user?.tier || 'Free'} 플랜</span>
+                      </div>
+                      <div className="profile-dropdown__divider" />
+                      <Link to="/recommend" className="profile-dropdown__item profile-dropdown__item--primary" onClick={() => setShowProfileMenu(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                        번호 받기
+                      </Link>
+                      <Link to="/mypage?tab=lines" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                        내 조합
+                      </Link>
+                      <Link to="/mypage?tab=account" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        계정 설정
+                      </Link>
+                      <Link to="/mypage?tab=subscription" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                          <line x1="1" y1="10" x2="23" y2="10" />
+                        </svg>
+                        플랜 관리
+                      </Link>
+                      <Link to="/mypage?tab=notifications" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        알림 설정
+                      </Link>
+                      <div className="profile-dropdown__divider" />
+                      <button
+                        type="button"
+                        className="profile-dropdown__item profile-dropdown__item--logout"
+                        onClick={() => { logout(); setShowProfileMenu(false); }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                        로그아웃
+                      </button>
                     </div>
-                    <div className="profile-dropdown__divider" />
-                    <Link to="/recommend" className="profile-dropdown__item profile-dropdown__item--primary" onClick={() => setShowProfileMenu(false)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                      </svg>
-                      번호 받기
-                    </Link>
-                    <Link to="/mypage?tab=lines" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                        <polyline points="9 22 9 12 15 12 15 22" />
-                      </svg>
-                      내 조합
-                    </Link>
-                    <Link to="/mypage?tab=account" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                      계정 설정
-                    </Link>
-                    <Link to="/mypage?tab=subscription" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                        <line x1="1" y1="10" x2="23" y2="10" />
-                      </svg>
-                      플랜 관리
-                    </Link>
-                    <Link to="/mypage?tab=notifications" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                      </svg>
-                      알림 설정
-                    </Link>
-                    <div className="profile-dropdown__divider" />
-                    <button
-                      type="button"
-                      className="profile-dropdown__item profile-dropdown__item--logout"
-                      onClick={() => { logout(); setShowProfileMenu(false); }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                      </svg>
-                      로그아웃
-                    </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

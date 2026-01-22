@@ -168,10 +168,17 @@ async def fetch_naver_profile(access_token: str) -> OAuthProfile:
             if phone:
                 phone = "".join(c for c in phone if c.isdigit())
 
+            # 이름 fallback 처리
+            name = (
+                profile.get("name") or
+                profile.get("nickname") or
+                f"네이버{profile.get('id', '')[-4:]}"  # 네이버ID 마지막 4자리
+            )
+
             return OAuthProfile(
                 provider_user_id=profile.get("id", ""),
                 email=profile.get("email"),
-                name=profile.get("name") or profile.get("nickname"),
+                name=name,
                 phone_number=phone or None,
                 profile_image_url=profile.get("profile_image"),
             )
@@ -264,10 +271,12 @@ async def fetch_kakao_profile(access_token: str) -> OAuthProfile:
             logger.info("Kakao profile keys: %s", list(profile.keys()))
 
             # 이름 필드 확인 (여러 가능한 필드에서 찾기)
+            # 카카오는 앱 권한 설정에 따라 nickname이 없을 수 있음
             name = (
                 profile.get("nickname") or
                 kakao_account.get("name") or
-                data.get("properties", {}).get("nickname")
+                data.get("properties", {}).get("nickname") or
+                f"카카오{str(data.get('id', ''))[-4:]}"  # 카카오ID 마지막 4자리
             )
 
             # 전화번호 정규화 (+82 10-1234-5678 → 01012345678)
@@ -345,7 +354,7 @@ def social_login(
     provider: str,
     profile: OAuthProfile,
     access_token: Optional[str] = None,
-) -> User:
+) -> tuple:
     """
     소셜 로그인 공통 처리 (계정 통합 지원)
 
@@ -362,7 +371,7 @@ def social_login(
         access_token: OAuth access token (선택)
 
     Returns:
-        User 객체
+        tuple: (User 객체, 신규 가입 여부 bool)
     """
     provider_user_id = profile["provider_user_id"]
     if not provider_user_id:
@@ -399,7 +408,7 @@ def social_login(
 
         db.commit()
         logger.info("Social login: provider=%s user_id=%s", provider, user.id)
-        return user
+        return user, False  # 기존 사용자
 
     # 2. 이메일/전화번호로 기존 사용자 검색 (계정 통합)
     existing_user = _find_existing_user_by_profile(db, profile)
@@ -430,7 +439,7 @@ def social_login(
             "Social account linked to existing user: provider=%s user_id=%s (unified by email/phone)",
             provider, existing_user.id
         )
-        return existing_user
+        return existing_user, False  # 기존 사용자 (계정 통합)
 
     # 3. 새 사용자 생성
     user = User(
@@ -456,4 +465,4 @@ def social_login(
     db.commit()
 
     logger.info("Social signup: provider=%s user_id=%s email=%s", provider, user.id, user.email)
-    return user
+    return user, True  # 신규 가입

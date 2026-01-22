@@ -1049,12 +1049,15 @@ class ExchangeTokenResponse(BaseModel):
     first_week_bonus_used: bool = False
     weekly_free_used_at: Optional[str] = None
     created_at: Optional[str] = None
+    # 신규 가입 여부 (동의 페이지 표시용)
+    is_new_user: bool = False
 
 
-def create_oauth_one_time_token(user_id: int, db: Session = None) -> str:
+def create_oauth_one_time_token(user_id: int, db: Session = None, is_new_user: bool = False) -> str:
     """
     OAuth 콜백용 일회성 토큰 생성 (5분 유효)
     - DB 기반 저장으로 다중 워커 환경 지원
+    - is_new_user: 신규 가입 사용자 여부 (동의 페이지 표시용)
     """
     from app.db.session import SessionLocal
 
@@ -1072,6 +1075,7 @@ def create_oauth_one_time_token(user_id: int, db: Session = None) -> str:
             token=token,
             user_id=user_id,
             expires_at=expires_at,
+            is_new_user=is_new_user,
         )
         db.add(oauth_token)
         db.commit()
@@ -1135,6 +1139,7 @@ def exchange_oauth_token(
 
     # 토큰 사용 처리 (재사용 방지)
     oauth_token.used_at = datetime.utcnow()
+    is_new_user = oauth_token.is_new_user or False
     db.add(oauth_token)
 
     # 사용자 조회
@@ -1158,6 +1163,8 @@ def exchange_oauth_token(
     user.refresh_token_updated_at = datetime.utcnow()
     db.commit()
 
+    logger.info("OAuth token exchange: user_id=%s, is_new_user=%s", user.id, is_new_user)
+
     # Token 기반 응답 (access_token, refresh_token 포함)
     return ExchangeTokenResponse(
         success=True,
@@ -1175,4 +1182,5 @@ def exchange_oauth_token(
         first_week_bonus_used=user.first_week_bonus_used,
         weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
         created_at=user.created_at.isoformat() if user.created_at else None,
+        is_new_user=is_new_user,
     )

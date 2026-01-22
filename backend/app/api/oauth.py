@@ -105,14 +105,14 @@ async def naver_callback(
         # 프로필 조회
         profile = await fetch_naver_profile(access_token)
 
-        # 회원 처리
-        user = social_login(db, "NAVER", profile, access_token)
+        # 회원 처리 (신규 가입 여부 반환)
+        user, is_new_user = social_login(db, "NAVER", profile, access_token)
         db.commit()  # 사용자 정보 먼저 커밋
 
         # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
-        one_time_token = create_oauth_one_time_token(user.id, db)
+        one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=is_new_user)
         redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-        logger.info("Naver login success: user_id=%s", user.id)
+        logger.info("Naver login success: user_id=%s, is_new=%s", user.id, is_new_user)
         return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
@@ -186,14 +186,14 @@ async def kakao_callback(
         # 프로필 조회
         profile = await fetch_kakao_profile(access_token)
 
-        # 회원 처리
-        user = social_login(db, "KAKAO", profile, access_token)
+        # 회원 처리 (신규 가입 여부 반환)
+        user, is_new_user = social_login(db, "KAKAO", profile, access_token)
         db.commit()  # 사용자 정보 먼저 커밋
 
         # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
-        one_time_token = create_oauth_one_time_token(user.id, db)
+        one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=is_new_user)
         redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-        logger.info("Kakao login success: user_id=%s", user.id)
+        logger.info("Kakao login success: user_id=%s, is_new=%s", user.id, is_new_user)
         return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
