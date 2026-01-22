@@ -22,6 +22,7 @@ def init_db() -> None:
     _ensure_user_refresh_columns()
     _ensure_user_social_columns()
     _ensure_social_accounts_table()
+    _ensure_oauth_one_time_tokens_table()
 
 
 def _is_sqlite() -> bool:
@@ -88,6 +89,28 @@ def _ensure_social_accounts_table() -> None:
                 )
             """))
             conn.execute(text("CREATE INDEX ix_social_accounts_user_id ON social_accounts(user_id)"))
+            conn.commit()
+
+
+def _ensure_oauth_one_time_tokens_table() -> None:
+    """oauth_one_time_tokens 테이블 생성 (다중 워커 환경 OAuth 지원)"""
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='oauth_one_time_tokens'")
+        )
+        if not result.fetchone():
+            conn.execute(text("""
+                CREATE TABLE oauth_one_time_tokens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token VARCHAR(64) NOT NULL UNIQUE,
+                    user_id INTEGER NOT NULL,
+                    expires_at DATETIME NOT NULL,
+                    used_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_oauth_one_time_tokens_token ON oauth_one_time_tokens(token)"))
             conn.commit()
 
 

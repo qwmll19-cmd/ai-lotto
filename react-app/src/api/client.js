@@ -1,6 +1,38 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 const DEBUG_API = import.meta.env.DEV // 개발 환경에서만 로깅
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 토큰 관리 (Token 기반 인증)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const TOKEN_KEY = 'ai_lotto_tokens'
+
+function getTokens() {
+  try {
+    const stored = localStorage.getItem(TOKEN_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function saveTokens(tokens) {
+  if (tokens) {
+    localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens))
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+
+function getAccessToken() {
+  const tokens = getTokens()
+  return tokens?.access_token || null
+}
+
+function getRefreshToken() {
+  const tokens = getTokens()
+  return tokens?.refresh_token || null
+}
+
 // API 로그 저장 (최근 50개)
 function logApiCall(type, data) {
   if (!DEBUG_API) return
@@ -23,11 +55,43 @@ function logApiCall(type, data) {
 }
 
 async function refreshSession() {
-  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  })
-  return response.ok
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    logApiCall('REFRESH_SKIP', { reason: 'no_refresh_token' })
+    return false
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshToken}`,
+      },
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      saveTokens({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      })
+      logApiCall('REFRESH_SUCCESS', { status: response.status })
+      return true
+    }
+
+    // 401/403: refresh_token도 만료됨 - 재로그인 필요
+    logApiCall('REFRESH_FAILED', { status: response.status })
+  } catch (err) {
+    // 네트워크 에러 - 토큰은 유지 (오프라인 상황 대비)
+    logApiCall('REFRESH_NETWORK_ERROR', { error: err.message })
+    // 네트워크 에러는 토큰 삭제하지 않음
+    return false
+  }
+
+  // 갱신 실패 시 토큰 삭제 (401/403 등 인증 에러)
+  saveTokens(null)
+  return false
 }
 
 async function request(path, options = {}) {
@@ -36,14 +100,20 @@ async function request(path, options = {}) {
 
   logApiCall('REQUEST', { method, path, body: options.body })
 
+  // Authorization 헤더 구성 (Token 기반 인증)
+  const accessToken = getAccessToken()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
   let response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include',
+      headers,
       ...options,
     })
   } catch (networkError) {
@@ -60,6 +130,7 @@ async function request(path, options = {}) {
   const duration = Math.round(performance.now() - startTime)
 
   if (!response.ok) {
+    // 401 시 토큰 갱신 시도
     if (response.status === 401 && !options._retry) {
       const refreshed = await refreshSession()
       if (refreshed) {
@@ -100,4 +171,4 @@ async function request(path, options = {}) {
   return data
 }
 
-export { API_BASE_URL, request }
+export { API_BASE_URL, request, getTokens, saveTokens, getAccessToken, getRefreshToken }

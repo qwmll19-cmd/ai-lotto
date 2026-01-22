@@ -1,19 +1,22 @@
-"""OAuth 소셜 로그인 API"""
+"""OAuth 소셜 로그인 API
+
+Token 기반 인증 시스템으로 전환:
+- 모든 OAuth 콜백을 one-time token 방식으로 통일
+- 브라우저 종류(인앱/일반) 구분 없이 동일한 흐름 처리
+- 프론트엔드에서 /oauth/callback 페이지를 통해 토큰 교환
+"""
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.config import settings, get_cookie_settings
+from app.config import settings
 from app.db.session import get_db
-from app.services.jwt import encode_jwt
-from app.services.auth import hash_token
 from app.services.oauth import (
     OAuthError,
     generate_oauth_state,
@@ -30,64 +33,6 @@ from app.api.auth import create_oauth_one_time_token
 
 router = APIRouter(prefix="/auth", tags=["oauth"])
 logger = logging.getLogger("oauth")
-
-ACCESS_COOKIE = "access_token"
-REFRESH_COOKIE = "refresh_token"
-
-
-def _is_inapp_browser(user_agent: str) -> bool:
-    """인앱 브라우저 감지 (카카오톡, 네이버, 인스타그램 등)"""
-    if not user_agent:
-        return False
-    ua_lower = user_agent.lower()
-    inapp_keywords = [
-        "kakaotalk",
-        "kakao",
-        "naver",
-        "instagram",
-        "fban",
-        "fbav",  # Facebook
-        "line",
-        "wechat",
-        "micromessenger",
-    ]
-    return any(keyword in ua_lower for keyword in inapp_keywords)
-
-
-def _set_auth_cookies(response: Response, user_id: int, identifier: str) -> str:
-    """JWT 토큰 생성 및 쿠키 설정"""
-    access_token = encode_jwt(
-        {"sub": user_id, "identifier": identifier, "typ": "access"},
-        settings.JWT_SECRET,
-        settings.JWT_TTL_SECONDS,
-    )
-    refresh_token = encode_jwt(
-        {"sub": user_id, "identifier": identifier, "typ": "refresh"},
-        settings.JWT_SECRET,
-        settings.JWT_REFRESH_TTL_SECONDS,
-    )
-
-    secure, samesite = get_cookie_settings()
-    response.set_cookie(
-        key=ACCESS_COOKIE,
-        value=access_token,
-        httponly=True,
-        samesite=samesite,
-        secure=secure,
-        max_age=settings.JWT_TTL_SECONDS,
-        path="/",
-    )
-    response.set_cookie(
-        key=REFRESH_COOKIE,
-        value=refresh_token,
-        httponly=True,
-        samesite=samesite,
-        secure=secure,
-        max_age=settings.JWT_REFRESH_TTL_SECONDS,
-        path="/",
-    )
-
-    return refresh_token
 
 
 def _redirect_with_error(error_code: str, error_message: str) -> RedirectResponse:
@@ -130,13 +75,13 @@ async def naver_callback(
     """
     네이버 OAuth 콜백
 
-    1. state 검증
+    Token 기반 인증 시스템:
+    1. state 검증 (CSRF 방지)
     2. code → access_token 교환
     3. 프로필 조회
     4. 회원 처리 (신규/기존)
-    5. JWT 발급 및 프론트엔드로 리다이렉트
-       - 인앱 브라우저: one-time token 방식
-       - 일반 브라우저: 쿠키 방식
+    5. one-time token 발급 후 /oauth/callback으로 리다이렉트
+       - 프론트엔드에서 토큰 교환 API 호출하여 JWT 획득
     """
     # 에러 처리
     if error:
@@ -162,33 +107,13 @@ async def naver_callback(
 
         # 회원 처리
         user = social_login(db, "NAVER", profile, access_token)
+        db.commit()  # 사용자 정보 먼저 커밋
 
-        # 인앱 브라우저 감지
-        user_agent = request.headers.get("user-agent", "")
-        is_inapp = _is_inapp_browser(user_agent)
-
-        if is_inapp:
-            # 인앱 브라우저: one-time token 방식 사용
-            one_time_token = create_oauth_one_time_token(user.id)
-            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-            logger.info("Naver login (inapp) success: user_id=%s, ua=%s", user.id, user_agent[:50])
-        else:
-            # 일반 브라우저: 쿠키 방식 사용
-            identifier = user.identifier or f"naver_{user.id}"
-            redirect_url = f"{settings.FRONTEND_URL}/mypage?login=success"
-
-        response = RedirectResponse(url=redirect_url, status_code=302)
-
-        if not is_inapp:
-            # 일반 브라우저에서만 쿠키 설정
-            identifier = user.identifier or f"naver_{user.id}"
-            refresh_token = _set_auth_cookies(response, user.id, identifier)
-            user.refresh_token_hash = hash_token(refresh_token)
-            user.refresh_token_updated_at = datetime.utcnow()
-
-        db.commit()
-        logger.info("Naver login success: user_id=%s, inapp=%s", user.id, is_inapp)
-        return response
+        # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
+        one_time_token = create_oauth_one_time_token(user.id, db)
+        redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+        logger.info("Naver login success: user_id=%s", user.id)
+        return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
         logger.error("Naver callback failed: %s", e.message)
@@ -231,13 +156,13 @@ async def kakao_callback(
     """
     카카오 OAuth 콜백
 
-    1. state 검증
+    Token 기반 인증 시스템:
+    1. state 검증 (CSRF 방지)
     2. code → access_token 교환
     3. 프로필 조회
     4. 회원 처리 (신규/기존)
-    5. JWT 발급 및 프론트엔드로 리다이렉트
-       - 인앱 브라우저: one-time token 방식
-       - 일반 브라우저: 쿠키 방식
+    5. one-time token 발급 후 /oauth/callback으로 리다이렉트
+       - 프론트엔드에서 토큰 교환 API 호출하여 JWT 획득
     """
     # 에러 처리
     if error:
@@ -249,7 +174,7 @@ async def kakao_callback(
         logger.warning("Kakao callback missing params: code=%s state=%s", bool(code), bool(state))
         return _redirect_with_error("invalid_request", "잘못된 요청입니다.")
 
-    # state 검증 (CSRF 방지) - 필수
+    # state 검증 (CSRF 방지)
     if not verify_oauth_state(state):
         logger.warning("Kakao callback invalid state")
         return _redirect_with_error("invalid_state", "세션이 만료되었습니다. 다시 시도해주세요.")
@@ -263,32 +188,13 @@ async def kakao_callback(
 
         # 회원 처리
         user = social_login(db, "KAKAO", profile, access_token)
+        db.commit()  # 사용자 정보 먼저 커밋
 
-        # 인앱 브라우저 감지
-        user_agent = request.headers.get("user-agent", "")
-        is_inapp = _is_inapp_browser(user_agent)
-
-        if is_inapp:
-            # 인앱 브라우저: one-time token 방식 사용
-            one_time_token = create_oauth_one_time_token(user.id)
-            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-            logger.info("Kakao login (inapp) success: user_id=%s, ua=%s", user.id, user_agent[:50])
-        else:
-            # 일반 브라우저: 쿠키 방식 사용
-            redirect_url = f"{settings.FRONTEND_URL}/mypage?login=success"
-
-        response = RedirectResponse(url=redirect_url, status_code=302)
-
-        if not is_inapp:
-            # 일반 브라우저에서만 쿠키 설정
-            identifier = user.identifier or f"kakao_{user.id}"
-            refresh_token = _set_auth_cookies(response, user.id, identifier)
-            user.refresh_token_hash = hash_token(refresh_token)
-            user.refresh_token_updated_at = datetime.utcnow()
-
-        db.commit()
-        logger.info("Kakao login success: user_id=%s, inapp=%s", user.id, is_inapp)
-        return response
+        # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
+        one_time_token = create_oauth_one_time_token(user.id, db)
+        redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+        logger.info("Kakao login success: user_id=%s", user.id)
+        return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
         logger.error("Kakao callback failed: %s", e.message)

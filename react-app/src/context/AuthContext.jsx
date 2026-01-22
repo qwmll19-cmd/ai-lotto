@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { login as apiLogin, logout as apiLogout, signup as apiSignup } from '../api/authApi.js'
-import { request } from '../api/client.js'
+import { request, saveTokens, getAccessToken } from '../api/client.js'
 
 const AuthContext = createContext(null)
 
@@ -34,15 +34,26 @@ export function AuthProvider({ children }) {
   const signup = async ({ name, identifier, password, phone, sms_verified_token }) => {
     try {
       const response = await apiSignup({ name, identifier, password, phone, sms_verified_token })
+
+      // Token 기반 인증: 토큰 저장
+      if (response.access_token && response.refresh_token) {
+        saveTokens({
+          access_token: response.access_token,
+          refresh_token: response.refresh_token,
+        })
+      }
+
+      // user 정보는 response.user에서 가져옴 (새로운 응답 형식)
+      const userData = response.user || response
       const nextUser = {
-        id: response.user_id,
-        name: response.name || name,
-        identifier: response.identifier || identifier,
-        isAdmin: response.is_admin || false,
-        tier: response.tier || 'FREE',
-        first_week_bonus_used: response.first_week_bonus_used || false,
-        weekly_free_used_at: response.weekly_free_used_at || null,
-        signup_at: response.signup_at || new Date().toISOString(),
+        id: userData.user_id || response.user_id,
+        name: userData.name || name,
+        identifier: userData.identifier || identifier,
+        isAdmin: userData.is_admin || false,
+        tier: userData.tier || 'FREE',
+        first_week_bonus_used: userData.first_week_bonus_used || false,
+        weekly_free_used_at: userData.weekly_free_used_at || null,
+        signup_at: userData.created_at || new Date().toISOString(),
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
@@ -76,14 +87,25 @@ export function AuthProvider({ children }) {
   const login = async ({ identifier, password }) => {
     try {
       const response = await apiLogin({ identifier, password })
+
+      // Token 기반 인증: 토큰 저장
+      if (response.access_token && response.refresh_token) {
+        saveTokens({
+          access_token: response.access_token,
+          refresh_token: response.refresh_token,
+        })
+      }
+
+      // user 정보는 response.user에서 가져옴 (새로운 응답 형식)
+      const userData = response.user || response
       const nextUser = {
-        id: response.user_id,
-        identifier: response.identifier || identifier,
-        isAdmin: response.is_admin || false,
-        tier: response.tier || 'FREE',
-        first_week_bonus_used: response.first_week_bonus_used || false,
-        weekly_free_used_at: response.weekly_free_used_at || null,
-        signup_at: response.signup_at || null,
+        id: userData.user_id || response.user_id,
+        identifier: userData.identifier || identifier,
+        isAdmin: userData.is_admin || false,
+        tier: userData.tier || 'FREE',
+        first_week_bonus_used: userData.first_week_bonus_used || false,
+        weekly_free_used_at: userData.weekly_free_used_at || null,
+        signup_at: userData.created_at || null,
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
@@ -99,6 +121,8 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore logout errors to avoid blocking local cleanup
     }
+    // Token 기반 인증: 토큰 삭제
+    saveTokens(null)
     setUser(null)
     saveUserToStorage(null)
   }
@@ -107,9 +131,12 @@ export function AuthProvider({ children }) {
     let active = true
 
     const load = async () => {
-      // 로컬 스토리지에 저장된 사용자가 있으면 서버에 확인
+      // Token 기반 인증: 토큰 존재 여부 먼저 확인
+      const accessToken = getAccessToken()
       const storedUser = loadUserFromStorage()
-      if (storedUser) {
+
+      // 토큰이 있거나 저장된 사용자가 있으면 서버에 확인
+      if (accessToken || storedUser) {
         try {
           const data = await request('/api/auth/me')
           if (!active) return
@@ -127,33 +154,17 @@ export function AuthProvider({ children }) {
           setUser(verifiedUser)
           saveUserToStorage(verifiedUser)
         } catch {
-          // 서버 검증 실패해도 로컬 스토리지 사용자 유지 (오프라인 지원)
           if (!active) return
-          setUser(storedUser)
+          // 토큰이 유효하지 않으면 삭제
+          saveTokens(null)
+          setUser(null)
+          saveUserToStorage(null)
         }
       } else {
-        // 로컬 스토리지에 없으면 서버에서 확인 시도
-        try {
-          const data = await request('/api/auth/me')
-          if (!active) return
-          const verifiedUser = {
-            id: data.user_id,
-            identifier: data.identifier,
-            name: data.name || null,
-            phone_number: data.phone_number || null,
-            isAdmin: data.is_admin || false,
-            tier: data.tier || 'FREE',
-            first_week_bonus_used: data.first_week_bonus_used || false,
-            weekly_free_used_at: data.weekly_free_used_at || null,
-            created_at: data.created_at || null,
-          }
-          setUser(verifiedUser)
-          saveUserToStorage(verifiedUser)
-        } catch {
-          if (!active) return
-          setUser(null)
-        }
+        // 토큰과 저장된 사용자 모두 없음 - 비로그인 상태
+        setUser(null)
       }
+
       if (active) setAuthLoading(false)
     }
 

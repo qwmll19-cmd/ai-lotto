@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { request } from '../../api/client.js'
+import { request, saveTokens } from '../../api/client.js'
 
 /**
  * OAuth 콜백 처리 페이지
@@ -47,6 +47,14 @@ function OAuthCallback() {
         })
 
         if (data.success) {
+          // Token 기반 인증: 토큰 저장
+          if (data.access_token && data.refresh_token) {
+            saveTokens({
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+            })
+          }
+
           // 사용자 정보를 context와 localStorage에 저장
           const userData = {
             id: data.user_id,

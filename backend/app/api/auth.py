@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_cookie_settings, settings
 from app.db.session import get_db
-from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification
+from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken
 from app.services.auth import hash_password, verify_password, hash_token, verify_token
 from app.services.jwt import decode_jwt, encode_jwt
 from app.services.sms import get_sms_client, SmsSendRequest
@@ -57,14 +57,24 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
+    """기존 호환용 응답 (deprecated)"""
     user_id: int
-    identifier: Optional[str] = None  # 소셜 로그인 사용자는 None일 수 있음
+    identifier: Optional[str] = None
     token: Optional[str] = None
     is_admin: bool = False
-    name: Optional[str] = None  # 소셜 로그인 사용자 이름
+    name: Optional[str] = None
     phone_number: Optional[str] = None
     tier: str = "FREE"
-    created_at: Optional[str] = None  # 가입일
+    created_at: Optional[str] = None
+
+
+class TokenAuthResponse(BaseModel):
+    """Token 기반 인증 응답 (신규)"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    user: dict
 
 
 ACCESS_COOKIE = "access_token"
@@ -87,7 +97,7 @@ def _create_tokens(user_id: int, identifier: str) -> Tuple[str, str]:
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
-    """인증 쿠키 설정"""
+    """인증 쿠키 설정 (점진적 마이그레이션 - 기존 호환용, 향후 제거 예정)"""
     secure, samesite = get_cookie_settings()
     response.set_cookie(
         key=ACCESS_COOKIE,
@@ -109,7 +119,44 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
     )
 
 
-@router.post("/signup", response_model=AuthResponse)
+def _build_user_dict(user: User) -> dict:
+    """사용자 정보를 딕셔너리로 변환 (프론트엔드 호환성 유지)"""
+    return {
+        "user_id": user.id,
+        "identifier": user.identifier,
+        "name": user.name,
+        "phone_number": user.phone_number,
+        "is_admin": user.is_admin,
+        "tier": (user.subscription_type or "free").upper(),
+        "first_week_bonus_used": user.first_week_bonus_used,
+        "weekly_free_used_at": user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+def _get_token_from_request(request: Request) -> Optional[str]:
+    """요청에서 토큰 추출 (Authorization 헤더 우선, 쿠키 폴백)"""
+    # 1. Authorization 헤더 우선 확인
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ", 1)[1]
+
+    # 2. 쿠키에서 확인 (기존 호환)
+    return request.cookies.get(ACCESS_COOKIE)
+
+
+def _get_refresh_token_from_request(request: Request) -> Optional[str]:
+    """요청에서 refresh 토큰 추출 (Authorization 헤더 우선, 쿠키 폴백)"""
+    # 1. Authorization 헤더 우선 확인
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ", 1)[1]
+
+    # 2. 쿠키에서 확인 (기존 호환)
+    return request.cookies.get(REFRESH_COOKIE)
+
+
+@router.post("/signup", response_model=TokenAuthResponse)
 @limiter.limit("5/minute")
 def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
     """
@@ -117,6 +164,8 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
     - 아이디 (자유 입력)
     - 비밀번호
     - 전화번호 + SMS 인증 필수
+
+    응답: Token 기반 인증 (access_token, refresh_token, user 정보)
     """
     try:
         identifier = payload.identifier.strip()
@@ -181,9 +230,19 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         db.add(user)
         db.commit()
 
+        # 점진적 마이그레이션: 쿠키도 설정 (기존 호환)
         _set_auth_cookies(response, access_token, refresh_token)
+
         logger.info(f"회원가입 성공: user_id={user.id}, identifier={identifier[:3]}***")
-        return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
+
+        # Token 기반 응답 반환
+        return TokenAuthResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="Bearer",
+            expires_in=settings.JWT_TTL_SECONDS,
+            user=_build_user_dict(user),
+        )
 
     except HTTPException:
         raise
@@ -193,9 +252,14 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         raise HTTPException(status_code=500, detail=f"회원가입 처리 중 오류가 발생했습니다: {str(e)}")
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=TokenAuthResponse)
 @limiter.limit("10/minute")
 def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    """
+    로그인 API
+
+    응답: Token 기반 인증 (access_token, refresh_token, user 정보)
+    """
     user = db.query(User).filter(User.identifier == payload.identifier).first()
 
     # 타이밍 공격 방지: 사용자가 없어도 비밀번호 검증 시간 동일하게 유지
@@ -211,13 +275,26 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
     db.add(user)
     db.commit()
 
+    # 점진적 마이그레이션: 쿠키도 설정 (기존 호환)
     _set_auth_cookies(response, access_token, refresh_token)
-    return AuthResponse(user_id=user.id, identifier=user.identifier, token=access_token, is_admin=user.is_admin)
+
+    # Token 기반 응답 반환
+    return TokenAuthResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        expires_in=settings.JWT_TTL_SECONDS,
+        user=_build_user_dict(user),
+    )
 
 
-@router.get("/me", response_model=AuthResponse)
+@router.get("/me")
 def me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get(ACCESS_COOKIE)
+    """
+    현재 로그인한 사용자 정보 조회
+    - Authorization 헤더 또는 쿠키에서 토큰 읽기
+    """
+    token = _get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
 
@@ -231,25 +308,18 @@ def me(request: Request, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
 
-    # 구독 타입을 대문자로 변환
-    tier = (user.subscription_type or "free").upper()
-    created_at_str = user.created_at.isoformat() if user.created_at else None
-
-    return AuthResponse(
-        user_id=user.id,
-        identifier=user.identifier,
-        token=None,
-        is_admin=user.is_admin,
-        name=user.name,
-        phone_number=user.phone_number,
-        tier=tier,
-        created_at=created_at_str,
-    )
+    return _build_user_dict(user)
 
 
 @router.post("/logout")
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
-    token = request.cookies.get(ACCESS_COOKIE)
+    """
+    로그아웃 API
+    - Authorization 헤더 또는 쿠키에서 토큰 읽기
+    - DB의 refresh_token_hash 무효화
+    - 쿠키 삭제 (기존 호환)
+    """
+    token = _get_token_from_request(request)
     if token:
         payload = decode_jwt(token, settings.JWT_SECRET)
         if payload and payload.get("typ") == "access":
@@ -259,15 +329,30 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
                 user.refresh_token_updated_at = None
                 db.add(user)
                 db.commit()
+
+    # 점진적 마이그레이션: 쿠키도 삭제 (기존 호환)
     secure, samesite = get_cookie_settings()
     response.delete_cookie(ACCESS_COOKIE, path="/", samesite=samesite, secure=secure)
     response.delete_cookie(REFRESH_COOKIE, path="/", samesite=samesite, secure=secure)
     return {"ok": True}
 
 
-@router.post("/refresh", response_model=AuthResponse)
+class TokenRefreshResponse(BaseModel):
+    """토큰 갱신 응답"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+
+
+@router.post("/refresh", response_model=TokenRefreshResponse)
 def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
-    token = request.cookies.get(REFRESH_COOKIE)
+    """
+    토큰 갱신 API
+    - Authorization 헤더 또는 쿠키에서 refresh_token 읽기
+    - 새로운 access_token, refresh_token 발급
+    """
+    token = _get_refresh_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
 
@@ -290,12 +375,25 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
     db.add(user)
     db.commit()
 
+    # 점진적 마이그레이션: 쿠키도 설정 (기존 호환)
     _set_auth_cookies(response, access_token, refresh_token)
-    return AuthResponse(user_id=user.id, identifier=identifier, token=access_token, is_admin=user.is_admin)
+
+    # Token 기반 응답 반환
+    return TokenRefreshResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        expires_in=settings.JWT_TTL_SECONDS,
+    )
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    token = request.cookies.get(ACCESS_COOKIE)
+    """
+    현재 로그인한 사용자를 반환하는 의존성 함수
+    - Authorization 헤더 우선 확인 (Bearer token)
+    - 쿠키 폴백 (기존 호환)
+    """
+    token = _get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
 
@@ -924,10 +1022,8 @@ def update_user_plan(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # OAuth One-Time Token 교환 API
 # (카카오톡 인앱 브라우저 등 쿠키 제한 환경 지원)
+# DB 기반 토큰 저장 - 다중 워커 환경 지원
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# 메모리 기반 토큰 저장소 (프로덕션에서는 Redis 권장)
-_oauth_tokens: dict = {}
 
 
 class ExchangeTokenRequest(BaseModel):
@@ -935,8 +1031,15 @@ class ExchangeTokenRequest(BaseModel):
 
 
 class ExchangeTokenResponse(BaseModel):
+    """OAuth one-time token 교환 응답 (Token 기반 인증 포함)"""
     success: bool
     message: str
+    # Token 기반 인증 필드 (신규)
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: str = "Bearer"
+    expires_in: Optional[int] = None
+    # 사용자 정보
     user_id: Optional[int] = None
     identifier: Optional[str] = None
     name: Optional[str] = None
@@ -948,24 +1051,50 @@ class ExchangeTokenResponse(BaseModel):
     created_at: Optional[str] = None
 
 
-def create_oauth_one_time_token(user_id: int) -> str:
-    """OAuth 콜백용 일회성 토큰 생성 (5분 유효)"""
-    token = secrets.token_urlsafe(32)
-    _oauth_tokens[token] = {
-        "user_id": user_id,
-        "expires_at": datetime.utcnow() + timedelta(minutes=5),
-    }
-    # 만료된 토큰 정리
-    _cleanup_expired_tokens()
-    return token
+def create_oauth_one_time_token(user_id: int, db: Session = None) -> str:
+    """
+    OAuth 콜백용 일회성 토큰 생성 (5분 유효)
+    - DB 기반 저장으로 다중 워커 환경 지원
+    """
+    from app.db.session import SessionLocal
+
+    # DB 세션이 없으면 새로 생성
+    should_close = False
+    if db is None:
+        db = SessionLocal()
+        should_close = True
+
+    try:
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+        oauth_token = OAuthOneTimeToken(
+            token=token,
+            user_id=user_id,
+            expires_at=expires_at,
+        )
+        db.add(oauth_token)
+        db.commit()
+
+        # 만료된 토큰 정리 (백그라운드)
+        _cleanup_expired_oauth_tokens(db)
+
+        return token
+    finally:
+        if should_close:
+            db.close()
 
 
-def _cleanup_expired_tokens():
-    """만료된 토큰 정리"""
-    now = datetime.utcnow()
-    expired = [k for k, v in _oauth_tokens.items() if v["expires_at"] < now]
-    for k in expired:
-        del _oauth_tokens[k]
+def _cleanup_expired_oauth_tokens(db: Session):
+    """만료된 OAuth 토큰 정리"""
+    try:
+        now = datetime.utcnow()
+        db.query(OAuthOneTimeToken).filter(
+            OAuthOneTimeToken.expires_at < now
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 @router.post("/exchange-token", response_model=ExchangeTokenResponse)
@@ -977,36 +1106,51 @@ def exchange_oauth_token(
     """
     OAuth one-time token을 실제 JWT로 교환
     - 카카오톡 인앱 브라우저 등 쿠키 제한 환경 지원
-    - 토큰은 1회 사용 후 삭제됨
+    - 토큰은 1회 사용 후 삭제됨 (DB 기반)
+    - Token 기반 응답: access_token, refresh_token 포함
     """
     token = payload.token
 
-    # 토큰 검증
-    token_data = _oauth_tokens.pop(token, None)
-    if not token_data:
+    # DB에서 토큰 조회
+    oauth_token = db.query(OAuthOneTimeToken).filter(
+        OAuthOneTimeToken.token == token,
+        OAuthOneTimeToken.used_at.is_(None),  # 미사용 토큰만
+    ).first()
+
+    if not oauth_token:
         return ExchangeTokenResponse(
             success=False,
             message="유효하지 않거나 만료된 토큰입니다.",
         )
 
     # 만료 확인
-    if token_data["expires_at"] < datetime.utcnow():
+    if oauth_token.expires_at < datetime.utcnow():
+        # 만료된 토큰 삭제
+        db.delete(oauth_token)
+        db.commit()
         return ExchangeTokenResponse(
             success=False,
             message="토큰이 만료되었습니다.",
         )
 
+    # 토큰 사용 처리 (재사용 방지)
+    oauth_token.used_at = datetime.utcnow()
+    db.add(oauth_token)
+
     # 사용자 조회
-    user = db.query(User).filter(User.id == token_data["user_id"]).first()
+    user = db.query(User).filter(User.id == oauth_token.user_id).first()
     if not user:
+        db.commit()
         return ExchangeTokenResponse(
             success=False,
             message="사용자를 찾을 수 없습니다.",
         )
 
-    # JWT 생성 및 쿠키 설정
+    # JWT 생성
     identifier = user.identifier or f"oauth_{user.id}"
     access_token, refresh_token = _create_tokens(user.id, identifier)
+
+    # 점진적 마이그레이션: 쿠키도 설정 (기존 호환)
     _set_auth_cookies(response, access_token, refresh_token)
 
     # refresh_token_hash 저장
@@ -1014,15 +1158,20 @@ def exchange_oauth_token(
     user.refresh_token_updated_at = datetime.utcnow()
     db.commit()
 
+    # Token 기반 응답 (access_token, refresh_token 포함)
     return ExchangeTokenResponse(
         success=True,
         message="로그인 성공",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        expires_in=settings.JWT_TTL_SECONDS,
         user_id=user.id,
         identifier=user.identifier,
         name=user.name,
         phone_number=user.phone_number,
         is_admin=user.is_admin,
-        tier=user.subscription_type or "FREE",
+        tier=(user.subscription_type or "free").upper(),
         first_week_bonus_used=user.first_week_bonus_used,
         weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
         created_at=user.created_at.isoformat() if user.created_at else None,

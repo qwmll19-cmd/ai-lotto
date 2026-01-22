@@ -154,6 +154,18 @@ class SocialAccount(Base):
     )
 
 
+class OAuthOneTimeToken(Base):
+    """OAuth 콜백용 일회성 토큰 (DB 기반 - 다중 워커 환경 지원)"""
+    __tablename__ = "oauth_one_time_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String(64), nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)  # 사용 시 기록
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class FreeTrialApplication(Base):
     __tablename__ = "free_trial_applications"
 
