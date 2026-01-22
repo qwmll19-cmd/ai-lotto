@@ -7,6 +7,8 @@ function UsersTab({
   users,
   userSearch,
   setUserSearch,
+  userPlanFilter,
+  setUserPlanFilter,
   loadUsers,
   handleUpdateUser,
   handleDeleteUser,
@@ -48,6 +50,16 @@ function UsersTab({
           value={userSearch}
           onChange={(e) => setUserSearch(e.target.value)}
         />
+        <select
+          value={userPlanFilter}
+          onChange={(e) => setUserPlanFilter(e.target.value)}
+        >
+          <option value="">전체 플랜</option>
+          <option value="free">무료</option>
+          <option value="basic">베이직</option>
+          <option value="premium">프리미엄</option>
+          <option value="vip">VIP</option>
+        </select>
         <button onClick={() => loadUsers(1)}>검색</button>
       </div>
       <table className="admin__table">

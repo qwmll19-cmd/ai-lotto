@@ -20,6 +20,8 @@ function SubscriptionsTab({
   subscriptions,
   subscriptionFilter,
   setSubscriptionFilter,
+  subscriptionPlanFilter,
+  setSubscriptionPlanFilter,
   loadSubscriptions,
   handleApprove,
   handleReject,
@@ -60,6 +62,17 @@ function SubscriptionsTab({
           <option value="active">활성</option>
           <option value="expired">만료</option>
           <option value="cancelled">취소</option>
+        </select>
+        <select
+          value={subscriptionPlanFilter}
+          onChange={(e) => {
+            setSubscriptionPlanFilter(e.target.value)
+          }}
+        >
+          <option value="">전체 플랜</option>
+          <option value="basic">베이직</option>
+          <option value="premium">프리미엄</option>
+          <option value="vip">VIP</option>
         </select>
         <button onClick={() => loadSubscriptions(1)}>조회</button>
       </div>

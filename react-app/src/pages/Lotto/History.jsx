@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { historyRows, latestDrawMock } from '../../data/mockData.js'
 import { fetchHistory, fetchLatestDraw } from '../../api/lottoApi.js'
-import LottoBall, { parseNumbers } from '../../components/LottoBall.jsx'
+import LottoBall from '../../components/LottoBall.jsx'
+import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function History() {
   const { isAuthed, isLoading: authLoading } = useAuth()

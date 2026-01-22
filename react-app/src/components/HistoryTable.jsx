@@ -1,5 +1,6 @@
 import { useState, Fragment } from 'react'
-import LottoBall, { parseNumbers } from './LottoBall.jsx'
+import LottoBall from './LottoBall.jsx'
+import { parseNumbers } from '../utils/lottoUtils.js'
 
 function HistoryTable({ rows, emptyMessage = '표시할 데이터가 없습니다.' }) {
   const [expandedRow, setExpandedRow] = useState(null)

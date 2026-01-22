@@ -35,6 +35,13 @@
   font-size: 13px;
 }
 
+.brand__logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
 .brand__text {
   display: flex;
   flex-direction: column;
@@ -5388,6 +5395,23 @@
 
 .btn--kakao .social-icon {
   color: #000000;
+}
+
+/* 팡팡 버튼 */
+.btn--pangpang {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a80 100%);
+  color: white;
+}
+
+.btn--pangpang:hover {
+  background: linear-gradient(135deg, #ff5a8a 0%, #ff7a70 100%);
+}
+
+.social-icon--pangpang {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 /* 버튼 lg 스타일 */

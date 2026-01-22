@@ -4,7 +4,8 @@ import confetti from 'canvas-confetti'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { latestDrawMock } from '../../data/mockData.js'
 import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus } from '../../api/lottoApi.js'
-import LottoBall, { parseNumbers } from '../../components/LottoBall.jsx'
+import LottoBall from '../../components/LottoBall.jsx'
+import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function MyPage() {
   const { user } = useAuth()

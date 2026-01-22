@@ -152,9 +152,10 @@ function Signup() {
           <div className="social-login-buttons">
             <button
               type="button"
-              className="btn btn--primary btn--full"
+              className="btn btn--social btn--pangpang btn--full"
               onClick={() => setShowForm(true)}
             >
+              <img src="/assets/pangpang-logo.png" alt="" className="social-icon social-icon--pangpang" />
               간편가입
             </button>
             <a

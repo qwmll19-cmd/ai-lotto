@@ -51,7 +51,7 @@ function Header() {
             }
           }}
         >
-          <span className="brand__mark">팡팡</span>
+          <img src="/assets/pangpang-logo.png" alt="팡팡" className="brand__logo" />
           <span className="brand__text">
             <span className="brand__title">팡팡로또</span>
             <span className="brand__subtitle">AI 데이터 기반 로또 번호 추천</span>

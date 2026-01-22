@@ -13,7 +13,8 @@ import {
   requestOneLineAdvanced,
   requestAllLinesAdvanced,
 } from '../../api/lottoApi.js'
-import LottoBall, { parseNumbers } from '../../components/LottoBall.jsx'
+import LottoBall from '../../components/LottoBall.jsx'
+import { parseNumbers } from '../../utils/lottoUtils.js'
 import { downloadLottoNumbers } from '../../utils/download.js'
 
 // 티어별 줄 수 설정

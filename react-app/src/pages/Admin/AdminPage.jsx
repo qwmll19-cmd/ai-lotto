@@ -63,6 +63,7 @@ function AdminPage() {
   // Users state
   const [users, setUsers] = useState({ users: [], total: 0, page: 1, page_size: 20 })
   const [userSearch, setUserSearch] = useState('')
+  const [userPlanFilter, setUserPlanFilter] = useState('')
 
   // Social accounts state
   const [socialAccounts, setSocialAccounts] = useState({ accounts: [], total: 0, page: 1, page_size: 20 })
@@ -77,6 +78,7 @@ function AdminPage() {
   // Subscriptions state
   const [subscriptions, setSubscriptions] = useState({ subscriptions: [], total: 0, page: 1, page_size: 20 })
   const [subscriptionFilter, setSubscriptionFilter] = useState('')
+  const [subscriptionPlanFilter, setSubscriptionPlanFilter] = useState('')
 
   // Lotto state
   const [lottoDraws, setLottoDraws] = useState({ draws: [], total: 0, page: 1, page_size: 20 })
@@ -158,7 +160,12 @@ function AdminPage() {
     setLoading(true)
     try {
       const [usersData, socialData] = await Promise.all([
-        fetchUsers({ page, page_size: 20, search: userSearch || undefined }),
+        fetchUsers({
+          page,
+          page_size: 20,
+          search: userSearch || undefined,
+          subscription_type: userPlanFilter || undefined
+        }),
         fetchSocialAccounts({ page: 1, page_size: 20 })
       ])
       setUsers(usersData)
@@ -264,7 +271,12 @@ function AdminPage() {
   const loadSubscriptions = async (page = 1) => {
     setLoading(true)
     try {
-      const data = await fetchSubscriptions({ page, page_size: 20, status: subscriptionFilter || undefined })
+      const data = await fetchSubscriptions({
+        page,
+        page_size: 20,
+        status: subscriptionFilter || undefined,
+        plan_type: subscriptionPlanFilter || undefined
+      })
       setSubscriptions(data)
       setError('')
     } catch (err) {
@@ -615,6 +627,8 @@ function AdminPage() {
               users={users}
               userSearch={userSearch}
               setUserSearch={setUserSearch}
+              userPlanFilter={userPlanFilter}
+              setUserPlanFilter={setUserPlanFilter}
               loadUsers={loadUsers}
               handleUpdateUser={handleUpdateUser}
               handleDeleteUser={handleDeleteUser}
@@ -629,6 +643,8 @@ function AdminPage() {
               subscriptions={subscriptions}
               subscriptionFilter={subscriptionFilter}
               setSubscriptionFilter={setSubscriptionFilter}
+              subscriptionPlanFilter={subscriptionPlanFilter}
+              setSubscriptionPlanFilter={setSubscriptionPlanFilter}
               loadSubscriptions={loadSubscriptions}
               handleApprove={handleApproveSubscription}
               handleReject={handleRejectSubscription}
