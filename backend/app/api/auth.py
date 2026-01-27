@@ -1051,6 +1051,8 @@ class ExchangeTokenResponse(BaseModel):
     created_at: Optional[str] = None
     # 신규 가입 여부 (동의 페이지 표시용)
     is_new_user: bool = False
+    # 신규 가입자 동의 완료용 토큰
+    pending_token: Optional[str] = None
 
 
 def create_oauth_one_time_token(user_id: int, db: Session = None, is_new_user: bool = False) -> str:
@@ -1111,7 +1113,8 @@ def exchange_oauth_token(
     OAuth one-time token을 실제 JWT로 교환
     - 카카오톡 인앱 브라우저 등 쿠키 제한 환경 지원
     - 토큰은 1회 사용 후 삭제됨 (DB 기반)
-    - Token 기반 응답: access_token, refresh_token 포함
+    - 신규 사용자(is_new_user=true): JWT 미발급, pending_token만 반환 (동의 필요)
+    - 기존 사용자: JWT 발급
     """
     token = payload.token
 
@@ -1137,19 +1140,50 @@ def exchange_oauth_token(
             message="토큰이 만료되었습니다.",
         )
 
-    # 토큰 사용 처리 (재사용 방지)
-    oauth_token.used_at = datetime.utcnow()
     is_new_user = oauth_token.is_new_user or False
-    db.add(oauth_token)
 
     # 사용자 조회
     user = db.query(User).filter(User.id == oauth_token.user_id).first()
     if not user:
+        db.delete(oauth_token)
         db.commit()
         return ExchangeTokenResponse(
             success=False,
             message="사용자를 찾을 수 없습니다.",
         )
+
+    # 신규 사용자: JWT 미발급, pending_token 반환 (동의 필요)
+    if is_new_user:
+        # 토큰은 아직 사용하지 않음 (동의 완료 시 사용)
+        # 대신 pending_token으로 재사용
+        logger.info("OAuth new user pending: user_id=%s", user.id)
+
+        return ExchangeTokenResponse(
+            success=True,
+            message="약관 동의가 필요합니다.",
+            # JWT 미발급
+            access_token=None,
+            refresh_token=None,
+            token_type="Bearer",
+            expires_in=None,
+            # 사용자 정보 (동의 페이지 표시용)
+            user_id=user.id,
+            identifier=user.identifier,
+            name=user.name,
+            phone_number=user.phone_number,
+            is_admin=user.is_admin,
+            tier=(user.subscription_type or "free").upper(),
+            first_week_bonus_used=user.first_week_bonus_used,
+            weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
+            created_at=user.created_at.isoformat() if user.created_at else None,
+            is_new_user=True,
+            # 동의 완료 시 사용할 토큰
+            pending_token=token,
+        )
+
+    # 기존 사용자: 토큰 사용 처리 및 JWT 발급
+    oauth_token.used_at = datetime.utcnow()
+    db.add(oauth_token)
 
     # JWT 생성
     identifier = user.identifier or f"oauth_{user.id}"
@@ -1182,5 +1216,107 @@ def exchange_oauth_token(
         first_week_bonus_used=user.first_week_bonus_used,
         weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
         created_at=user.created_at.isoformat() if user.created_at else None,
-        is_new_user=is_new_user,
+        is_new_user=False,
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 소셜 로그인 신규 가입 동의 완료 API
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class CompleteSocialSignupRequest(BaseModel):
+    """소셜 로그인 신규 가입 동의 완료 요청"""
+    pending_token: str = Field(..., min_length=1)
+    consent_terms: bool = Field(..., description="이용약관 동의")
+    consent_marketing: bool = Field(default=False, description="마케팅 동의 (선택)")
+
+
+class CompleteSocialSignupResponse(BaseModel):
+    """소셜 로그인 신규 가입 동의 완료 응답"""
+    success: bool
+    message: str
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: str = "Bearer"
+    expires_in: Optional[int] = None
+    user: Optional[dict] = None
+
+
+@router.post("/complete-social-signup", response_model=CompleteSocialSignupResponse)
+def complete_social_signup(
+    payload: CompleteSocialSignupRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    소셜 로그인 신규 가입 동의 완료
+    - pending_token 검증
+    - 약관 동의 확인
+    - JWT 발급
+    """
+    # 필수 약관 동의 확인
+    if not payload.consent_terms:
+        return CompleteSocialSignupResponse(
+            success=False,
+            message="필수 약관에 동의해야 합니다.",
+        )
+
+    # DB에서 토큰 조회 (아직 사용되지 않은 신규 가입 토큰)
+    oauth_token = db.query(OAuthOneTimeToken).filter(
+        OAuthOneTimeToken.token == payload.pending_token,
+        OAuthOneTimeToken.used_at.is_(None),
+        OAuthOneTimeToken.is_new_user == True,
+    ).first()
+
+    if not oauth_token:
+        return CompleteSocialSignupResponse(
+            success=False,
+            message="유효하지 않거나 만료된 토큰입니다. 다시 로그인해주세요.",
+        )
+
+    # 만료 확인
+    if oauth_token.expires_at < datetime.utcnow():
+        db.delete(oauth_token)
+        db.commit()
+        return CompleteSocialSignupResponse(
+            success=False,
+            message="토큰이 만료되었습니다. 다시 로그인해주세요.",
+        )
+
+    # 사용자 조회
+    user = db.query(User).filter(User.id == oauth_token.user_id).first()
+    if not user:
+        db.delete(oauth_token)
+        db.commit()
+        return CompleteSocialSignupResponse(
+            success=False,
+            message="사용자를 찾을 수 없습니다.",
+        )
+
+    # 토큰 사용 처리
+    oauth_token.used_at = datetime.utcnow()
+    db.add(oauth_token)
+
+    # JWT 생성
+    identifier = user.identifier or f"oauth_{user.id}"
+    access_token, refresh_token = _create_tokens(user.id, identifier)
+
+    # 쿠키 설정 (기존 호환)
+    _set_auth_cookies(response, access_token, refresh_token)
+
+    # refresh_token_hash 저장
+    user.refresh_token_hash = hash_token(refresh_token)
+    user.refresh_token_updated_at = datetime.utcnow()
+    db.commit()
+
+    logger.info("Social signup completed: user_id=%s, marketing=%s", user.id, payload.consent_marketing)
+
+    return CompleteSocialSignupResponse(
+        success=True,
+        message="회원가입이 완료되었습니다.",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        expires_in=settings.JWT_TTL_SECONDS,
+        user=_build_user_dict(user),
     )

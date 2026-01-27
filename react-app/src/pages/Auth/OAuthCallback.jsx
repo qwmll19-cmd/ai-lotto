@@ -47,45 +47,48 @@ function OAuthCallback() {
         })
 
         if (data.success) {
-          // Token 기반 인증: 토큰 저장
-          if (data.access_token && data.refresh_token) {
-            saveTokens({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-            })
-          }
-
-          // 사용자 정보를 context와 localStorage에 저장
-          const userData = {
-            id: data.user_id,
-            identifier: data.identifier,
-            name: data.name || null,
-            phone_number: data.phone_number || null,
-            isAdmin: data.is_admin || false,
-            tier: data.tier || 'FREE',
-            first_week_bonus_used: data.first_week_bonus_used || false,
-            weekly_free_used_at: data.weekly_free_used_at || null,
-            created_at: data.created_at || null,
-          }
-
-          setUser(userData)
-
-          // 신규 가입자는 동의 페이지로 이동
-          if (data.is_new_user) {
+          // 신규 가입자: JWT 미발급, 동의 페이지로 이동 (pending_token 전달)
+          if (data.is_new_user && data.pending_token) {
             setStatus('회원가입 진행 중...')
             setTimeout(() => {
               const params = new URLSearchParams({
+                pending_token: data.pending_token,
                 name: data.name || '회원',
                 provider: data.identifier?.includes('kakao') ? '카카오' : '네이버',
               })
               navigate(`/social-signup?${params.toString()}`, { replace: true })
             }, 500)
-          } else {
+            return
+          }
+
+          // 기존 사용자: JWT 발급됨, 토큰 저장 후 마이페이지로 이동
+          if (data.access_token && data.refresh_token) {
+            saveTokens({
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+            })
+
+            // 사용자 정보를 context와 localStorage에 저장
+            const userData = {
+              id: data.user_id,
+              identifier: data.identifier,
+              name: data.name || null,
+              phone_number: data.phone_number || null,
+              isAdmin: data.is_admin || false,
+              tier: data.tier || 'FREE',
+              first_week_bonus_used: data.first_week_bonus_used || false,
+              weekly_free_used_at: data.weekly_free_used_at || null,
+              created_at: data.created_at || null,
+            }
+
+            setUser(userData)
+
             setStatus('로그인 성공!')
-            // 기존 사용자는 마이페이지로 이동
             setTimeout(() => {
               navigate('/mypage?login=success', { replace: true })
             }, 500)
+          } else {
+            throw new Error('토큰 발급 실패')
           }
         } else {
           throw new Error(data.message || '토큰 교환 실패')

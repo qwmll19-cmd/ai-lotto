@@ -13,7 +13,7 @@ export const businessInfo = {
   ceo: '이원석',
 
   // 사업자등록번호 (000-00-00000 형식)
-  businessNumber: '611-34-01698',
+  businessNumber: '611-34-01648',
 
   // 통신판매업 신고번호
   salesNumber: '제2025-전북완주-0230호',
