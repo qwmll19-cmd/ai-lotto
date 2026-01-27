@@ -27,10 +27,15 @@ function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // 사용자 이니셜 (첫 글자) 또는 이름에서 추출
+  // 사용자 표시 이름 (닉네임 > 이름 > 식별자 우선순위)
+  const getDisplayName = () => {
+    return user?.nickname || user?.name || user?.identifier || null
+  }
+
+  // 사용자 이니셜 (첫 글자) 추출
   const getInitial = () => {
-    if (user?.name) return user.name.charAt(0).toUpperCase()
-    if (user?.identifier) return user.identifier.charAt(0).toUpperCase()
+    const displayName = getDisplayName()
+    if (displayName) return displayName.charAt(0).toUpperCase()
     return null
   }
 
@@ -191,7 +196,7 @@ function Header() {
                     <div className="dropdown-overlay" onClick={() => setShowProfileMenu(false)} />
                     <div className="profile-dropdown">
                       <div className="profile-dropdown__header">
-                        <span className="profile-dropdown__name">{user?.name || user?.identifier}</span>
+                        <span className="profile-dropdown__name">{getDisplayName()}</span>
                         <span className="profile-dropdown__plan">{user?.tier || 'Free'} 플랜</span>
                       </div>
                       <div className="profile-dropdown__divider" />
