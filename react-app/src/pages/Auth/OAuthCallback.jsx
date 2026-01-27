@@ -52,7 +52,8 @@ function OAuthCallback() {
         })
 
         if (data.success) {
-          const provider = data.identifier?.includes('kakao') ? '카카오' : '네이버'
+          // 백엔드에서 받은 provider 사용 (NAVER, KAKAO)
+          const provider = data.provider === 'KAKAO' ? '카카오' : '네이버'
 
           // 신규 가입자: 동의 페이지로 이동
           if (data.is_new_user && data.pending_token) {

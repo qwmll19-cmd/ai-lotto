@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_cookie_settings, settings
 from app.db.session import get_db
-from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken
+from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken, SocialAccount
 from app.services.auth import hash_password, verify_password, hash_token, verify_token
 from app.services.jwt import decode_jwt, encode_jwt
 from app.services.sms import get_sms_client, SmsSendRequest
@@ -1053,6 +1053,8 @@ class ExchangeTokenResponse(BaseModel):
     is_new_user: bool = False
     # 신규 가입자 동의 완료용 토큰
     pending_token: Optional[str] = None
+    # 소셜 로그인 제공자 (NAVER, KAKAO)
+    provider: Optional[str] = None
 
 
 def create_oauth_one_time_token(user_id: int, db: Session = None, is_new_user: bool = False) -> str:
@@ -1152,6 +1154,12 @@ def exchange_oauth_token(
             message="사용자를 찾을 수 없습니다.",
         )
 
+    # 소셜 계정에서 provider 조회
+    social_account = db.query(SocialAccount).filter(
+        SocialAccount.user_id == user.id
+    ).first()
+    provider = social_account.provider if social_account else None
+
     # 신규 사용자: JWT 미발급, pending_token 반환 (동의 필요)
     if is_new_user:
         # 토큰은 아직 사용하지 않음 (동의 완료 시 사용)
@@ -1179,6 +1187,8 @@ def exchange_oauth_token(
             is_new_user=True,
             # 동의 완료 시 사용할 토큰
             pending_token=token,
+            # 소셜 로그인 제공자
+            provider=provider,
         )
 
     # 기존 사용자: JWT 즉시 발급하지 않고 로그인 확인 페이지로 이동
@@ -1206,6 +1216,8 @@ def exchange_oauth_token(
         is_new_user=False,
         # 확인 완료 시 사용할 토큰
         pending_token=token,
+        # 소셜 로그인 제공자
+        provider=provider,
     )
 
 
