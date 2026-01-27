@@ -16,13 +16,15 @@ from app.db.session import Base, engine, db_url
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
-    if not _is_sqlite():
-        return
-    _ensure_lotto_recommend_columns()
-    _ensure_user_refresh_columns()
-    _ensure_user_social_columns()
-    _ensure_social_accounts_table()
-    _ensure_oauth_one_time_tokens_table()
+    if _is_sqlite():
+        _ensure_lotto_recommend_columns()
+        _ensure_user_refresh_columns()
+        _ensure_user_social_columns()
+        _ensure_social_accounts_table()
+        _ensure_oauth_one_time_tokens_table()
+    else:
+        # PostgreSQL 마이그레이션
+        _ensure_postgres_oauth_columns()
 
 
 def _is_sqlite() -> bool:
@@ -120,6 +122,24 @@ def _ensure_oauth_one_time_tokens_table() -> None:
             if "is_new_user" not in columns:
                 conn.execute(text("ALTER TABLE oauth_one_time_tokens ADD COLUMN is_new_user BOOLEAN DEFAULT 0"))
                 conn.commit()
+
+
+def _ensure_postgres_oauth_columns() -> None:
+    """PostgreSQL: oauth_one_time_tokens 테이블에 is_new_user 컬럼 추가"""
+    with engine.connect() as conn:
+        # 컬럼 존재 여부 확인 (PostgreSQL)
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'oauth_one_time_tokens' AND column_name = 'is_new_user'
+        """))
+        if not result.fetchone():
+            try:
+                conn.execute(text("ALTER TABLE oauth_one_time_tokens ADD COLUMN is_new_user BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                print("Added is_new_user column to oauth_one_time_tokens (PostgreSQL)")
+            except Exception as e:
+                print(f"Column may already exist or error: {e}")
+                conn.rollback()
 
 
 if __name__ == "__main__":
