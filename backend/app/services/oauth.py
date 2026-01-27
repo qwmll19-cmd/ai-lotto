@@ -93,8 +93,13 @@ def verify_oauth_state(state: str) -> bool:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 네이버 OAuth
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-def get_naver_authorize_url(state: str) -> str:
-    """네이버 로그인 URL 생성"""
+def get_naver_authorize_url(state: str, auth_type: Optional[str] = None) -> str:
+    """네이버 로그인 URL 생성
+
+    Args:
+        state: CSRF 방지용 state
+        auth_type: 'reprompt'이면 강제 재인증 (다른 계정으로 로그인)
+    """
     if not settings.NAVER_CLIENT_ID:
         raise OAuthError("네이버 OAuth 설정이 없습니다.", "config_error")
 
@@ -104,6 +109,9 @@ def get_naver_authorize_url(state: str) -> str:
         "redirect_uri": f"{settings.OAUTH_REDIRECT_BASE}/auth/naver/callback",
         "state": state,
     }
+    # 다른 계정으로 로그인 (강제 재인증)
+    if auth_type == "reprompt":
+        params["auth_type"] = "reprompt"
     return f"https://nid.naver.com/oauth2.0/authorize?{urlencode(params)}"
 
 
@@ -193,8 +201,13 @@ async def fetch_naver_profile(access_token: str) -> OAuthProfile:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 카카오 OAuth
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-def get_kakao_authorize_url(state: str) -> str:
-    """카카오 로그인 URL 생성"""
+def get_kakao_authorize_url(state: str, prompt: Optional[str] = None) -> str:
+    """카카오 로그인 URL 생성
+
+    Args:
+        state: CSRF 방지용 state
+        prompt: 'login'이면 강제 재인증 (다른 계정으로 로그인)
+    """
     if not settings.KAKAO_CLIENT_ID:
         raise OAuthError("카카오 OAuth 설정이 없습니다.", "config_error")
 
@@ -204,6 +217,9 @@ def get_kakao_authorize_url(state: str) -> str:
         "redirect_uri": f"{settings.OAUTH_REDIRECT_BASE}/auth/kakao/callback",
         "state": state,
     }
+    # 다른 계정으로 로그인 (강제 재인증)
+    if prompt == "login":
+        params["prompt"] = "login"
     return f"https://kauth.kakao.com/oauth/authorize?{urlencode(params)}"
 
 

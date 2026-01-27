@@ -90,7 +90,20 @@ function SocialLoginConfirm() {
   }
 
   const handleCancel = () => {
-    navigate('/login', { replace: true })
+    // 다른 계정으로 로그인하려면 소셜 로그인 세션을 초기화해야 함
+    // provider에 따라 강제 재인증 파라미터를 포함한 OAuth URL로 이동
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+
+    if (provider === '카카오') {
+      // 카카오: prompt=login 파라미터로 강제 재로그인
+      window.location.href = `${apiBase}/api/auth/kakao?prompt=login`
+    } else if (provider === '네이버') {
+      // 네이버: auth_type=reprompt 파라미터로 강제 재인증
+      window.location.href = `${apiBase}/api/auth/naver?auth_type=reprompt`
+    } else {
+      // 기본: 로그인 페이지로 이동
+      navigate('/login', { replace: true })
+    }
   }
 
   // pending_token이 없으면 렌더링하지 않음

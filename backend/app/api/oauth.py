@@ -48,15 +48,16 @@ def _redirect_with_error(error_code: str, error_message: str) -> RedirectRespons
 # 네이버 OAuth
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @router.get("/naver")
-def naver_login():
+def naver_login(auth_type: Optional[str] = Query(None)):
     """
     네이버 로그인 시작
 
     네이버 authorize URL로 리다이렉트
+    - auth_type=reprompt: 다른 계정으로 로그인 (강제 재인증)
     """
     try:
         state = generate_oauth_state()
-        authorize_url = get_naver_authorize_url(state)
+        authorize_url = get_naver_authorize_url(state, auth_type=auth_type)
         return RedirectResponse(url=authorize_url, status_code=302)
     except OAuthError as e:
         logger.error("Naver login start failed: %s", e.message)
@@ -129,15 +130,16 @@ async def naver_callback(
 # 카카오 OAuth
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @router.get("/kakao")
-def kakao_login():
+def kakao_login(prompt: Optional[str] = Query(None)):
     """
     카카오 로그인 시작
 
     카카오 authorize URL로 리다이렉트
+    - prompt=login: 다른 계정으로 로그인 (강제 재인증)
     """
     try:
         state = generate_oauth_state()
-        authorize_url = get_kakao_authorize_url(state)
+        authorize_url = get_kakao_authorize_url(state, prompt=prompt)
         return RedirectResponse(url=authorize_url, status_code=302)
     except OAuthError as e:
         logger.error("Kakao login start failed: %s", e.message)
