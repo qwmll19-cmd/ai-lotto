@@ -1181,32 +1181,19 @@ def exchange_oauth_token(
             pending_token=token,
         )
 
-    # 기존 사용자: 토큰 사용 처리 및 JWT 발급
-    oauth_token.used_at = datetime.utcnow()
-    db.add(oauth_token)
+    # 기존 사용자: JWT 즉시 발급하지 않고 로그인 확인 페이지로 이동
+    # 토큰은 아직 사용하지 않음 (확인 완료 시 사용)
+    logger.info("OAuth existing user pending confirm: user_id=%s", user.id)
 
-    # JWT 생성
-    identifier = user.identifier or f"oauth_{user.id}"
-    access_token, refresh_token = _create_tokens(user.id, identifier)
-
-    # 점진적 마이그레이션: 쿠키도 설정 (기존 호환)
-    _set_auth_cookies(response, access_token, refresh_token)
-
-    # refresh_token_hash 저장
-    user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
-    db.commit()
-
-    logger.info("OAuth token exchange: user_id=%s, is_new_user=%s", user.id, is_new_user)
-
-    # Token 기반 응답 (access_token, refresh_token 포함)
     return ExchangeTokenResponse(
         success=True,
-        message="로그인 성공",
-        access_token=access_token,
-        refresh_token=refresh_token,
+        message="로그인 확인이 필요합니다.",
+        # JWT 미발급 (확인 완료 후 발급)
+        access_token=None,
+        refresh_token=None,
         token_type="Bearer",
-        expires_in=settings.JWT_TTL_SECONDS,
+        expires_in=None,
+        # 사용자 정보 (확인 페이지 표시용)
         user_id=user.id,
         identifier=user.identifier,
         name=user.name,
@@ -1217,6 +1204,8 @@ def exchange_oauth_token(
         weekly_free_used_at=user.weekly_free_used_at.isoformat() if user.weekly_free_used_at else None,
         created_at=user.created_at.isoformat() if user.created_at else None,
         is_new_user=False,
+        # 확인 완료 시 사용할 토큰
+        pending_token=token,
     )
 
 
@@ -1314,6 +1303,98 @@ def complete_social_signup(
     return CompleteSocialSignupResponse(
         success=True,
         message="회원가입이 완료되었습니다.",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        expires_in=settings.JWT_TTL_SECONDS,
+        user=_build_user_dict(user),
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 소셜 로그인 기존 회원 로그인 확인 API
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class ConfirmSocialLoginRequest(BaseModel):
+    """소셜 로그인 확인 요청 (기존 회원)"""
+    pending_token: str = Field(..., min_length=1)
+
+
+class ConfirmSocialLoginResponse(BaseModel):
+    """소셜 로그인 확인 응답"""
+    success: bool
+    message: str
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: str = "Bearer"
+    expires_in: Optional[int] = None
+    user: Optional[dict] = None
+
+
+@router.post("/confirm-social-login", response_model=ConfirmSocialLoginResponse)
+def confirm_social_login(
+    payload: ConfirmSocialLoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    소셜 로그인 확인 (기존 회원)
+    - pending_token 검증
+    - JWT 발급
+    """
+    # DB에서 토큰 조회 (아직 사용되지 않은 기존 회원 토큰)
+    oauth_token = db.query(OAuthOneTimeToken).filter(
+        OAuthOneTimeToken.token == payload.pending_token,
+        OAuthOneTimeToken.used_at.is_(None),
+        OAuthOneTimeToken.is_new_user == False,
+    ).first()
+
+    if not oauth_token:
+        return ConfirmSocialLoginResponse(
+            success=False,
+            message="유효하지 않거나 만료된 토큰입니다. 다시 로그인해주세요.",
+        )
+
+    # 만료 확인
+    if oauth_token.expires_at < datetime.utcnow():
+        db.delete(oauth_token)
+        db.commit()
+        return ConfirmSocialLoginResponse(
+            success=False,
+            message="토큰이 만료되었습니다. 다시 로그인해주세요.",
+        )
+
+    # 사용자 조회
+    user = db.query(User).filter(User.id == oauth_token.user_id).first()
+    if not user:
+        db.delete(oauth_token)
+        db.commit()
+        return ConfirmSocialLoginResponse(
+            success=False,
+            message="사용자를 찾을 수 없습니다.",
+        )
+
+    # 토큰 사용 처리
+    oauth_token.used_at = datetime.utcnow()
+    db.add(oauth_token)
+
+    # JWT 생성
+    identifier = user.identifier or f"oauth_{user.id}"
+    access_token, refresh_token = _create_tokens(user.id, identifier)
+
+    # 쿠키 설정 (기존 호환)
+    _set_auth_cookies(response, access_token, refresh_token)
+
+    # refresh_token_hash 저장
+    user.refresh_token_hash = hash_token(refresh_token)
+    user.refresh_token_updated_at = datetime.utcnow()
+    db.commit()
+
+    logger.info("Social login confirmed: user_id=%s", user.id)
+
+    return ConfirmSocialLoginResponse(
+        success=True,
+        message="로그인되었습니다.",
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="Bearer",

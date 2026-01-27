@@ -8,6 +8,7 @@ import Signup from '../pages/Auth/Signup.jsx'
 import ForgotPassword from '../pages/Auth/ForgotPassword.jsx'
 import OAuthCallback from '../pages/Auth/OAuthCallback.jsx'
 import SocialSignupConsent from '../pages/Auth/SocialSignupConsent.jsx'
+import SocialLoginConfirm from '../pages/Auth/SocialLoginConfirm.jsx'
 import MyPage from '../pages/Account/MyPage.jsx'
 import Dashboard from '../pages/Lotto/Dashboard.jsx'
 import Stats from '../pages/Lotto/Stats.jsx'
@@ -41,6 +42,7 @@ function Router() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/social-signup" element={<SocialSignupConsent />} />
+          <Route path="/social-login-confirm" element={<SocialLoginConfirm />} />
           <Route
             path="/mypage"
             element={

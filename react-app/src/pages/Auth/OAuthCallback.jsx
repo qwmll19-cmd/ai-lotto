@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { request, saveTokens } from '../../api/client.js'
@@ -14,8 +14,13 @@ function OAuthCallback() {
   const navigate = useNavigate()
   const { setUser } = useAuth()
   const [status, setStatus] = useState('처리 중...')
+  const processedRef = useRef(false)
 
   useEffect(() => {
+    // React StrictMode 중복 실행 방지
+    if (processedRef.current) return
+    processedRef.current = true
+
     const processCallback = async () => {
       const token = searchParams.get('token')
       const error = searchParams.get('error')
@@ -47,28 +52,44 @@ function OAuthCallback() {
         })
 
         if (data.success) {
-          // 신규 가입자: JWT 미발급, 동의 페이지로 이동 (pending_token 전달)
+          const provider = data.identifier?.includes('kakao') ? '카카오' : '네이버'
+
+          // 신규 가입자: 동의 페이지로 이동
           if (data.is_new_user && data.pending_token) {
             setStatus('회원가입 진행 중...')
             setTimeout(() => {
               const params = new URLSearchParams({
                 pending_token: data.pending_token,
                 name: data.name || '회원',
-                provider: data.identifier?.includes('kakao') ? '카카오' : '네이버',
+                provider,
               })
               navigate(`/social-signup?${params.toString()}`, { replace: true })
             }, 500)
             return
           }
 
-          // 기존 사용자: JWT 발급됨, 토큰 저장 후 마이페이지로 이동
+          // 기존 사용자: 로그인 확인 페이지로 이동
+          if (data.pending_token) {
+            setStatus('로그인 확인 중...')
+            setTimeout(() => {
+              const params = new URLSearchParams({
+                pending_token: data.pending_token,
+                name: data.name || '회원',
+                identifier: data.identifier || '',
+                provider,
+              })
+              navigate(`/social-login-confirm?${params.toString()}`, { replace: true })
+            }, 500)
+            return
+          }
+
+          // 폴백: JWT가 이미 발급된 경우 (이전 버전 호환)
           if (data.access_token && data.refresh_token) {
             saveTokens({
               access_token: data.access_token,
               refresh_token: data.refresh_token,
             })
 
-            // 사용자 정보를 context와 localStorage에 저장
             const userData = {
               id: data.user_id,
               identifier: data.identifier,

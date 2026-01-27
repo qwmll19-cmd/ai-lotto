@@ -39,7 +39,9 @@
       "Bash(git commit:*)",
       "Bash(gh auth status:*)",
       "Bash(git restore:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(brew list:*)",
+      "Bash(node -e \"require\\(''./src/pages/Auth/OAuthCallback.jsx''\\)\")"
     ]
   }
 }
