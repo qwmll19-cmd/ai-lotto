@@ -114,6 +114,7 @@ class User(Base):
     # 소셜 로그인 추가 필드
     email = Column(String(200), nullable=True, index=True)
     name = Column(String(100), nullable=True)
+    nickname = Column(String(50), nullable=True)  # 사용자 닉네임 (직접 설정)
     phone_number = Column(String(30), nullable=True)
     profile_image_url = Column(String(500), nullable=True)
     last_login_at = Column(DateTime, nullable=True)
@@ -252,6 +253,9 @@ class LottoRecommendLog(Base):
     # 매칭 완료 여부
     is_matched = Column(Boolean, default=False, index=True)
     matched_at = Column(DateTime, nullable=True)
+
+    # 사용자 결과 확인 완료 여부 (MyPage에서 확인 버튼 클릭 시)
+    user_checked_at = Column(DateTime, nullable=True)
 
     # 동일 유저, 동일 회차, 동일 플랜에 대해 중복 발급 방지
     __table_args__ = (

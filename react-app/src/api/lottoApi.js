@@ -125,3 +125,15 @@ export function requestAllLinesAdvanced({ exclude = [], fixed = [] }) {
 export function fetchPremiumStats() {
   return request('/api/lotto/stats/premium')
 }
+
+// =========================================
+// 결과 확인 완료 처리
+// =========================================
+
+// 특정 회차 결과 확인 완료 처리 (MyPage에서 호출)
+export function markResultChecked(drawNo) {
+  return request('/api/lotto/mark-checked', {
+    method: 'POST',
+    body: JSON.stringify({ draw_no: drawNo }),
+  })
+}

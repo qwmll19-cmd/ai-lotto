@@ -62,3 +62,11 @@ export function updateUserPlan(planType, paymentMethod = 'card', durationDays = 
     }),
   })
 }
+
+// 닉네임 업데이트
+export function updateNickname(nickname) {
+  return request('/api/auth/update-nickname', {
+    method: 'PUT',
+    body: JSON.stringify({ nickname }),
+  })
+}

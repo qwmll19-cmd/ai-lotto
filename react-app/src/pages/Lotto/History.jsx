@@ -339,7 +339,9 @@ function History() {
                 const isExpanded = expandedCards[row.round]
                 const hasMyLines = row.my_lines && row.my_lines.length > 0
                 const winningNumbers = getWinningNumbers(row)
-                const analysis = hasMyLines ? calculateMatchAnalysis(row) : null
+                // 사용자가 MyPage에서 결과 확인을 완료한 경우에만 매칭 분석 표시
+                const userChecked = row.user_checked === true
+                const analysis = (hasMyLines && userChecked) ? calculateMatchAnalysis(row) : null
 
                 return (
                   <div
@@ -357,6 +359,11 @@ function History() {
                         {analysis?.bestRank && (
                           <span className="history-card__rank-badge">
                             {analysis.bestRank}등 당첨!
+                          </span>
+                        )}
+                        {hasMyLines && !userChecked && (
+                          <span className="history-card__unchecked-badge">
+                            결과 미확인
                           </span>
                         )}
                       </div>
@@ -396,14 +403,21 @@ function History() {
                     )}
 
                     {/* 펼침 영역 - 내 번호 + 분석 */}
-                    {isExpanded && hasMyLines && analysis && (
+                    {isExpanded && hasMyLines && (
                       <div className="history-card__detail">
-                        {/* 내 번호 리스트 */}
+                        {/* 결과 미확인 안내 */}
+                        {!userChecked && (
+                          <div className="history-card__unchecked-notice">
+                            <p>내 조합 페이지에서 결과 확인 버튼을 눌러야 상세 결과를 볼 수 있습니다.</p>
+                          </div>
+                        )}
+
+                        {/* 내 번호 리스트 (결과 확인 완료 시에만 매칭 정보 표시) */}
                         <div className="history-card__my-lines">
-                          {analysis.lineResults.map((result, idx) => (
+                          {(analysis?.lineResults || row.my_lines.map(line => ({ nums: parseNumbers(line) }))).map((result, idx) => (
                             <div
                               key={idx}
-                              className={`history-card__line ${result.rank ? 'history-card__line--win' : ''}`}
+                              className={`history-card__line ${(analysis && result.rank) ? 'history-card__line--win' : ''}`}
                             >
                               <span className="history-card__line-label">{idx + 1}줄</span>
                               <div className="history-card__line-numbers">
@@ -412,36 +426,44 @@ function History() {
                                     key={num}
                                     num={num}
                                     size="sm"
-                                    isMatch={result.matchedNums.includes(num)}
+                                    isMatch={analysis ? result.matchedNums?.includes(num) : false}
                                   />
                                 ))}
                               </div>
-                              <span className={`history-card__line-result ${result.matchCount >= 3 ? 'history-card__line-result--highlight' : ''}`}>
-                                {result.matchCount}개 일치
-                                {result.matchedBonus && ' +보너스'}
-                                {result.rank && ` (${result.rank}등)`}
-                              </span>
+                              {analysis ? (
+                                <span className={`history-card__line-result ${result.matchCount >= 3 ? 'history-card__line-result--highlight' : ''}`}>
+                                  {result.matchCount}개 일치
+                                  {result.matchedBonus && ' +보너스'}
+                                  {result.rank && ` (${result.rank}등)`}
+                                </span>
+                              ) : (
+                                <span className="history-card__line-result history-card__line-result--pending">
+                                  결과 미확인
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
 
-                        {/* 분석 요약 */}
-                        <div className="history-card__analysis">
-                          <div className="history-card__analysis-item">
-                            <span className="history-card__analysis-label">최고 등수</span>
-                            <span className="history-card__analysis-value">
-                              {analysis.bestRank ? `${analysis.bestRank}등` : '낙첨'}
-                            </span>
+                        {/* 분석 요약 (결과 확인 완료 시에만 표시) */}
+                        {analysis && (
+                          <div className="history-card__analysis">
+                            <div className="history-card__analysis-item">
+                              <span className="history-card__analysis-label">최고 등수</span>
+                              <span className="history-card__analysis-value">
+                                {analysis.bestRank ? `${analysis.bestRank}등` : '낙첨'}
+                              </span>
+                            </div>
+                            <div className="history-card__analysis-item">
+                              <span className="history-card__analysis-label">평균 일치</span>
+                              <span className="history-card__analysis-value">{analysis.avgMatches}개</span>
+                            </div>
+                            <div className="history-card__analysis-item">
+                              <span className="history-card__analysis-label">총 줄수</span>
+                              <span className="history-card__analysis-value">{row.my_lines.length}줄</span>
+                            </div>
                           </div>
-                          <div className="history-card__analysis-item">
-                            <span className="history-card__analysis-label">평균 일치</span>
-                            <span className="history-card__analysis-value">{analysis.avgMatches}개</span>
-                          </div>
-                          <div className="history-card__analysis-item">
-                            <span className="history-card__analysis-label">총 줄수</span>
-                            <span className="history-card__analysis-value">{row.my_lines.length}줄</span>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>

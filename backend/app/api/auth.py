@@ -125,6 +125,7 @@ def _build_user_dict(user: User) -> dict:
         "user_id": user.id,
         "identifier": user.identifier,
         "name": user.name,
+        "nickname": user.nickname,
         "phone_number": user.phone_number,
         "is_admin": user.is_admin,
         "tier": (user.subscription_type or "free").upper(),
@@ -1412,4 +1413,53 @@ def confirm_social_login(
         token_type="Bearer",
         expires_in=settings.JWT_TTL_SECONDS,
         user=_build_user_dict(user),
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 닉네임 설정 API
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class UpdateNicknameRequest(BaseModel):
+    nickname: str
+
+
+class UpdateNicknameResponse(BaseModel):
+    success: bool
+    message: str
+    nickname: Optional[str] = None
+
+
+@router.put("/update-nickname")
+def update_nickname(
+    req: UpdateNicknameRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    사용자 닉네임 업데이트
+    - 닉네임은 1~20자 이내
+    - 빈 문자열이면 닉네임 삭제 (null로 설정)
+    """
+    user = get_current_user(request, db)
+
+    nickname = req.nickname.strip() if req.nickname else ""
+
+    # 닉네임 유효성 검사
+    if nickname and len(nickname) > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="닉네임은 20자 이내로 입력해주세요."
+        )
+
+    # 빈 문자열이면 null로 설정
+    user.nickname = nickname if nickname else None
+    db.commit()
+
+    logger.info("Nickname updated: user_id=%s, nickname=%s", user.id, user.nickname)
+
+    return UpdateNicknameResponse(
+        success=True,
+        message="닉네임이 변경되었습니다." if nickname else "닉네임이 삭제되었습니다.",
+        nickname=user.nickname,
     )

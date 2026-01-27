@@ -3,12 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { latestDrawMock } from '../../data/mockData.js'
-import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus } from '../../api/lottoApi.js'
+import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus, markResultChecked } from '../../api/lottoApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
 import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function MyPage() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'lines')
   const [lines, setLines] = useState([])
@@ -34,6 +34,11 @@ function MyPage() {
   const [prevIsDrumRolling, setPrevIsDrumRolling] = useState(false) // 이전 회차 드럼롤 상태
   const [prevCheckedLines, setPrevCheckedLines] = useState({}) // 이전 회차 개별 줄 확인 상태
   const messageTimerRef = useRef(null)
+  // 닉네임 설정 상태
+  const [isEditingNickname, setIsEditingNickname] = useState(false)
+  const [nicknameInput, setNicknameInput] = useState(user?.nickname || '')
+  const [nicknameLoading, setNicknameLoading] = useState(false)
+  const [nicknameError, setNicknameError] = useState('')
 
   // 타이머 정리
   useEffect(() => {
@@ -267,7 +272,7 @@ function MyPage() {
   }
 
   // 이전 회차 당첨번호 확인하기 - 드럼롤 후 결과 표시
-  const handleCheckPrevResult = () => {
+  const handleCheckPrevResult = async () => {
     if (!prevDraw || !prevDraw.has_data) return
 
     setPrevIsDrumRolling(true)
@@ -283,6 +288,14 @@ function MyPage() {
         scalar: 0.8
       })
     }, 150)
+
+    // 백엔드에 결과 확인 완료 기록 (비동기)
+    try {
+      await markResultChecked(prevDraw.draw_no)
+    } catch (err) {
+      console.error('Failed to mark result checked:', err)
+      // 실패해도 UI는 계속 진행
+    }
 
     // 2초 후 결과 표시
     setTimeout(() => {
@@ -827,6 +840,33 @@ function MyPage() {
     }
   }
 
+  // 닉네임 저장 핸들러
+  const handleSaveNickname = async () => {
+    setNicknameError('')
+    const nickname = nicknameInput.trim()
+
+    if (nickname && nickname.length > 20) {
+      setNicknameError('닉네임은 20자 이내로 입력해주세요.')
+      return
+    }
+
+    setNicknameLoading(true)
+    try {
+      const { updateNickname } = await import('../../api/authApi.js')
+      const result = await updateNickname(nickname)
+      if (result.success) {
+        // AuthContext 업데이트
+        setUser({ ...user, nickname: result.nickname })
+        setIsEditingNickname(false)
+      }
+    } catch (err) {
+      console.error('Failed to update nickname:', err)
+      setNicknameError('닉네임 저장에 실패했습니다.')
+    } finally {
+      setNicknameLoading(false)
+    }
+  }
+
   // 소셜 로그인 여부 확인 (identifier가 없으면 소셜 로그인)
   const isSocialLogin = !user?.identifier
 
@@ -834,6 +874,58 @@ function MyPage() {
     <div className="mypage-account">
       <div className="mypage-account__section">
         <h3>계정 정보</h3>
+
+        {/* 닉네임 설정 */}
+        <div className="mypage-account__field mypage-account__field--editable">
+          <label>닉네임</label>
+          {isEditingNickname ? (
+            <div className="mypage-account__edit-row">
+              <input
+                type="text"
+                value={nicknameInput}
+                onChange={(e) => setNicknameInput(e.target.value)}
+                placeholder="닉네임을 입력하세요"
+                maxLength={20}
+                className="mypage-account__input"
+              />
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={handleSaveNickname}
+                disabled={nicknameLoading}
+              >
+                {nicknameLoading ? '저장 중...' : '저장'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => {
+                  setIsEditingNickname(false)
+                  setNicknameInput(user?.nickname || '')
+                  setNicknameError('')
+                }}
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <div className="mypage-account__value-row">
+              <span>{user?.nickname || '설정 안됨'}</span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => {
+                  setIsEditingNickname(true)
+                  setNicknameInput(user?.nickname || '')
+                }}
+              >
+                {user?.nickname ? '변경' : '설정'}
+              </button>
+            </div>
+          )}
+          {nicknameError && <p className="mypage-account__error">{nicknameError}</p>}
+        </div>
+
         {isSocialLogin ? (
           <>
             <div className="mypage-account__field">
@@ -963,10 +1055,10 @@ function MyPage() {
       <section className="mypage-hero">
         <div className="mypage-hero__inner">
           <div className="mypage-hero__avatar">
-            {(user?.name || user?.identifier || '?').charAt(0).toUpperCase()}
+            {(user?.nickname || user?.name || user?.identifier || '?').charAt(0).toUpperCase()}
           </div>
           <div className="mypage-hero__info">
-            <h1>{user?.name || user?.identifier || '회원'}님</h1>
+            <h1>{user?.nickname || user?.name || user?.identifier || '회원'}님</h1>
             <div className="mypage-hero__plan">
               <span className="mypage-hero__plan-badge">{userTier}</span>
               <span>{isFree ? '무료 플랜 이용 중' : `${userTier} 플랜 이용 중`}</span>

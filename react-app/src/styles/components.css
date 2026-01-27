@@ -4153,6 +4153,36 @@
   animation: pulse-green 1.5s infinite;
 }
 
+.history-card__unchecked-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(156, 163, 175, 0.2);
+  color: #6b7280;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.history-card__unchecked-notice {
+  padding: 16px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.history-card__unchecked-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.history-card__line-result--pending {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
   50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
@@ -4959,6 +4989,48 @@
 
 .mypage-account__field span {
   font-weight: 500;
+}
+
+/* 닉네임 설정 스타일 */
+.mypage-account__field--editable {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mypage-account__edit-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.mypage-account__input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-white);
+}
+
+.mypage-account__input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.mypage-account__value-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.mypage-account__error {
+  color: #dc2626;
+  font-size: 12px;
+  margin: 4px 0 0;
 }
 
 .mypage-account__desc {

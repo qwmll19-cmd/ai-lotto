@@ -267,10 +267,13 @@ def history(
         # 사용자 추천 번호 및 매칭 결과 추출
         my_lines = None
         match_results = None
+        user_checked = False
         if log:
             my_lines = _parse_json(log.lines, "history_lines")
             match_results = _parse_json(log.match_results, "history_match")
-            logger.info(f"[History] draw_no={draw.draw_no}, my_lines count={len(my_lines) if my_lines else 0}")
+            # 사용자가 MyPage에서 결과 확인을 완료했는지 여부
+            user_checked = log.user_checked_at is not None
+            logger.info(f"[History] draw_no={draw.draw_no}, my_lines count={len(my_lines) if my_lines else 0}, user_checked={user_checked}")
 
         items.append(
             {
@@ -281,6 +284,7 @@ def history(
                 "date": draw.draw_date,
                 "my_lines": my_lines,
                 "match_results": match_results,
+                "user_checked": user_checked,
             }
         )
     if sort == "asc":
@@ -460,6 +464,49 @@ def mypage_lines(db: Session = Depends(get_db), user=Depends(get_current_user)):
         "items": current_lines,
         "target_draw_no": current_draw_no,
         "previous_draw": previous_draw,
+    }
+
+
+class MarkCheckedRequest(BaseModel):
+    draw_no: int
+
+
+@router.post("/mark-checked")
+def mark_result_checked(
+    req: MarkCheckedRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    사용자가 해당 회차 결과를 확인 완료했음을 기록
+    - MyPage에서 결과 확인 버튼 클릭 시 호출
+    - user_checked_at 필드에 현재 시간 기록
+    """
+    # 해당 회차의 모든 추천 로그 조회 (플랜별로 여러 개 있을 수 있음)
+    logs = (
+        db.query(LottoRecommendLog)
+        .filter(
+            LottoRecommendLog.account_user_id == user.id,
+            LottoRecommendLog.target_draw_no == req.draw_no,
+        )
+        .all()
+    )
+
+    if not logs:
+        raise HTTPException(status_code=404, detail="해당 회차의 추천 기록이 없습니다.")
+
+    # 모든 로그에 user_checked_at 기록
+    now = datetime.utcnow()
+    for log in logs:
+        log.user_checked_at = now
+
+    db.commit()
+
+    return {
+        "success": True,
+        "draw_no": req.draw_no,
+        "checked_at": now.isoformat(),
+        "message": f"{req.draw_no}회 결과 확인이 완료되었습니다.",
     }
 
 

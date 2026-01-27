@@ -64,17 +64,20 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 외부에서 user 상태 직접 설정 (OTP 간편가입 등)
+  // 외부에서 user 상태 직접 설정 (OTP 간편가입, 소셜 로그인 등)
   const setUserData = (userData) => {
     if (userData) {
       const nextUser = {
         id: userData.user_id || userData.id,
         identifier: userData.identifier || userData.phone,
+        name: userData.name || null,
+        nickname: userData.nickname || null,
+        phone_number: userData.phone_number || null,
         isAdmin: userData.is_admin || false,
         tier: userData.tier || 'FREE',
         first_week_bonus_used: userData.first_week_bonus_used || false,
         weekly_free_used_at: userData.weekly_free_used_at || null,
-        signup_at: userData.signup_at || new Date().toISOString(),
+        created_at: userData.created_at || userData.signup_at || null,
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
@@ -101,11 +104,14 @@ export function AuthProvider({ children }) {
       const nextUser = {
         id: userData.user_id || response.user_id,
         identifier: userData.identifier || identifier,
+        name: userData.name || null,
+        nickname: userData.nickname || null,
+        phone_number: userData.phone_number || null,
         isAdmin: userData.is_admin || false,
         tier: userData.tier || 'FREE',
         first_week_bonus_used: userData.first_week_bonus_used || false,
         weekly_free_used_at: userData.weekly_free_used_at || null,
-        signup_at: userData.created_at || null,
+        created_at: userData.created_at || null,
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
@@ -144,6 +150,7 @@ export function AuthProvider({ children }) {
             id: data.user_id,
             identifier: data.identifier,
             name: data.name || null,
+            nickname: data.nickname || null,
             phone_number: data.phone_number || null,
             isAdmin: data.is_admin || false,
             tier: data.tier || 'FREE',
