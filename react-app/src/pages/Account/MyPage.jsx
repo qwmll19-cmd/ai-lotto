@@ -358,9 +358,8 @@ function MyPage() {
       // 이전 회차 데이터 설정
       if (linesData?.previous_draw) {
         setPrevDraw(linesData.previous_draw)
-        // 이미 백엔드에서 매칭된 결과가 있으면 사용
+        // 이미 백엔드에서 매칭된 결과가 있으면 데이터만 저장 (UI는 사용자가 확인 버튼 클릭 시 표시)
         if (linesData.previous_draw.match_results?.line_results) {
-          setPrevChecked(true)
           setPrevMatchResults(linesData.previous_draw.match_results.line_results.map((r, idx) => ({
             lineNo: idx + 1,
             numbers: linesData.previous_draw.my_lines?.[idx] || [],
