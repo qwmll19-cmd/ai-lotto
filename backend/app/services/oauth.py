@@ -426,38 +426,10 @@ def social_login(
         logger.info("Social login: provider=%s user_id=%s", provider, user.id)
         return user, False  # 기존 사용자
 
-    # 2. 이메일/전화번호로 기존 사용자 검색 (계정 통합)
-    # 같은 이메일/전화번호를 가진 사용자가 다른 소셜 계정으로 로그인 시 계정 연결
-    # 예: 네이버로 가입한 사용자가 같은 전화번호로 카카오 로그인 시 기존 계정에 연결
-    existing_user = _find_existing_user_by_profile(db, profile)
-
-    if existing_user:
-        # 기존 사용자에 새 소셜 계정 연결 (계정 통합)
-        new_social_account = SocialAccount(
-            user_id=existing_user.id,
-            provider=provider,
-            provider_user_id=provider_user_id,
-            access_token=access_token,
-        )
-        db.add(new_social_account)
-
-        # 프로필 정보 업데이트 (비어있는 필드만)
-        existing_user.last_login_at = datetime.utcnow()
-        if profile.get("name") and not existing_user.name:
-            existing_user.name = profile["name"]
-        if profile.get("profile_image_url") and not existing_user.profile_image_url:
-            existing_user.profile_image_url = profile["profile_image_url"]
-        if profile.get("phone_number") and not existing_user.phone_number:
-            existing_user.phone_number = profile["phone_number"]
-        if profile.get("email") and not existing_user.email:
-            existing_user.email = profile["email"]
-
-        db.commit()
-        logger.info(
-            "Social account linked to existing user: provider=%s user_id=%s (unified by email/phone)",
-            provider, existing_user.id
-        )
-        return existing_user, False  # 기존 사용자 (계정 통합)
+    # 2. 계정 통합 비활성화
+    # 네이버/카카오 계정은 완전히 분리됨 (구독 공유 악용 방지)
+    # - 네이버로 가입한 사용자가 카카오로 로그인하면 새 계정 생성
+    # - 각 소셜 계정은 독립적인 사용자로 관리됨
 
     # 3. 새 사용자 생성
     user = User(
