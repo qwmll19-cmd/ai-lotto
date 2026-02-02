@@ -1734,12 +1734,13 @@ def cron_fetch_lotto(
                 logger.info(f"Cron fetch: {draw_no}회차 저장 완료")
 
         # 통계 캐시 갱신
+        ml_result = None
         if saved_count > 0:
             _rebuild_cache_internal(db)
             logger.info(f"Cron fetch: 통계 캐시 갱신 완료")
 
             # 새 회차에 대해 미매칭 추천 로그 매칭
-            from app.services.lotto.result_matcher import match_all_pending_logs
+            from app.services.lotto.result_matcher import match_all_pending_logs, get_plan_performance_summary
             for draw_no in new_draws:
                 try:
                     match_result = match_all_pending_logs(db, draw_no)
@@ -1747,13 +1748,53 @@ def cron_fetch_lotto(
                 except Exception as e:
                     logger.error(f"Cron fetch: {draw_no}회차 매칭 실패 - {e}")
 
+            # ML 모델 재학습
+            try:
+                from app.services.lotto.ml_trainer import LottoMLTrainer
+
+                all_draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
+                draws_dict = [
+                    {
+                        "draw_no": d.draw_no,
+                        "n1": d.n1, "n2": d.n2, "n3": d.n3,
+                        "n4": d.n4, "n5": d.n5, "n6": d.n6,
+                        "bonus": d.bonus,
+                    }
+                    for d in all_draws
+                ]
+
+                trainer = LottoMLTrainer()
+                ml_result = trainer.train(draws_dict)
+
+                # 학습 로그 저장
+                plan_perf = get_plan_performance_summary(db, recent_draws=10)
+                ml_log = MLTrainingLog(
+                    total_draws=len(draws_dict),
+                    total_feedback_records=0,
+                    train_accuracy=ml_result.get("train_accuracy"),
+                    test_accuracy=ml_result.get("test_accuracy"),
+                    weight_logic1=ml_result.get("ai_weights", {}).get("logic1"),
+                    weight_logic2=ml_result.get("ai_weights", {}).get("logic2"),
+                    weight_logic3=ml_result.get("ai_weights", {}).get("logic3"),
+                    weight_logic4=ml_result.get("ai_weights", {}).get("logic4"),
+                    plan_performance=plan_perf,
+                    notes=f"자동 학습 - 회차 {new_draws[-1]}" if new_draws else "자동 학습"
+                )
+                db.add(ml_log)
+                db.commit()
+                logger.info(f"Cron fetch: ML 재학습 완료 - 정확도: {ml_result.get('test_accuracy', 0):.4f}")
+            except Exception as e:
+                logger.error(f"Cron fetch: ML 재학습 실패 - {e}")
+
         return {
             "ok": True,
             "message": f"{saved_count}개 회차 저장 완료",
             "latest_db": latest_db,
             "latest_api": latest_api,
             "saved_count": saved_count,
-            "new_draws": new_draws
+            "new_draws": new_draws,
+            "ml_trained": ml_result is not None,
+            "ml_accuracy": ml_result.get("test_accuracy") if ml_result else None
         }
 
     except Exception as e:

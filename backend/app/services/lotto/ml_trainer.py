@@ -402,7 +402,7 @@ class LottoMLTrainer:
 
     def get_model_status(self) -> Dict:
         """
-        모델 상태 조회
+        모델 상태 조회 (자동 로드 포함)
 
         Returns:
             - is_loaded: 모델 로드 여부
@@ -412,6 +412,11 @@ class LottoMLTrainer:
             - model_exists: 모델 파일 존재 여부
         """
         model_exists = Path(self.model_path).exists()
+
+        # 모델이 로드되지 않았지만 파일이 존재하면 자동 로드
+        if self.model is None and model_exists:
+            self.load_model()
+
         is_loaded = self.model is not None
 
         return {
