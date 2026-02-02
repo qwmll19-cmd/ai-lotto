@@ -486,3 +486,22 @@ class NotificationLog(Base):
     sent_at = Column(DateTime, nullable=True)
     clicked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class InAppNotification(Base):
+    """인앱 알림 (사용자별 알림 목록)"""
+    __tablename__ = "in_app_notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # 알림 유형 및 내용
+    notification_type = Column(String(50), nullable=False)  # info, success, warning, error
+    title = Column(String(200), nullable=True)
+    message = Column(Text, nullable=False)
+
+    # 읽음 상태
+    is_read = Column(Boolean, default=False, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -57,6 +57,10 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+
+      // 알림 동기화를 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
+
       return { ok: true }
     } catch (err) {
       // 서버에서 반환한 에러 메시지 전달
@@ -81,9 +85,15 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+
+      // 알림 동기화를 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
     } else {
       setUser(null)
       saveUserToStorage(null)
+
+      // 알림 동기화를 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'logout' } }))
     }
   }
 
@@ -115,6 +125,10 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+
+      // 알림 동기화를 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
+
       return { ok: true }
     } catch {
       return { ok: false, message: '아이디 또는 비밀번호가 일치하지 않습니다.' }
@@ -131,6 +145,9 @@ export function AuthProvider({ children }) {
     saveTokens(null)
     setUser(null)
     saveUserToStorage(null)
+
+    // 알림 동기화를 위한 이벤트 발생
+    window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'logout' } }))
   }
 
   useEffect(() => {
