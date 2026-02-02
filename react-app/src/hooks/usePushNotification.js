@@ -119,8 +119,9 @@ export function usePushNotification() {
       await navigator.serviceWorker.ready;
 
       // VAPID 공개키 가져오기
-      const { vapid_public_key } = await fetchVapidPublicKey();
-      if (!vapid_public_key) {
+      const vapidResponse = await fetchVapidPublicKey();
+      const vapidPublicKey = vapidResponse.public_key || vapidResponse.vapid_public_key;
+      if (!vapidPublicKey) {
         throw new Error('VAPID 키를 가져올 수 없습니다.');
       }
 
@@ -131,7 +132,7 @@ export function usePushNotification() {
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapid_public_key)
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
         });
       }
 
