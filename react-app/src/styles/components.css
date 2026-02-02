@@ -237,7 +237,7 @@
 }
 
 .notification-dropdown__list {
-  max-height: 320px;
+  max-height: 50vh;
   overflow-y: auto;
 }
 
@@ -1879,6 +1879,16 @@
 
   .notification-dropdown__item {
     padding: 14px 16px;
+  }
+
+  .notification-dropdown__list {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .notification-dropdown__content p {
+    -webkit-line-clamp: 3;
   }
 
   /* 모바일 버튼 사이즈 통일 */

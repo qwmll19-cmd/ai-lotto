@@ -97,6 +97,7 @@ function OAuthCallback() {
               id: data.user_id,
               identifier: data.identifier,
               name: data.name || null,
+              nickname: data.nickname || null,
               phone_number: data.phone_number || null,
               isAdmin: data.is_admin || false,
               tier: data.tier || 'FREE',

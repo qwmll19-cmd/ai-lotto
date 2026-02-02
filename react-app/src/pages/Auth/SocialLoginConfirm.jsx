@@ -66,6 +66,7 @@ function SocialLoginConfirm() {
             id: data.user.user_id,
             identifier: data.user.identifier,
             name: data.user.name || null,
+            nickname: data.user.nickname || null,
             phone_number: data.user.phone_number || null,
             isAdmin: data.user.is_admin || false,
             tier: data.user.tier || 'FREE',
