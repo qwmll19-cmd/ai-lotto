@@ -426,16 +426,38 @@ def social_login(
         logger.info("Social login: provider=%s user_id=%s", provider, user.id)
         return user, False  # 기존 사용자
 
-    # 2. 이메일/전화번호로 기존 사용자 검색 (계정 통합) - 비활성화
-    # 주의: 자동 계정 통합은 보안 문제를 일으킬 수 있음
-    # - 같은 전화번호/이메일을 가진 다른 소셜 계정이 의도치 않게 연결될 수 있음
-    # - 계정 통합이 필요하면 사용자에게 명시적 동의를 받아야 함
-    # existing_user = _find_existing_user_by_profile(db, profile)
-    #
-    # if existing_user:
-    #     # 기존 사용자에 새 소셜 계정 연결 (계정 통합)
-    #     ...
-    #     return existing_user, False
+    # 2. 이메일/전화번호로 기존 사용자 검색 (계정 통합)
+    # 같은 이메일/전화번호를 가진 사용자가 다른 소셜 계정으로 로그인 시 계정 연결
+    # 예: 네이버로 가입한 사용자가 같은 전화번호로 카카오 로그인 시 기존 계정에 연결
+    existing_user = _find_existing_user_by_profile(db, profile)
+
+    if existing_user:
+        # 기존 사용자에 새 소셜 계정 연결 (계정 통합)
+        new_social_account = SocialAccount(
+            user_id=existing_user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            access_token=access_token,
+        )
+        db.add(new_social_account)
+
+        # 프로필 정보 업데이트 (비어있는 필드만)
+        existing_user.last_login_at = datetime.utcnow()
+        if profile.get("name") and not existing_user.name:
+            existing_user.name = profile["name"]
+        if profile.get("profile_image_url") and not existing_user.profile_image_url:
+            existing_user.profile_image_url = profile["profile_image_url"]
+        if profile.get("phone_number") and not existing_user.phone_number:
+            existing_user.phone_number = profile["phone_number"]
+        if profile.get("email") and not existing_user.email:
+            existing_user.email = profile["email"]
+
+        db.commit()
+        logger.info(
+            "Social account linked to existing user: provider=%s user_id=%s (unified by email/phone)",
+            provider, existing_user.id
+        )
+        return existing_user, False  # 기존 사용자 (계정 통합)
 
     # 3. 새 사용자 생성
     user = User(
