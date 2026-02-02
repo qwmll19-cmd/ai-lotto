@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
         name: userData.name || null,
         nickname: userData.nickname || null,
         phone_number: userData.phone_number || null,
-        isAdmin: userData.is_admin || false,
+        isAdmin: userData.is_admin || userData.isAdmin || false,
         tier: userData.tier || 'FREE',
         first_week_bonus_used: userData.first_week_bonus_used || false,
         weekly_free_used_at: userData.weekly_free_used_at || null,
@@ -143,6 +143,11 @@ export function AuthProvider({ children }) {
 
       // 토큰이 있거나 저장된 사용자가 있으면 서버에 확인
       if (accessToken || storedUser) {
+        // 저장된 사용자가 있으면 먼저 표시 (빠른 렌더링)
+        if (storedUser && !user) {
+          setUser(storedUser)
+        }
+
         try {
           const data = await request('/api/auth/me')
           if (!active) return
