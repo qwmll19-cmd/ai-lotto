@@ -82,7 +82,7 @@ function History() {
     return () => {
       active = false
     }
-  }, [isAuthed, aiFilter, limit, page, pageSize, search, sortOrder])
+  }, [isAuthed, aiFilter, limit, page, pageSize, search, sortOrder, showError])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
