@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
-import { API_BASE_URL, request, saveTokens } from '../../api/client.js'
+import { request, saveTokens } from '../../api/client.js'
 
 /**
  * 소셜 로그인 확인 페이지
@@ -90,18 +90,12 @@ function SocialLoginConfirm() {
   }
 
   const handleCancel = () => {
-    // 다른 계정으로 로그인하려면 소셜 로그인 세션을 초기화해야 함
-    // provider에 따라 강제 재인증 파라미터를 포함한 OAuth URL로 이동
-    if (provider === '카카오') {
-      // 카카오: prompt=login 파라미터로 강제 재로그인
-      window.location.href = `${API_BASE_URL}/api/auth/kakao?prompt=login`
-    } else if (provider === '네이버') {
-      // 네이버: auth_type=reprompt 파라미터로 강제 재인증
-      window.location.href = `${API_BASE_URL}/api/auth/naver?auth_type=reprompt`
-    } else {
-      // 기본: 로그인 페이지로 이동
-      navigate('/login', { replace: true })
-    }
+    // 다른 계정으로 로그인하려면 로그인 페이지로 돌아가서 다시 선택하도록 유도
+    // (인앱 브라우저에서 OAuth 재인증 흐름이 불안정하므로 안전한 방식 사용)
+    navigate('/login', {
+      replace: true,
+      state: { message: '다른 계정으로 로그인하려면 다시 선택해주세요.' }
+    })
   }
 
   // pending_token이 없으면 렌더링하지 않음

@@ -196,12 +196,37 @@
   font-size: 14px;
 }
 
+.notification-dropdown__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .notification-dropdown__mark-all {
   border: none;
   background: none;
   color: var(--primary);
   font-size: 12px;
   cursor: pointer;
+}
+
+.notification-dropdown__close-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.notification-dropdown__close-x:hover {
+  background: #eee;
+  color: var(--primary);
 }
 
 .notification-dropdown__empty {
@@ -1771,20 +1796,49 @@
 
   .profile-dropdown,
   .notification-dropdown {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-height: 85vh;
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 70vh;
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
     overflow-y: auto;
     overflow-x: hidden;
     animation: slideUp 0.2s ease-out;
-    z-index: 1000;
-    padding-bottom: env(safe-area-inset-bottom, 20px);
+    z-index: 1001;
+    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    background: white;
+  }
+
+  /* 알림 드롭다운 닫기 버튼 모바일 강화 */
+  .notification-dropdown__footer {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 16px;
+    border-top: 1px solid #eee;
+  }
+
+  .notification-dropdown__close {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 48px;
+  }
+
+  .notification-dropdown__close:hover,
+  .notification-dropdown__close:active {
+    background: var(--primary-dark);
+    color: white;
   }
 
   @keyframes slideUp {
@@ -4712,6 +4766,8 @@
 ======================================== */
 .mypage-page {
   padding-bottom: 60px;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .mypage-hero {
@@ -5750,6 +5806,19 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* 마이페이지 가로 스크롤 방지 */
+  .mypage-page {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  .mypage-content,
+  .mypage-content__inner,
+  .mypage-main {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
   .mypage-hero__inner {
     flex-direction: column;
     text-align: center;
@@ -5797,6 +5866,17 @@
   .mypage-sidebar__item {
     white-space: nowrap;
     font-size: 13px;
+  }
+
+  /* 로또볼 모바일에서 줄바꿈 허용 */
+  .mypage-lines__item-numbers {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .mypage-lines__winning-numbers {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .mypage-sidebar__icon {
