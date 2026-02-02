@@ -1,16 +1,18 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { latestDrawMock } from '../../data/mockData.js'
 import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus, markResultChecked } from '../../api/lottoApi.js'
+import { changePassword, deleteAccount } from '../../api/authApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
 import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function MyPage() {
-  const { user, setUser } = useAuth()
-  const { info } = useNotification()
+  const { user, setUser, logout } = useAuth()
+  const { info, success } = useNotification()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'lines')
   const [lines, setLines] = useState([])
@@ -50,6 +52,19 @@ function MyPage() {
       return { recommend: true, result: true }
     }
   })
+  // 비밀번호 변경 상태
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  // 계정 삭제 상태
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // 타이머 정리
   useEffect(() => {
@@ -973,7 +988,13 @@ function MyPage() {
           <button
             className="btn btn--ghost"
             type="button"
-            onClick={() => info('비밀번호 변경 기능은 준비 중입니다.', '준비 중')}
+            onClick={() => {
+              setShowPasswordModal(true)
+              setPasswordError('')
+              setCurrentPassword('')
+              setNewPassword('')
+              setConfirmNewPassword('')
+            }}
           >
             비밀번호 변경
           </button>
@@ -988,11 +1009,126 @@ function MyPage() {
         <button
           className="btn btn--danger"
           type="button"
-          onClick={() => info('계정 삭제 기능은 준비 중입니다. 삭제를 원하시면 고객센터로 문의해주세요.', '준비 중')}
+          onClick={() => {
+            setShowDeleteModal(true)
+            setDeleteError('')
+            setDeletePassword('')
+            setDeleteConfirm(false)
+          }}
         >
           계정 삭제
         </button>
       </div>
+
+      {/* 비밀번호 변경 모달 */}
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>비밀번호 변경</h3>
+            <div className="modal-form">
+              <div className="modal-field">
+                <label>현재 비밀번호</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="현재 비밀번호 입력"
+                />
+              </div>
+              <div className="modal-field">
+                <label>새 비밀번호</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 (6자 이상)"
+                />
+              </div>
+              <div className="modal-field">
+                <label>새 비밀번호 확인</label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 다시 입력"
+                />
+              </div>
+              {passwordError && <p className="modal-error">{passwordError}</p>}
+              <div className="modal-buttons">
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  disabled={passwordLoading}
+                >
+                  취소
+                </button>
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  onClick={handlePasswordChange}
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading ? '변경 중...' : '변경하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 계정 삭제 모달 */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content modal-content--danger" onClick={(e) => e.stopPropagation()}>
+            <h3>계정 삭제</h3>
+            <p className="modal-warning">
+              정말 계정을 삭제하시겠습니까?<br />
+              모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+            </p>
+            <div className="modal-form">
+              {!isSocialLogin && (
+                <div className="modal-field">
+                  <label>비밀번호 확인</label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="비밀번호 입력"
+                  />
+                </div>
+              )}
+              <label className="modal-checkbox">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.checked)}
+                />
+                <span>위 내용을 확인했으며, 계정 삭제에 동의합니다.</span>
+              </label>
+              {deleteError && <p className="modal-error">{deleteError}</p>}
+              <div className="modal-buttons">
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleteLoading}
+                >
+                  취소
+                </button>
+                <button
+                  className="btn btn--danger"
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? '삭제 중...' : '계정 삭제'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -1049,6 +1185,77 @@ function MyPage() {
     setNotificationSettings(newSettings)
     localStorage.setItem('notification_settings', JSON.stringify(newSettings))
     info(value ? '알림이 활성화되었습니다.' : '알림이 비활성화되었습니다.', '알림 설정')
+  }
+
+  // 비밀번호 변경 핸들러
+  const handlePasswordChange = async () => {
+    setPasswordError('')
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setPasswordError('모든 필드를 입력해주세요.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('새 비밀번호는 6자 이상이어야 합니다.')
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const result = await changePassword(currentPassword, newPassword)
+      if (result.success) {
+        success('비밀번호가 변경되었습니다.', '비밀번호 변경')
+        setShowPasswordModal(false)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmNewPassword('')
+      } else {
+        setPasswordError(result.message || '비밀번호 변경에 실패했습니다.')
+      }
+    } catch (err) {
+      setPasswordError(err?.message || '비밀번호 변경 중 오류가 발생했습니다.')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  // 계정 삭제 핸들러
+  const handleDeleteAccount = async () => {
+    setDeleteError('')
+
+    if (!deleteConfirm) {
+      setDeleteError('계정 삭제에 동의해주세요.')
+      return
+    }
+
+    const isSocialLogin = user?.identifier?.startsWith('kakao_') || user?.identifier?.startsWith('naver_')
+
+    if (!isSocialLogin && !deletePassword) {
+      setDeleteError('비밀번호를 입력해주세요.')
+      return
+    }
+
+    setDeleteLoading(true)
+    try {
+      const result = await deleteAccount(isSocialLogin ? null : deletePassword, true)
+      if (result.success) {
+        success('계정이 삭제되었습니다.', '계정 삭제')
+        logout()
+        navigate('/', { replace: true })
+      } else {
+        setDeleteError(result.message || '계정 삭제에 실패했습니다.')
+      }
+    } catch (err) {
+      setDeleteError(err?.message || '계정 삭제 중 오류가 발생했습니다.')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   const renderNotificationsTab = () => (

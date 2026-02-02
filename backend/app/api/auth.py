@@ -1463,3 +1463,159 @@ def update_nickname(
         message="닉네임이 변경되었습니다." if nickname else "닉네임이 삭제되었습니다.",
         nickname=user.nickname,
     )
+
+
+# ============================================================
+# 비밀번호 변경 API
+# ============================================================
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=6, max_length=200)
+    new_password: str = Field(..., min_length=6, max_length=200)
+
+
+class ChangePasswordResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.put("/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    비밀번호 변경 (로그인 필요)
+    - 현재 비밀번호 확인 후 새 비밀번호로 변경
+    - 소셜 로그인 사용자는 비밀번호 변경 불가
+    """
+    user = get_current_user(request, db)
+
+    # 소셜 로그인 사용자 확인
+    if user.identifier.startswith("kakao_") or user.identifier.startswith("naver_"):
+        raise HTTPException(
+            status_code=400,
+            detail="소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다."
+        )
+
+    # 비밀번호가 설정되어 있지 않은 경우
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="비밀번호가 설정되어 있지 않습니다."
+        )
+
+    # 현재 비밀번호 확인
+    if not verify_password(req.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="현재 비밀번호가 일치하지 않습니다."
+        )
+
+    # 새 비밀번호가 현재 비밀번호와 동일한지 확인
+    if req.current_password == req.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="새 비밀번호는 현재 비밀번호와 달라야 합니다."
+        )
+
+    # 새 비밀번호 해시화 및 저장
+    user.password_hash = hash_password(req.new_password)
+    db.commit()
+
+    logger.info("Password changed: user_id=%s", user.id)
+
+    return ChangePasswordResponse(
+        success=True,
+        message="비밀번호가 변경되었습니다."
+    )
+
+
+# ============================================================
+# 계정 삭제 API
+# ============================================================
+
+class DeleteAccountRequest(BaseModel):
+    password: Optional[str] = Field(None, min_length=6, max_length=200)
+    confirm: bool = Field(..., description="계정 삭제 확인")
+
+
+class DeleteAccountResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.delete("/delete-account")
+def delete_account(
+    req: DeleteAccountRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    계정 삭제 (로그인 필요)
+    - 일반 사용자: 비밀번호 확인 필요
+    - 소셜 로그인 사용자: 비밀번호 확인 불필요
+    - 삭제 확인(confirm=True) 필수
+    """
+    user = get_current_user(request, db)
+
+    # 삭제 확인 체크
+    if not req.confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="계정 삭제를 확인해주세요."
+        )
+
+    # 소셜 로그인 사용자 여부 확인
+    is_social_user = user.identifier.startswith("kakao_") or user.identifier.startswith("naver_")
+
+    # 일반 사용자는 비밀번호 확인 필요
+    if not is_social_user:
+        if not req.password:
+            raise HTTPException(
+                status_code=400,
+                detail="비밀번호를 입력해주세요."
+            )
+        if not user.password_hash or not verify_password(req.password, user.password_hash):
+            raise HTTPException(
+                status_code=400,
+                detail="비밀번호가 일치하지 않습니다."
+            )
+
+    user_id = user.id
+    user_identifier = user.identifier
+
+    # 연관 데이터 삭제 (CASCADE 설정이 없는 경우 수동 삭제)
+    # 1. 소셜 계정 연결 삭제
+    db.query(SocialAccount).filter(SocialAccount.user_id == user_id).delete()
+
+    # 2. 비밀번호 재설정 토큰 삭제
+    db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_id).delete()
+
+    # 3. SMS 인증 기록 삭제 (phone_number로 연결된 경우)
+    if user.phone_number:
+        db.query(SmsVerification).filter(SmsVerification.phone_number == user.phone_number).delete()
+
+    # 4. 구독 정보 삭제
+    db.query(Subscription).filter(Subscription.user_id == user_id).delete()
+
+    # 5. 결제 내역 삭제
+    db.query(Payment).filter(Payment.user_id == user_id).delete()
+
+    # 6. 사용자 삭제
+    db.delete(user)
+    db.commit()
+
+    # 쿠키 삭제
+    cookie_settings = get_cookie_settings()
+    response.delete_cookie("access_token", **cookie_settings)
+    response.delete_cookie("refresh_token", **cookie_settings)
+
+    logger.info("Account deleted: user_id=%s, identifier=%s", user_id, user_identifier)
+
+    return DeleteAccountResponse(
+        success=True,
+        message="계정이 삭제되었습니다."
+    )

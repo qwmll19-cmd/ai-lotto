@@ -70,3 +70,25 @@ export function updateNickname(nickname) {
     body: JSON.stringify({ nickname }),
   })
 }
+
+// 비밀번호 변경
+export function changePassword(currentPassword, newPassword) {
+  return request('/api/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  })
+}
+
+// 계정 삭제
+export function deleteAccount(password = null, confirm = true) {
+  return request('/api/auth/delete-account', {
+    method: 'DELETE',
+    body: JSON.stringify({
+      password,
+      confirm,
+    }),
+  })
+}
