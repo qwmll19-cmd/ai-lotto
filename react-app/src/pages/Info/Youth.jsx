@@ -1,3 +1,5 @@
+import { businessInfo } from '../../config/businessInfo'
+
 function Youth() {
   return (
     <section className="info">
@@ -37,10 +39,10 @@ function Youth() {
           청소년 유해정보로부터 청소년을 보호하기 위한 업무를 수행합니다.
         </p>
         <ul>
-          <li><strong>청소년보호 책임자:</strong> [추후 기재]</li>
-          <li><strong>소속/직위:</strong> [추후 기재]</li>
-          <li><strong>연락처:</strong> [추후 기재]</li>
-          <li><strong>이메일:</strong> [추후 기재]</li>
+          <li><strong>청소년보호 책임자:</strong> {businessInfo.ceo}</li>
+          <li><strong>소속/직위:</strong> {businessInfo.companyName} 대표</li>
+          <li><strong>연락처:</strong> {businessInfo.phone}</li>
+          <li><strong>이메일:</strong> {businessInfo.email}</li>
         </ul>
 
         <h2>제5조 (청소년 보호를 위한 활동)</h2>
@@ -77,7 +79,7 @@ function Youth() {
           서비스 이용 중 청소년에게 유해한 정보를 발견하셨다면 아래 방법으로 신고해 주세요:
         </p>
         <ul>
-          <li><strong>이메일:</strong> [추후 기재]</li>
+          <li><strong>이메일:</strong> {businessInfo.email}</li>
           <li><strong>고객센터:</strong> 서비스 내 고객지원 페이지</li>
         </ul>
         <p>신고 접수 후 24시간 이내에 확인하여 필요한 조치를 취하겠습니다.</p>

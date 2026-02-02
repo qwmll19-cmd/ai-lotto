@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { useOAuthError } from '../../hooks/useOAuthError.js'
+import { API_BASE_URL } from '../../api/client.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const API_BASE = API_BASE_URL
 
 // 아이디 형식 검증 (영문, 숫자, 언더스코어만, 3~10자)
 const isValidId = (value) => /^[a-zA-Z0-9_]{3,10}$/.test(value)

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useNotification } from '../../context/NotificationContext.jsx'
 import { latestDrawMock } from '../../data/mockData.js'
 import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus, markResultChecked } from '../../api/lottoApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
@@ -9,6 +10,7 @@ import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function MyPage() {
   const { user, setUser } = useAuth()
+  const { info } = useNotification()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'lines')
   const [lines, setLines] = useState([])
@@ -39,6 +41,15 @@ function MyPage() {
   const [nicknameInput, setNicknameInput] = useState(user?.nickname || '')
   const [nicknameLoading, setNicknameLoading] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
+  // 알림 설정 상태 (localStorage에서 초기값 로드)
+  const [notificationSettings, setNotificationSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('notification_settings')
+      return saved ? JSON.parse(saved) : { recommend: true, result: true }
+    } catch {
+      return { recommend: true, result: true }
+    }
+  })
 
   // 타이머 정리
   useEffect(() => {
@@ -959,7 +970,13 @@ function MyPage() {
           <p className="mypage-account__desc">
             보안을 위해 주기적으로 비밀번호를 변경해주세요.
           </p>
-          <button className="btn btn--ghost" type="button">비밀번호 변경</button>
+          <button
+            className="btn btn--ghost"
+            type="button"
+            onClick={() => info('비밀번호 변경 기능은 준비 중입니다.', '준비 중')}
+          >
+            비밀번호 변경
+          </button>
         </div>
       )}
 
@@ -968,7 +985,13 @@ function MyPage() {
         <p className="mypage-account__desc">
           계정을 삭제하면 모든 데이터가 영구적으로 삭제됩니다.
         </p>
-        <button className="btn btn--danger" type="button">계정 삭제</button>
+        <button
+          className="btn btn--danger"
+          type="button"
+          onClick={() => info('계정 삭제 기능은 준비 중입니다. 삭제를 원하시면 고객센터로 문의해주세요.', '준비 중')}
+        >
+          계정 삭제
+        </button>
       </div>
     </div>
   )
@@ -1021,6 +1044,13 @@ function MyPage() {
     )
   }
 
+  const handleNotificationChange = (key, value) => {
+    const newSettings = { ...notificationSettings, [key]: value }
+    setNotificationSettings(newSettings)
+    localStorage.setItem('notification_settings', JSON.stringify(newSettings))
+    info(value ? '알림이 활성화되었습니다.' : '알림이 비활성화되었습니다.', '알림 설정')
+  }
+
   const renderNotificationsTab = () => (
     <div className="mypage-notifications">
       <div className="mypage-notifications__section">
@@ -1031,7 +1061,11 @@ function MyPage() {
             <p>새로운 AI 추천 번호가 생성되면 알림을 받습니다.</p>
           </div>
           <label className="mypage-notifications__toggle">
-            <input type="checkbox" defaultChecked />
+            <input
+              type="checkbox"
+              checked={notificationSettings.recommend}
+              onChange={(e) => handleNotificationChange('recommend', e.target.checked)}
+            />
             <span className="mypage-notifications__slider" />
           </label>
         </div>
@@ -1041,7 +1075,11 @@ function MyPage() {
             <p>매주 토요일 당첨 결과와 내 번호 비교 결과를 알려드립니다.</p>
           </div>
           <label className="mypage-notifications__toggle">
-            <input type="checkbox" defaultChecked />
+            <input
+              type="checkbox"
+              checked={notificationSettings.result}
+              onChange={(e) => handleNotificationChange('result', e.target.checked)}
+            />
             <span className="mypage-notifications__slider" />
           </label>
         </div>

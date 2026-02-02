@@ -132,6 +132,12 @@ function Checkout() {
 
       <section className="checkout-content">
         <div className="checkout-content__inner">
+          {/* 테스트 모드 안내 */}
+          <div className="checkout-test-mode">
+            <strong>테스트 모드</strong>
+            <p>현재 테스트 모드로 운영 중입니다. 실제 결제가 진행되지 않으며, 플랜이 즉시 적용됩니다.</p>
+          </div>
+
           {/* 왼쪽: 결제 폼 */}
           <div className="checkout-form-area">
             <form className="checkout-form" onSubmit={handleSubmit}>

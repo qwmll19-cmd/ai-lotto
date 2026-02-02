@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useNotification } from '../../context/NotificationContext.jsx'
 import { historyRows, latestDrawMock } from '../../data/mockData.js'
 import { fetchHistory, fetchLatestDraw } from '../../api/lottoApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
@@ -8,6 +9,7 @@ import { parseNumbers } from '../../utils/lottoUtils.js'
 
 function History() {
   const { isAuthed, isLoading: authLoading } = useAuth()
+  const { error: showError } = useNotification()
   const [rows, setRows] = useState(historyRows)
   const [latestDraw, setLatestDraw] = useState(latestDrawMock)
   const [search, setSearch] = useState('')
@@ -18,6 +20,7 @@ function History() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(historyRows.length)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState(null) // 에러 상태
   const [expandedCards, setExpandedCards] = useState({}) // 펼쳐진 카드 상태
   const [retentionDays, setRetentionDays] = useState(14) // 플랜별 보관 기간
   const [userPlan, setUserPlan] = useState('FREE')
@@ -47,6 +50,7 @@ function History() {
 
     const load = async () => {
       setLoading(true)
+      setFetchError(null)
       const params = {
         q: search.trim() || undefined,
         ai: aiFilter,
@@ -62,8 +66,11 @@ function History() {
         setTotal(data.meta?.total || data.items?.length || 0)
         setRetentionDays(data.meta?.retention_days || 14)
         setUserPlan(data.meta?.plan || 'FREE')
-      } catch {
+      } catch (err) {
         if (!active) return
+        console.error('History fetch error:', err)
+        setFetchError('히스토리를 불러오는 중 오류가 발생했습니다.')
+        showError('히스토리를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.')
         setRows(historyRows)
         setTotal(historyRows.length)
       } finally {
@@ -329,7 +336,18 @@ function History() {
             </div>
           )}
 
-          {!loading && rows.length === 0 ? (
+          {!loading && fetchError ? (
+            <div className="history-empty history-empty--error">
+              <p>{fetchError}</p>
+              <button
+                className="btn btn--ghost"
+                type="button"
+                onClick={() => window.location.reload()}
+              >
+                새로고침
+              </button>
+            </div>
+          ) : !loading && rows.length === 0 ? (
             <div className="history-empty">
               <p>조건에 맞는 회차가 없습니다. 필터를 조정해 주세요.</p>
             </div>

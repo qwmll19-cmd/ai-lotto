@@ -3,8 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { useOAuthError } from '../../hooks/useOAuthError.js'
+import { API_BASE_URL } from '../../api/client.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const API_BASE = API_BASE_URL
 
 function Login() {
   const [identifier, setIdentifier] = useState('')
