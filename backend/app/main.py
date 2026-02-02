@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import auth_router, free_trial_router, lotto_router, ops_router, admin_router, subscription_router, oauth_router, guest_router
+from app.api import auth_router, free_trial_router, lotto_router, ops_router, admin_router, subscription_router, oauth_router, guest_router, notification_router
 from app.config import get_frontend_origins, validate_production_settings
 from app.db.session import SessionLocal
 from app.db.models import OpsRequestLog
@@ -36,6 +36,7 @@ app.include_router(ops_router)
 app.include_router(admin_router)
 app.include_router(subscription_router)
 app.include_router(guest_router)
+app.include_router(notification_router)
 
 
 @app.on_event("startup")

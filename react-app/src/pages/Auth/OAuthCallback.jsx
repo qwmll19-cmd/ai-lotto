@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useNotification } from '../../context/NotificationContext.jsx'
 import { request, saveTokens } from '../../api/client.js'
 
 /**
@@ -13,6 +14,7 @@ function OAuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { setUser } = useAuth()
+  const { notifySuccess } = useNotification()
   const [status, setStatus] = useState('처리 중...')
   const processedRef = useRef(false)
 
@@ -106,6 +108,7 @@ function OAuthCallback() {
             setUser(userData)
 
             setStatus('로그인 성공!')
+            notifySuccess('로그인되었습니다!', '환영합니다')
             setTimeout(() => {
               navigate('/mypage?login=success', { replace: true })
             }, 500)
@@ -127,7 +130,7 @@ function OAuthCallback() {
     }
 
     processCallback()
-  }, [searchParams, navigate, setUser])
+  }, [searchParams, navigate, setUser, notifySuccess])
 
   return (
     <div className="page oauth-callback-page">

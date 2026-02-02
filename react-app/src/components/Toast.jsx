@@ -1,12 +1,12 @@
 import { useNotification } from '../context/NotificationContext.jsx'
 
 function Toast() {
-  const { notifications, removeNotification } = useNotification()
+  const { toasts, removeToast } = useNotification()
 
   // 최근 5개만 표시
-  const visibleNotifications = notifications.slice(0, 5)
+  const visibleToasts = toasts.slice(0, 5)
 
-  if (visibleNotifications.length === 0) return null
+  if (visibleToasts.length === 0) return null
 
   const getIcon = (type) => {
     switch (type) {
@@ -46,21 +46,21 @@ function Toast() {
 
   return (
     <div className="toast-container">
-      {visibleNotifications.map((notification) => (
+      {visibleToasts.map((toast) => (
         <div
-          key={notification.id}
-          className={`toast toast--${notification.type}`}
+          key={toast.id}
+          className={`toast toast--${toast.type}`}
           role="alert"
         >
-          <div className="toast__icon">{getIcon(notification.type)}</div>
+          <div className="toast__icon">{getIcon(toast.type)}</div>
           <div className="toast__content">
-            {notification.title && <strong className="toast__title">{notification.title}</strong>}
-            <p className="toast__message">{notification.message}</p>
+            {toast.title && <strong className="toast__title">{toast.title}</strong>}
+            <p className="toast__message">{toast.message}</p>
           </div>
           <button
             type="button"
             className="toast__close"
-            onClick={() => removeNotification(notification.id)}
+            onClick={() => removeToast(toast.id)}
             aria-label="닫기"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

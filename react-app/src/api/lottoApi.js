@@ -102,18 +102,68 @@ export function getFixedCandidates(refresh = false, checkOnly = false) {
 }
 
 // 고급 설정 적용하여 1줄씩 받기
-export function requestOneLineAdvanced({ exclude = [], fixed = [] }) {
+export function requestOneLineAdvanced({
+  exclude = [],
+  fixed = [],
+  range_filter = null,
+  odd_even_ratio = null,
+  consecutive_limit = null,
+  sum_range = null,
+}) {
   return request('/api/lotto/recommend/advanced/one', {
     method: 'POST',
-    body: JSON.stringify({ exclude, fixed }),
+    body: JSON.stringify({
+      exclude,
+      fixed,
+      range_filter,
+      odd_even_ratio,
+      consecutive_limit,
+      sum_range,
+    }),
   })
 }
 
 // 고급 설정 적용하여 전체 받기
-export function requestAllLinesAdvanced({ exclude = [], fixed = [] }) {
+export function requestAllLinesAdvanced({
+  exclude = [],
+  fixed = [],
+  range_filter = null,
+  odd_even_ratio = null,
+  consecutive_limit = null,
+  sum_range = null,
+}) {
   return request('/api/lotto/recommend/advanced/all', {
     method: 'POST',
-    body: JSON.stringify({ exclude, fixed }),
+    body: JSON.stringify({
+      exclude,
+      fixed,
+      range_filter,
+      odd_even_ratio,
+      consecutive_limit,
+      sum_range,
+    }),
+  })
+}
+
+// 고급 옵션으로 번호 생성 (PREMIUM/VIP 전용)
+export function generateAdvancedNumbers({
+  exclude = [],
+  fixed = [],
+  range_filter = null,
+  odd_even_ratio = null,
+  consecutive_limit = null,
+  sum_range = null,
+}) {
+  return request('/api/lotto/recommend/generate-advanced', {
+    method: 'POST',
+    body: JSON.stringify({
+      exclude,
+      fixed,
+      range_filter,
+      odd_even_ratio,
+      consecutive_limit,
+      sum_range,
+    }),
   })
 }
 
@@ -136,4 +186,123 @@ export function markResultChecked(drawNo) {
     method: 'POST',
     body: JSON.stringify({ draw_no: drawNo }),
   })
+}
+
+// =========================================
+// 패턴 분석 심화 API (Phase 3)
+// =========================================
+
+// 동반 출현 분석 (BASIC 이상)
+export function fetchPairFrequency(topN = 20) {
+  return request(`/api/lotto/stats/pair-frequency?top_n=${topN}`)
+}
+
+// 특정 번호 상세 분석 (BASIC 이상)
+export function fetchNumberDetail(number) {
+  return request(`/api/lotto/stats/number/${number}`)
+}
+
+// 출현 주기 분석 (PREMIUM 이상)
+export function fetchCyclePattern() {
+  return request('/api/lotto/stats/cycle-pattern')
+}
+
+// 위치별 패턴 분석 (PREMIUM 이상)
+export function fetchPositionPattern() {
+  return request('/api/lotto/stats/position-pattern')
+}
+
+// =========================================
+// 성능 추적 API (Phase 4)
+// =========================================
+
+// 내 성능 통계 조회
+export function fetchMyPerformance() {
+  return request('/api/lotto/stats/my-performance')
+}
+
+// 전체 시스템 성능 요약 (공개)
+export function fetchGlobalPerformance() {
+  return request('/api/lotto/stats/global-performance')
+}
+
+// 특정 회차 성능 상세 (BASIC 이상)
+export function fetchDrawPerformance(drawNo) {
+  return request(`/api/lotto/stats/draw-performance/${drawNo}`)
+}
+
+// 플랜별 성과 비교 (공개)
+export function fetchPlanComparison(recentDraws = 10) {
+  return request(`/api/lotto/stats/plan-comparison?recent_draws=${recentDraws}`)
+}
+
+// =========================================
+// ML 모델 API (Phase 5)
+// =========================================
+
+// ML 모델 상태 조회 (공개)
+export function fetchMLStatus() {
+  return request('/api/lotto/ml/status')
+}
+
+// ML 모델 학습 (관리자 전용)
+export function trainMLModel() {
+  return request('/api/lotto/ml/train', { method: 'POST' })
+}
+
+// ML 백테스트 (PREMIUM 이상)
+export function fetchMLBacktest(testDraws = 20) {
+  return request(`/api/lotto/ml/backtest?test_draws=${testDraws}`)
+}
+
+// ML 예측 리포트 (PREMIUM 이상)
+export function fetchMLPrediction() {
+  return request('/api/lotto/ml/prediction')
+}
+
+// =========================================
+// 푸시 알림 API (Phase 6)
+// =========================================
+
+// VAPID 공개키 조회
+export function fetchVapidPublicKey() {
+  return request('/api/notification/vapid-public-key')
+}
+
+// 푸시 알림 구독
+export function subscribePush(subscription) {
+  return request('/api/notification/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+    }),
+  })
+}
+
+// 푸시 알림 구독 해제
+export function unsubscribePush(endpoint) {
+  return request('/api/notification/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  })
+}
+
+// 알림 설정 조회
+export function fetchNotificationSettings() {
+  return request('/api/notification/settings')
+}
+
+// 알림 설정 업데이트
+export function updateNotificationSettings(settings) {
+  return request('/api/notification/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+// 알림 히스토리 조회
+export function fetchNotificationHistory(limit = 20) {
+  return request(`/api/notification/history?limit=${limit}`)
 }

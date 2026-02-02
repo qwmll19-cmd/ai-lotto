@@ -921,6 +921,179 @@ def generate_premium_lines_with_fixed(
     return lines
 
 
+def validate_advanced_options(
+    line: List[int],
+    odd_even_ratio: str = None,
+    consecutive_limit: int = None,
+    sum_range: Dict = None,
+) -> bool:
+    """
+    고급 옵션 검증
+
+    Args:
+        line: 6개 번호 리스트
+        odd_even_ratio: 홀짝 비율 (예: "3:3", "4:2", "any")
+        consecutive_limit: 최대 연속 번호 개수
+        sum_range: 합계 범위 {"min": 100, "max": 150}
+
+    Returns:
+        모든 조건을 만족하면 True
+    """
+    # 홀짝 비율 검증
+    if odd_even_ratio and odd_even_ratio != "any":
+        odd_count = sum(1 for n in line if n % 2 == 1)
+        even_count = 6 - odd_count
+        try:
+            target_odd, target_even = map(int, odd_even_ratio.split(":"))
+            if odd_count != target_odd or even_count != target_even:
+                return False
+        except ValueError:
+            pass  # 잘못된 형식은 무시
+
+    # 연속 번호 제한 검증
+    if consecutive_limit is not None:
+        sorted_line = sorted(line)
+        max_consecutive = 1
+        current_consecutive = 1
+        for i in range(1, len(sorted_line)):
+            if sorted_line[i] == sorted_line[i-1] + 1:
+                current_consecutive += 1
+                max_consecutive = max(max_consecutive, current_consecutive)
+            else:
+                current_consecutive = 1
+        if max_consecutive > consecutive_limit:
+            return False
+
+    # 합계 범위 검증
+    if sum_range:
+        total = sum(line)
+        min_sum = sum_range.get("min", 21)
+        max_sum = sum_range.get("max", 255)
+        if not (min_sum <= total <= max_sum):
+            return False
+
+    return True
+
+
+def generate_with_advanced_options(
+    stats: Dict,
+    count: int = 5,
+    exclude: List[int] = None,
+    fixed: List[int] = None,
+    range_filter: Dict = None,
+    odd_even_ratio: str = None,
+    consecutive_limit: int = None,
+    sum_range: Dict = None,
+    max_attempts: int = 100,
+) -> List[List[int]]:
+    """
+    고급 옵션을 적용하여 번호 생성
+
+    Args:
+        stats: 통계 데이터
+        count: 생성할 줄 수
+        exclude: 제외할 번호 리스트
+        fixed: 고정할 번호 리스트
+        range_filter: 범위 필터 {"min": 1, "max": 30}
+        odd_even_ratio: 홀짝 비율 ("3:3", "4:2", "any")
+        consecutive_limit: 최대 연속 번호 개수 (1, 2, 3)
+        sum_range: 합계 범위 {"min": 100, "max": 150}
+        max_attempts: 최대 시도 횟수
+
+    Returns:
+        조건을 만족하는 번호 리스트들
+    """
+    exclude = exclude or []
+    fixed = fixed or []
+    exclude_set = set(exclude)
+    fixed_set = set(fixed)
+
+    scores1 = stats.get('scores_logic1', {})
+    scores2 = stats.get('scores_logic2', {})
+    scores3 = stats.get('scores_logic3', {})
+
+    # ML 종합 점수 계산
+    scores_final = {}
+    for n in range(1, 46):
+        scores_final[n] = (
+            scores1.get(n, 0) * 0.33 +
+            scores2.get(n, 0) * 0.33 +
+            scores3.get(n, 0) * 0.34
+        )
+
+    # 1. 기본 풀 생성 (1-45)
+    pool = set(range(1, 46))
+
+    # 2. 제외 번호 제거
+    pool -= exclude_set
+
+    # 3. 범위 필터 적용
+    if range_filter:
+        min_val = range_filter.get("min", 1)
+        max_val = range_filter.get("max", 45)
+        pool = {n for n in pool if min_val <= n <= max_val}
+
+    # 4. 고정 번호 검증 (제외 번호와 겹치면 무시)
+    valid_fixed = [f for f in fixed if f not in exclude_set and f in pool or range_filter is None]
+
+    # ML 점수 순으로 정렬된 후보
+    candidates = sorted(list(pool - set(valid_fixed)), key=lambda x: scores_final.get(x, 0), reverse=True)
+
+    results = []
+    generated_sets = []
+
+    for _ in range(count):
+        line = None
+        for _ in range(max_attempts):
+            # 고정 번호 시작
+            current_line = list(valid_fixed)
+            remaining = 6 - len(current_line)
+
+            if remaining <= 0:
+                current_line = sorted(current_line[:6])
+            else:
+                # 후보에서 랜덤 선택
+                available = [c for c in candidates if c not in current_line]
+                if len(available) >= remaining:
+                    picks = random.sample(available, remaining)
+                else:
+                    # 후보 부족시 전체에서 선택
+                    all_available = [n for n in range(1, 46) if n not in exclude_set and n not in current_line]
+                    picks = random.sample(all_available, min(remaining, len(all_available)))
+                current_line.extend(picks)
+
+            current_line = sorted(current_line)[:6]
+
+            # 중복 체크
+            line_set = tuple(current_line)
+            if line_set in generated_sets:
+                continue
+
+            # 고급 옵션 검증
+            if not validate_advanced_options(current_line, odd_even_ratio, consecutive_limit, sum_range):
+                continue
+
+            line = current_line
+            break
+
+        if line:
+            results.append(line)
+            generated_sets.append(tuple(line))
+        elif results:
+            # 실패시 마지막 성공 라인 복제 (약간 변형)
+            last = list(results[-1])
+            available = [n for n in range(1, 46) if n not in exclude_set and n not in last]
+            if available:
+                replace_idx = random.randint(0, 5)
+                if last[replace_idx] not in valid_fixed:
+                    last[replace_idx] = random.choice(available)
+                    last = sorted(last)
+            results.append(last)
+            generated_sets.append(tuple(last))
+
+    return results
+
+
 def generate_vip_lines_with_fixed(
     stats: Dict,
     exclude: List[int] = None,

@@ -399,3 +399,156 @@ class LottoMLTrainer:
             self.load_model()
 
         return self.ai_weights
+
+    def get_model_status(self) -> Dict:
+        """
+        모델 상태 조회
+
+        Returns:
+            - is_loaded: 모델 로드 여부
+            - model_path: 모델 파일 경로
+            - ai_weights: 현재 가중치
+            - feature_importance: 특성 중요도
+            - model_exists: 모델 파일 존재 여부
+        """
+        model_exists = Path(self.model_path).exists()
+        is_loaded = self.model is not None
+
+        return {
+            "is_loaded": is_loaded,
+            "model_path": self.model_path,
+            "model_exists": model_exists,
+            "ai_weights": self.ai_weights if is_loaded else None,
+            "feature_importance": (
+                self.feature_importance.tolist() if is_loaded and self.feature_importance is not None
+                else None
+            ),
+        }
+
+    def backtest(self, draws: List[Dict], test_draws: int = 20) -> Dict:
+        """
+        백테스트 수행 (최근 N회차 예측 정확도 검증)
+
+        Args:
+            draws: 전체 회차 데이터
+            test_draws: 테스트 회차 수 (기본 20)
+
+        Returns:
+            - test_results: 각 회차별 테스트 결과
+            - overall_accuracy: 전체 정확도
+            - top10_hit_rate: 상위 10개 중 적중률
+            - top15_hit_rate: 상위 15개 중 적중률
+            - top20_hit_rate: 상위 20개 중 적중률
+        """
+        if len(draws) < test_draws + 50:
+            return {"error": "데이터가 충분하지 않습니다."}
+
+        test_results = []
+        total_top10_hits = 0
+        total_top15_hits = 0
+        total_top20_hits = 0
+        total_draws_tested = 0
+
+        # 최근 test_draws 회차에 대해 백테스트
+        for i in range(len(draws) - test_draws, len(draws)):
+            draw = draws[i]
+            past_draws = draws[:i]
+
+            if len(past_draws) < 50:
+                continue
+
+            actual_numbers = {draw['n1'], draw['n2'], draw['n3'], draw['n4'], draw['n5'], draw['n6']}
+
+            # 예측 수행
+            predictions = self.predict_proba(past_draws, draw['draw_no'])
+
+            # 상위 N개 추출
+            sorted_preds = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
+            top_10 = {n for n, _ in sorted_preds[:10]}
+            top_15 = {n for n, _ in sorted_preds[:15]}
+            top_20 = {n for n, _ in sorted_preds[:20]}
+
+            # 적중 계산
+            hit_10 = len(top_10 & actual_numbers)
+            hit_15 = len(top_15 & actual_numbers)
+            hit_20 = len(top_20 & actual_numbers)
+
+            total_top10_hits += hit_10
+            total_top15_hits += hit_15
+            total_top20_hits += hit_20
+            total_draws_tested += 1
+
+            test_results.append({
+                "draw_no": draw['draw_no'],
+                "actual": list(actual_numbers),
+                "top_10_predicted": [n for n, _ in sorted_preds[:10]],
+                "hit_10": hit_10,
+                "hit_15": hit_15,
+                "hit_20": hit_20,
+            })
+
+        # 평균 적중률 계산
+        avg_top10 = total_top10_hits / total_draws_tested if total_draws_tested > 0 else 0
+        avg_top15 = total_top15_hits / total_draws_tested if total_draws_tested > 0 else 0
+        avg_top20 = total_top20_hits / total_draws_tested if total_draws_tested > 0 else 0
+
+        return {
+            "test_results": test_results,
+            "total_tested": total_draws_tested,
+            "top10_hit_rate": round(avg_top10, 3),
+            "top15_hit_rate": round(avg_top15, 3),
+            "top20_hit_rate": round(avg_top20, 3),
+            "top10_hit_percent": round(avg_top10 / 6 * 100, 2),
+            "top15_hit_percent": round(avg_top15 / 6 * 100, 2),
+            "top20_hit_percent": round(avg_top20 / 6 * 100, 2),
+        }
+
+    def get_prediction_report(self, draws: List[Dict], target_draw_no: int) -> Dict:
+        """
+        예측 리포트 생성
+
+        Returns:
+            - predicted_numbers: 추천 번호 (상위 15개)
+            - confidence_scores: 각 번호별 신뢰도
+            - analysis: 분석 코멘트
+        """
+        predictions = self.predict_proba(draws, target_draw_no)
+
+        sorted_preds = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
+
+        # 상위 15개 추출
+        top_15 = [(n, round(score, 4)) for n, score in sorted_preds[:15]]
+
+        # 분석 코멘트 생성
+        hot_numbers = [n for n, s in top_15[:6]]  # 상위 6개
+        analysis = []
+
+        # 구간별 분포 분석
+        zone_1 = [n for n in hot_numbers if 1 <= n <= 15]
+        zone_2 = [n for n in hot_numbers if 16 <= n <= 30]
+        zone_3 = [n for n in hot_numbers if 31 <= n <= 45]
+
+        if len(zone_2) >= 3:
+            analysis.append("중간 구간(16~30) 번호가 강세입니다.")
+        if len(zone_1) >= 3:
+            analysis.append("낮은 구간(1~15) 번호가 활발합니다.")
+        if len(zone_3) >= 3:
+            analysis.append("높은 구간(31~45) 번호가 주목됩니다.")
+
+        # 홀짝 분석
+        odd_count = sum(1 for n in hot_numbers if n % 2 == 1)
+        if odd_count >= 4:
+            analysis.append("홀수 번호 출현이 예상됩니다.")
+        elif odd_count <= 2:
+            analysis.append("짝수 번호 출현이 예상됩니다.")
+        else:
+            analysis.append("홀짝 균형이 예상됩니다.")
+
+        return {
+            "target_draw_no": target_draw_no,
+            "predicted_numbers": [n for n, _ in top_15],
+            "confidence_scores": {n: s for n, s in top_15},
+            "hot_6": hot_numbers,
+            "analysis": analysis,
+            "ai_weights": self.ai_weights,
+        }

@@ -209,3 +209,29 @@ export function deleteSocialAccount(accountId) {
     method: 'DELETE',
   })
 }
+
+// 푸시 알림 관리
+export function fetchPushStats() {
+  return request('/api/admin/push/stats')
+}
+
+export function fetchPushSubscriptions(params) {
+  return request(`/api/admin/push/subscriptions${buildQuery(params)}`)
+}
+
+export function deletePushSubscription(subscriptionId) {
+  return request(`/api/admin/push/subscriptions/${subscriptionId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function fetchPushLogs(params) {
+  return request(`/api/admin/push/logs${buildQuery(params)}`)
+}
+
+export function sendPushNotification(data) {
+  return request('/api/admin/push/send', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

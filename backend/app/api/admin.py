@@ -17,7 +17,8 @@ from app.config import settings
 from app.db.models import (
     User, FreeTrialApplication, Payment, Subscription,
     LottoDraw, LottoRecommendLog, LottoStatsCache,
-    PlanPerformanceStats, MLTrainingLog, SocialAccount
+    PlanPerformanceStats, MLTrainingLog, SocialAccount,
+    WebPushSubscription, NotificationLog
 )
 from app.db.session import get_db
 from app.schemas.pagination import PaginatedResponse
@@ -1860,3 +1861,275 @@ def cron_import_draws(
         "saved_count": saved_count,
         "skipped_count": skipped_count
     }
+
+
+# ============================================
+# 푸시 알림 관리
+# ============================================
+
+class PushSubscriptionItem(BaseModel):
+    id: int
+    user_id: int
+    endpoint: str
+    notify_draw_result: bool
+    notify_recommendation: bool
+    notify_subscription_expiry: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    user_identifier: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PushSubscriptionListResponse(PaginatedResponse):
+    subscriptions: List[PushSubscriptionItem]
+
+
+class NotificationLogItem(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    notification_type: str
+    title: str
+    body: Optional[str] = None
+    data: Optional[dict] = None
+    status: str
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationLogListResponse(PaginatedResponse):
+    logs: List[NotificationLogItem]
+
+
+class SendPushRequest(BaseModel):
+    title: str
+    body: str
+    notification_type: str = "announcement"
+    target: str = "all"  # "all", "draw_result", "recommendation", "subscription_expiry"
+    user_ids: Optional[List[int]] = None  # 특정 사용자에게만 전송
+
+
+@router.get("/push/subscriptions", response_model=PushSubscriptionListResponse)
+def get_push_subscriptions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """푸시 알림 구독자 목록 조회"""
+    query = db.query(WebPushSubscription, User.identifier).join(
+        User, WebPushSubscription.user_id == User.id, isouter=True
+    )
+
+    if user_id:
+        query = query.filter(WebPushSubscription.user_id == user_id)
+
+    total = query.count()
+    results = query.order_by(desc(WebPushSubscription.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+
+    subscriptions = []
+    for sub, user_identifier in results:
+        item = PushSubscriptionItem(
+            id=sub.id,
+            user_id=sub.user_id,
+            endpoint=sub.endpoint[:50] + "..." if len(sub.endpoint) > 50 else sub.endpoint,
+            notify_draw_result=sub.notify_draw_result,
+            notify_recommendation=sub.notify_recommendation,
+            notify_subscription_expiry=sub.notify_subscription_expiry,
+            created_at=sub.created_at,
+            updated_at=sub.updated_at,
+            user_identifier=user_identifier
+        )
+        subscriptions.append(item)
+
+    return PushSubscriptionListResponse(
+        subscriptions=subscriptions,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.get("/push/stats")
+def get_push_stats(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """푸시 알림 통계"""
+    total_subscriptions = db.query(func.count(WebPushSubscription.id)).scalar() or 0
+    draw_result_enabled = db.query(func.count(WebPushSubscription.id)).filter(
+        WebPushSubscription.notify_draw_result == True
+    ).scalar() or 0
+    recommendation_enabled = db.query(func.count(WebPushSubscription.id)).filter(
+        WebPushSubscription.notify_recommendation == True
+    ).scalar() or 0
+    subscription_expiry_enabled = db.query(func.count(WebPushSubscription.id)).filter(
+        WebPushSubscription.notify_subscription_expiry == True
+    ).scalar() or 0
+
+    # 최근 알림 통계
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    recent_sent = db.query(func.count(NotificationLog.id)).filter(
+        NotificationLog.sent_at >= week_ago,
+        NotificationLog.status == "sent"
+    ).scalar() or 0
+    recent_failed = db.query(func.count(NotificationLog.id)).filter(
+        NotificationLog.sent_at >= week_ago,
+        NotificationLog.status == "failed"
+    ).scalar() or 0
+
+    return {
+        "total_subscriptions": total_subscriptions,
+        "settings": {
+            "draw_result": draw_result_enabled,
+            "recommendation": recommendation_enabled,
+            "subscription_expiry": subscription_expiry_enabled
+        },
+        "recent_7days": {
+            "sent": recent_sent,
+            "failed": recent_failed
+        }
+    }
+
+
+@router.delete("/push/subscriptions/{subscription_id}")
+def delete_push_subscription(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """푸시 구독 삭제"""
+    sub = db.query(WebPushSubscription).filter(WebPushSubscription.id == subscription_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="구독을 찾을 수 없습니다.")
+
+    db.delete(sub)
+    db.commit()
+    return {"ok": True, "message": "구독이 삭제되었습니다."}
+
+
+@router.get("/push/logs", response_model=NotificationLogListResponse)
+def get_notification_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    notification_type: Optional[str] = None,
+    status: Optional[str] = None,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """알림 발송 로그 조회"""
+    query = db.query(NotificationLog)
+
+    if notification_type:
+        query = query.filter(NotificationLog.notification_type == notification_type)
+    if status:
+        query = query.filter(NotificationLog.status == status)
+    if user_id:
+        query = query.filter(NotificationLog.user_id == user_id)
+
+    total = query.count()
+    logs = query.order_by(desc(NotificationLog.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+
+    return NotificationLogListResponse(
+        logs=[NotificationLogItem.model_validate(l) for l in logs],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.post("/push/send")
+def send_push_notification(
+    payload: SendPushRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """관리자 푸시 알림 전송"""
+    from app.services.notification_service import NotificationService
+
+    try:
+        # 대상 구독자 필터링
+        query = db.query(WebPushSubscription)
+
+        if payload.user_ids:
+            # 특정 사용자에게만 전송
+            query = query.filter(WebPushSubscription.user_id.in_(payload.user_ids))
+        elif payload.target == "draw_result":
+            query = query.filter(WebPushSubscription.notify_draw_result == True)
+        elif payload.target == "recommendation":
+            query = query.filter(WebPushSubscription.notify_recommendation == True)
+        elif payload.target == "subscription_expiry":
+            query = query.filter(WebPushSubscription.notify_subscription_expiry == True)
+        # "all"은 필터 없음
+
+        subscriptions = query.all()
+
+        if not subscriptions:
+            return {
+                "ok": False,
+                "message": "전송 대상이 없습니다.",
+                "sent": 0,
+                "failed": 0
+            }
+
+        # 알림 페이로드 생성
+        notification = {
+            "title": payload.title,
+            "body": payload.body,
+            "data": {
+                "type": payload.notification_type,
+                "url": "/mypage"
+            }
+        }
+
+        sent_count = 0
+        failed_count = 0
+        expired_endpoints = []
+
+        for sub in subscriptions:
+            success = NotificationService._send_single_push(sub, notification)
+
+            # 로그 저장
+            log = NotificationLog(
+                user_id=sub.user_id,
+                notification_type=payload.notification_type,
+                title=payload.title,
+                body=payload.body,
+                data=notification.get("data"),
+                status="sent" if success else "failed",
+                sent_at=datetime.utcnow() if success else None
+            )
+            db.add(log)
+
+            if success:
+                sent_count += 1
+            else:
+                failed_count += 1
+                expired_endpoints.append(sub.id)
+
+        # 만료된 구독 삭제
+        if expired_endpoints:
+            db.query(WebPushSubscription).filter(
+                WebPushSubscription.id.in_(expired_endpoints)
+            ).delete(synchronize_session=False)
+
+        db.commit()
+
+        return {
+            "ok": True,
+            "message": f"알림 전송 완료: {sent_count}건 성공, {failed_count}건 실패",
+            "sent": sent_count,
+            "failed": failed_count,
+            "expired_removed": len(expired_endpoints)
+        }
+
+    except Exception as e:
+        logger.exception(f"푸시 알림 전송 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"알림 전송 실패: {str(e)}")

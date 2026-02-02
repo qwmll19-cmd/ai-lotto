@@ -167,6 +167,16 @@ function Header() {
                           ))}
                         </div>
                       )}
+                      {/* 닫기 버튼 */}
+                      <div className="notification-dropdown__footer">
+                        <button
+                          type="button"
+                          className="notification-dropdown__close"
+                          onClick={() => setShowNotifications(false)}
+                        >
+                          닫기
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}

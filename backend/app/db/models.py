@@ -434,3 +434,55 @@ class MLTrainingLog(Base):
     plan_performance = Column(JSON, nullable=True)  # {"free": 1.5, "basic": 2.1, ...}
 
     notes = Column(Text, nullable=True)
+
+
+class WebPushSubscription(Base):
+    """웹 푸시 알림 구독 (Phase 6)"""
+    __tablename__ = "web_push_subscriptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # 푸시 구독 정보 (브라우저에서 전달받은 subscription 객체)
+    endpoint = Column(String(500), nullable=False, unique=True, index=True)
+    p256dh_key = Column(String(200), nullable=False)  # encryption key
+    auth_key = Column(String(100), nullable=False)  # auth secret
+
+    # 알림 설정
+    notify_draw_result = Column(Boolean, default=True)  # 당첨 결과 발표 알림
+    notify_recommendation = Column(Boolean, default=True)  # 새 추천 번호 알림
+    notify_subscription = Column(Boolean, default=True)  # 구독 만료 등 알림
+
+    # 메타 정보
+    user_agent = Column(String(500), nullable=True)  # 브라우저 정보
+    is_active = Column(Boolean, default=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class NotificationLog(Base):
+    """알림 발송 로그 (Phase 6)"""
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # 알림 유형
+    notification_type = Column(String(50), nullable=False, index=True)  # draw_result, recommendation, subscription, system
+
+    # 알림 내용
+    title = Column(String(200), nullable=False)
+    body = Column(Text, nullable=False)
+    data = Column(JSON, nullable=True)  # 추가 데이터 (링크, 회차 정보 등)
+
+    # 발송 채널
+    channel = Column(String(20), nullable=False)  # web_push, email, sms
+
+    # 발송 상태
+    status = Column(String(20), nullable=False, default="pending")  # pending, sent, failed, clicked
+    error_message = Column(Text, nullable=True)
+
+    sent_at = Column(DateTime, nullable=True)
+    clicked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

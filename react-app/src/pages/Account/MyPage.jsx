@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
+import { usePushNotification } from '../../hooks/usePushNotification.js'
 import { latestDrawMock } from '../../data/mockData.js'
 import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatus, markResultChecked } from '../../api/lottoApi.js'
 import { changePassword, deleteAccount } from '../../api/authApi.js'
@@ -43,15 +44,18 @@ function MyPage() {
   const [nicknameInput, setNicknameInput] = useState(user?.nickname || '')
   const [nicknameLoading, setNicknameLoading] = useState(false)
   const [nicknameError, setNicknameError] = useState('')
-  // 알림 설정 상태 (localStorage에서 초기값 로드)
-  const [notificationSettings, setNotificationSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('notification_settings')
-      return saved ? JSON.parse(saved) : { recommend: true, result: true }
-    } catch {
-      return { recommend: true, result: true }
-    }
-  })
+  // 웹 푸시 알림 훅
+  const {
+    isSupported: isPushSupported,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    permission: pushPermission,
+    settings: pushSettings,
+    error: pushError,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePushNotification,
+    toggleSetting: togglePushSetting
+  } = usePushNotification()
   // 비밀번호 변경 상태
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -1180,11 +1184,28 @@ function MyPage() {
     )
   }
 
-  const handleNotificationChange = (key, value) => {
-    const newSettings = { ...notificationSettings, [key]: value }
-    setNotificationSettings(newSettings)
-    localStorage.setItem('notification_settings', JSON.stringify(newSettings))
-    info(value ? '알림이 활성화되었습니다.' : '알림이 비활성화되었습니다.', '알림 설정')
+  // 푸시 알림 구독/해제 핸들러
+  const handlePushSubscribe = async () => {
+    const result = await subscribePush()
+    if (result) {
+      success('푸시 알림이 활성화되었습니다.', '알림 설정')
+    } else if (pushPermission === 'denied') {
+      info('브라우저 설정에서 알림 권한을 허용해주세요.', '알림 권한 필요')
+    }
+  }
+
+  const handlePushUnsubscribe = async () => {
+    const result = await unsubscribePushNotification()
+    if (result) {
+      info('푸시 알림이 비활성화되었습니다.', '알림 설정')
+    }
+  }
+
+  const handleNotificationChange = async (key, value) => {
+    const result = await togglePushSetting(key)
+    if (result) {
+      info(value ? '알림이 활성화되었습니다.' : '알림이 비활성화되었습니다.', '알림 설정')
+    }
   }
 
   // 비밀번호 변경 핸들러
@@ -1260,37 +1281,112 @@ function MyPage() {
 
   const renderNotificationsTab = () => (
     <div className="mypage-notifications">
+      {/* 푸시 알림 활성화 섹션 */}
       <div className="mypage-notifications__section">
-        <h3>알림 설정</h3>
-        <div className="mypage-notifications__item">
-          <div>
-            <strong>추천 번호 알림</strong>
-            <p>새로운 AI 추천 번호가 생성되면 알림을 받습니다.</p>
+        <h3>푸시 알림</h3>
+
+        {!isPushSupported ? (
+          <div className="mypage-notifications__warning">
+            <span className="mypage-notifications__warning-icon">⚠️</span>
+            <p>이 브라우저는 푸시 알림을 지원하지 않습니다.</p>
           </div>
-          <label className="mypage-notifications__toggle">
-            <input
-              type="checkbox"
-              checked={notificationSettings.recommend}
-              onChange={(e) => handleNotificationChange('recommend', e.target.checked)}
-            />
-            <span className="mypage-notifications__slider" />
-          </label>
-        </div>
-        <div className="mypage-notifications__item">
-          <div>
-            <strong>당첨 결과 알림</strong>
-            <p>매주 토요일 당첨 결과와 내 번호 비교 결과를 알려드립니다.</p>
+        ) : pushPermission === 'denied' ? (
+          <div className="mypage-notifications__warning">
+            <span className="mypage-notifications__warning-icon">🚫</span>
+            <div>
+              <p>알림 권한이 차단되어 있습니다.</p>
+              <p className="mypage-notifications__hint">브라우저 설정에서 이 사이트의 알림을 허용해주세요.</p>
+            </div>
           </div>
-          <label className="mypage-notifications__toggle">
-            <input
-              type="checkbox"
-              checked={notificationSettings.result}
-              onChange={(e) => handleNotificationChange('result', e.target.checked)}
-            />
-            <span className="mypage-notifications__slider" />
-          </label>
-        </div>
+        ) : !isPushSubscribed ? (
+          <div className="mypage-notifications__activate">
+            <div className="mypage-notifications__activate-info">
+              <span className="mypage-notifications__activate-icon">🔔</span>
+              <div>
+                <strong>푸시 알림 받기</strong>
+                <p>새 회차 당첨번호 발표, 추천 번호 알림 등을 받으실 수 있습니다.</p>
+              </div>
+            </div>
+            <button
+              className="mypage-notifications__activate-btn"
+              onClick={handlePushSubscribe}
+              disabled={isPushLoading}
+            >
+              {isPushLoading ? '처리 중...' : '알림 켜기'}
+            </button>
+          </div>
+        ) : (
+          <div className="mypage-notifications__status">
+            <span className="mypage-notifications__status-icon">✅</span>
+            <span>푸시 알림이 활성화되어 있습니다.</span>
+            <button
+              className="mypage-notifications__deactivate-btn"
+              onClick={handlePushUnsubscribe}
+              disabled={isPushLoading}
+            >
+              끄기
+            </button>
+          </div>
+        )}
+
+        {pushError && (
+          <div className="mypage-notifications__error">
+            <span>❌</span> {pushError}
+          </div>
+        )}
       </div>
+
+      {/* 알림 종류 설정 (구독 중일 때만 표시) */}
+      {isPushSubscribed && (
+        <div className="mypage-notifications__section">
+          <h3>알림 종류 설정</h3>
+          <div className="mypage-notifications__item">
+            <div>
+              <strong>당첨 결과 알림</strong>
+              <p>매주 토요일 새 회차 당첨번호가 발표되면 알려드립니다.</p>
+            </div>
+            <label className="mypage-notifications__toggle">
+              <input
+                type="checkbox"
+                checked={pushSettings.notify_draw_result}
+                onChange={(e) => handleNotificationChange('notify_draw_result', e.target.checked)}
+                disabled={isPushLoading}
+              />
+              <span className="mypage-notifications__slider" />
+            </label>
+          </div>
+          <div className="mypage-notifications__item">
+            <div>
+              <strong>추천 번호 알림</strong>
+              <p>새로운 AI 추천 번호가 생성되면 알림을 받습니다.</p>
+            </div>
+            <label className="mypage-notifications__toggle">
+              <input
+                type="checkbox"
+                checked={pushSettings.notify_recommendation}
+                onChange={(e) => handleNotificationChange('notify_recommendation', e.target.checked)}
+                disabled={isPushLoading}
+              />
+              <span className="mypage-notifications__slider" />
+            </label>
+          </div>
+          <div className="mypage-notifications__item">
+            <div>
+              <strong>구독 만료 알림</strong>
+              <p>유료 플랜 만료 7일 전에 알림을 받습니다.</p>
+            </div>
+            <label className="mypage-notifications__toggle">
+              <input
+                type="checkbox"
+                checked={pushSettings.notify_subscription_expiry}
+                onChange={(e) => handleNotificationChange('notify_subscription_expiry', e.target.checked)}
+                disabled={isPushLoading}
+              />
+              <span className="mypage-notifications__slider" />
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   )
 

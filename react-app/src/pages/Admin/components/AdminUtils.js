@@ -25,4 +25,5 @@ export const TABS = [
   { id: 'performance', label: '플랜 성과' },
   { id: 'matching', label: '매칭 관리' },
   { id: 'backtest', label: '백테스팅' },
+  { id: 'push', label: '푸시 알림' },
 ]

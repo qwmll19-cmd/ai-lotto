@@ -1,6 +1,6 @@
 """매주 토요일 21:00 자동 업데이트"""
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import text
 
@@ -9,8 +9,9 @@ from app.collectors.lotto.db_manager import LottoDBManager
 from app.services.lotto.stats_calculator import LottoStatsCalculator
 from app.services.lotto.result_matcher import match_all_pending_logs, get_plan_performance_summary
 from app.services.lotto.ml_trainer import LottoMLTrainer
+from app.services.notification_service import NotificationService
 from app.db.session import SessionLocal
-from app.db.models import MLTrainingLog
+from app.db.models import MLTrainingLog, WebPushSubscription, User
 
 
 async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat_id=None):
@@ -19,9 +20,10 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
 
     1. 최신 회차 수집
     2. 당첨 결과 매칭
-    3. ML 재학습
-    4. 통계 캐시 갱신
-    5. 관리자에게 알림
+    3. 푸시 알림 브로드캐스트 (신규 회차 발표 시)
+    4. ML 재학습
+    5. 통계 캐시 갱신
+    6. 관리자에게 알림
 
     Args:
         session_factory: DB 세션 팩토리
@@ -72,16 +74,38 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
                 print("   ℹ️  신규 회차 없음")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # [2/5] 당첨 결과 매칭
+            # [2/6] 당첨 결과 매칭
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             match_result = None
+            latest_draw_info = None
             if new_draw_no:
                 print(f"   당첨 결과 매칭 중... (회차 {new_draw_no})")
                 match_result = match_all_pending_logs(db, new_draw_no)
                 print(f"   ✅ {match_result.get('matched_count', 0)}개 로그 매칭 완료")
 
+                # 최신 회차 정보 저장 (푸시 알림용)
+                latest_draw_info = api_client.get_lotto_draw(new_draw_no)
+
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # [3/5] ML 재학습
+            # [3/6] 푸시 알림 브로드캐스트 (새 회차 발표 알림)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            push_result = None
+            if new_draw_no:
+                print("   푸시 알림 전송 중...")
+                try:
+                    # 새 회차 발표 알림 (당첨 결과 확인 유도)
+                    push_result = NotificationService.broadcast_new_draw_announcement(
+                        db=db,
+                        draw_no=new_draw_no,
+                    )
+                    print(f"   ✅ 푸시 알림 전송: {push_result.get('sent', 0)}건 성공, {push_result.get('user_count', 0)}명")
+                except Exception as push_error:
+                    print(f"   ⚠️  푸시 알림 실패: {push_error}")
+            else:
+                print("   ℹ️  푸시 알림 스킵 (신규 회차 없음)")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # [4/6] ML 재학습
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             print("   ML 모델 재학습 중...")
             draws = db_manager.get_recent_draws(n=10000)
@@ -120,7 +144,7 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
             print(f"   ✅ ML 재학습 완료 (정확도: {train_result.get('test_accuracy', 0):.4f})")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # [4/5] 통계 캐시 갱신
+            # [5/6] 통계 캐시 갱신
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             print("   통계 캐시 갱신 중...")
 
@@ -154,7 +178,7 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
             print("   ✅ 통계 캐시 갱신 완료")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # [5/5] 관리자에게 알림
+            # [6/6] 관리자에게 알림
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             current_db_max = db_manager.get_max_draw_no()
 
@@ -165,12 +189,18 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
                 for plan, stats in plan_perf.items():
                     perf_msg += f"\n  {plan}: 평균 {stats.get('avg_match', 0):.1f}개 적중"
 
+            # 푸시 알림 결과 메시지
+            push_msg = ""
+            if push_result:
+                push_msg = f"\n📲 푸시 알림: {push_result.get('sent', 0)}건 → {push_result.get('user_count', 0)}명"
+
             msg = (
                 f"✅ 로또 데이터 업데이트 완료\n\n"
                 f"📌 최신 회차: {current_db_max}회\n"
                 f"📥 신규 수집: {new_count}개\n"
                 f"🎯 매칭 완료: {match_result.get('matched_count', 0) if match_result else 0}건\n"
-                f"🤖 ML 정확도: {train_result.get('test_accuracy', 0):.4f}\n"
+                f"🤖 ML 정확도: {train_result.get('test_accuracy', 0):.4f}"
+                f"{push_msg}\n"
                 f"🕐 갱신 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 f"{perf_msg}"
             )

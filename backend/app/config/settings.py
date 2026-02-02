@@ -109,6 +109,11 @@ class Settings:
     NAVER_SEARCH_CLIENT_ID: str = os.getenv("NAVER_SEARCH_CLIENT_ID", "")
     NAVER_SEARCH_CLIENT_SECRET: str = os.getenv("NAVER_SEARCH_CLIENT_SECRET", "")
 
+    # Web Push (VAPID)
+    VAPID_PUBLIC_KEY: str = os.getenv("VAPID_PUBLIC_KEY", "")
+    VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:admin@ai-lotto.com")
+
 
 settings = Settings()
 

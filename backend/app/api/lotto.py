@@ -1161,6 +1161,11 @@ def get_fixed_candidates(
 class AdvancedRecommendRequest(BaseModel):
     exclude: List[int] = []
     fixed: List[int] = []
+    # 추가 고급 설정 (PREMIUM/VIP 전용)
+    range_filter: Optional[dict] = None  # {"min": 1, "max": 30}
+    odd_even_ratio: Optional[str] = None  # "3:3", "4:2", "any"
+    consecutive_limit: Optional[int] = None  # 최대 연속 번호 개수 (1, 2, 3)
+    sum_range: Optional[dict] = None  # {"min": 100, "max": 150}
 
 
 @router.post("/recommend/advanced/one")
@@ -1433,4 +1438,541 @@ def get_premium_stats(
             "total_draws": total_draws,
             "analysis_period": f"최근 {min(50, total_draws)}회차",
         }
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 고급 번호 생성 (추가 옵션 지원)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 플랜별 고급 옵션 사용 가능 여부
+PLAN_ADVANCED_OPTIONS = {
+    "free": False,
+    "basic": False,
+    "premium": True,
+    "vip": True,
+}
+
+
+@router.post("/recommend/generate-advanced")
+def generate_advanced_numbers(
+    req: AdvancedRecommendRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    고급 옵션을 적용하여 번호 생성 (PREMIUM/VIP 전용)
+
+    - exclude: 제외할 번호 리스트
+    - fixed: 고정할 번호 리스트
+    - range_filter: 범위 필터 {"min": 1, "max": 30}
+    - odd_even_ratio: 홀짝 비율 ("3:3", "4:2", "any")
+    - consecutive_limit: 최대 연속 번호 개수
+    - sum_range: 합계 범위 {"min": 100, "max": 150}
+    """
+    from app.services.lotto import build_stats_from_draws, draws_to_dict_list, generate_with_advanced_options
+
+    plan_type = (user.subscription_type or "free").lower()
+
+    # 기본 제외/고정은 BASIC도 사용 가능
+    if plan_type == "free":
+        raise HTTPException(
+            status_code=400,
+            detail="무료 플랜은 고급 설정을 사용할 수 없습니다."
+        )
+
+    # 추가 고급 옵션은 PREMIUM/VIP만 사용 가능
+    has_advanced_options = (
+        req.range_filter is not None or
+        req.odd_even_ratio is not None or
+        req.consecutive_limit is not None or
+        req.sum_range is not None
+    )
+
+    if has_advanced_options and not PLAN_ADVANCED_OPTIONS.get(plan_type, False):
+        raise HTTPException(
+            status_code=403,
+            detail="고급 옵션(범위, 홀짝, 연속, 합계)은 PREMIUM 이상 플랜에서 사용 가능합니다."
+        )
+
+    # 제외/고정 개수 제한
+    max_exclude = PoolService.get_max_exclude(plan_type)
+    max_fixed = PoolService.get_max_fixed(plan_type)
+
+    if len(req.exclude) > max_exclude:
+        raise HTTPException(
+            status_code=400,
+            detail=f"이 플랜에서는 최대 {max_exclude}개까지 제외할 수 있습니다."
+        )
+
+    if len(req.fixed) > max_fixed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"이 플랜에서는 최대 {max_fixed}개까지 고정할 수 있습니다."
+        )
+
+    # 통계 데이터 구성
+    draws = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    stats = build_stats_from_draws(draws_to_dict_list(draws))
+
+    # 플랜별 줄 수
+    count = PLAN_LINE_LIMITS.get(plan_type, 5)
+
+    # 고급 옵션으로 번호 생성
+    numbers = generate_with_advanced_options(
+        stats=stats,
+        count=count,
+        exclude=req.exclude,
+        fixed=req.fixed,
+        range_filter=req.range_filter,
+        odd_even_ratio=req.odd_even_ratio,
+        consecutive_limit=req.consecutive_limit,
+        sum_range=req.sum_range,
+    )
+
+    # 현재 회차 확인
+    latest_draw = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).first()
+    target_draw_no = (latest_draw.draw_no + 1) if latest_draw else 1
+
+    return {
+        "success": True,
+        "numbers": numbers,
+        "count": len(numbers),
+        "target_draw_no": target_draw_no,
+        "plan_type": plan_type,
+        "options_applied": {
+            "exclude": req.exclude,
+            "fixed": req.fixed,
+            "range_filter": req.range_filter,
+            "odd_even_ratio": req.odd_even_ratio,
+            "consecutive_limit": req.consecutive_limit,
+            "sum_range": req.sum_range,
+        },
+        "message": f"{target_draw_no}회 고급 설정 적용 번호 {len(numbers)}줄이 생성되었습니다.",
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 패턴 분석 심화 API (Phase 3)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@router.get("/stats/pair-frequency")
+def get_pair_frequency(
+    top_n: int = 20,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    동반 출현 분석 - 함께 자주 나오는 번호 쌍 (BASIC 이상)
+
+    Returns:
+        - pairs: [(번호1, 번호2, 출현횟수), ...]
+    """
+    from app.services.lotto import analyze_pair_frequency, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="동반 출현 분석은 BASIC 이상 플랜에서 사용 가능합니다."
+        )
+
+    draws = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    # 플랜별 결과 개수 제한
+    limit = 10 if plan_type == "basic" else top_n
+
+    pairs = analyze_pair_frequency(draws_to_dict_list(draws), limit)
+
+    return {
+        "success": True,
+        "pairs": [
+            {"num1": p[0], "num2": p[1], "count": p[2]}
+            for p in pairs
+        ],
+        "total_draws": len(draws),
+        "message": f"상위 {len(pairs)}개 동반 출현 쌍 분석 완료",
+    }
+
+
+@router.get("/stats/number/{number}")
+def get_number_detail(
+    number: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    특정 번호 상세 분석 (BASIC 이상)
+
+    Returns:
+        - 전체/최근 출현 횟수
+        - 마지막 출현 회차, 미출현 간격
+        - 평균 출현 간격
+        - 동반 출현 상위 5개 번호
+        - 보너스 출현 횟수
+    """
+    from app.services.lotto import analyze_number_detail, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="번호 상세 분석은 BASIC 이상 플랜에서 사용 가능합니다."
+        )
+
+    if number < 1 or number > 45:
+        raise HTTPException(status_code=400, detail="번호는 1~45 사이여야 합니다.")
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    draws_list = []
+    for d in draws:
+        draws_list.append({
+            'round': d.draw_no,
+            'n1': d.n1, 'n2': d.n2, 'n3': d.n3,
+            'n4': d.n4, 'n5': d.n5, 'n6': d.n6,
+            'bonus': d.bonus
+        })
+
+    result = analyze_number_detail(draws_list, number)
+
+    return {
+        "success": True,
+        **result,
+    }
+
+
+@router.get("/stats/cycle-pattern")
+def get_cycle_pattern(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    번호별 출현 주기 분석 (PREMIUM 이상)
+
+    Returns:
+        - cycle_analysis: 각 번호별 평균 출현 주기
+        - overdue_numbers: 평균 주기를 초과한 번호들 (반등 기대)
+        - hot_cycle_numbers: 주기보다 빈번하게 출현 중인 번호들
+    """
+    from app.services.lotto import analyze_cycle_pattern, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type in ["free", "basic"]:
+        raise HTTPException(
+            status_code=403,
+            detail="출현 주기 분석은 PREMIUM 이상 플랜에서 사용 가능합니다."
+        )
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    result = analyze_cycle_pattern(draws_to_dict_list(draws))
+
+    return {
+        "success": True,
+        "overdue_numbers": result["overdue_numbers"],
+        "hot_cycle_numbers": result["hot_cycle_numbers"],
+        "total_rounds": result["total_rounds"],
+        "message": "출현 주기 분석 완료",
+    }
+
+
+@router.get("/stats/position-pattern")
+def get_position_pattern(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    번호 위치별 패턴 분석 (PREMIUM 이상)
+
+    Returns:
+        - position_stats: 각 위치별 가장 많이 나온 번호 Top 5
+        - position_range: 각 위치별 번호 범위 통계
+    """
+    from app.services.lotto import analyze_position_pattern, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type in ["free", "basic"]:
+        raise HTTPException(
+            status_code=403,
+            detail="위치별 패턴 분석은 PREMIUM 이상 플랜에서 사용 가능합니다."
+        )
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    result = analyze_position_pattern(draws_to_dict_list(draws))
+
+    return {
+        "success": True,
+        **result,
+        "message": "위치별 패턴 분석 완료",
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 성능 추적 API (Phase 4)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@router.get("/stats/my-performance")
+def get_my_performance(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    내 성능 통계 (로그인 필수)
+
+    Returns:
+        - total_lines: 전체 추천받은 줄 수
+        - total_draws: 참여 회차 수
+        - match_distribution: 일치 개수별 분포
+        - best_rank: 역대 최고 등수
+        - recent_performance: 최근 5회차 성과
+        - win_rate: 당첨율 (3개 이상 일치)
+    """
+    from app.services.lotto import get_user_performance_stats
+
+    result = get_user_performance_stats(db, user.id)
+
+    return {
+        "success": True,
+        **result,
+    }
+
+
+@router.get("/stats/global-performance")
+def get_global_performance(
+    db: Session = Depends(get_db),
+):
+    """
+    전체 시스템 성능 요약 (공개)
+
+    Returns:
+        - total_recommendations: 전체 추천 수
+        - total_users: 참여 사용자 수
+        - total_wins: 전체 당첨 횟수 (3개 이상)
+        - rank_distribution: 등수별 분포
+        - plan_comparison: 플랜별 성과 비교
+        - trend: 최근 10회차 성과 추이
+    """
+    from app.services.lotto import get_global_performance_summary
+
+    result = get_global_performance_summary(db)
+
+    return {
+        "success": True,
+        **result,
+    }
+
+
+@router.get("/stats/draw-performance/{draw_no}")
+def get_draw_performance(
+    draw_no: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    특정 회차 성능 상세 (BASIC 이상)
+
+    Returns:
+        - draw_info: 당첨 번호 정보
+        - plan_stats: 플랜별 통계
+        - top_matched_lines: 가장 많이 맞춘 줄들 (상위 5개)
+    """
+    from app.services.lotto import get_draw_performance_detail
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type == "free":
+        raise HTTPException(
+            status_code=403,
+            detail="회차별 성능 상세는 BASIC 이상 플랜에서 사용 가능합니다."
+        )
+
+    result = get_draw_performance_detail(db, draw_no)
+
+    if result.get("error"):
+        raise HTTPException(status_code=404, detail="해당 회차 데이터를 찾을 수 없습니다.")
+
+    return {
+        "success": True,
+        **result,
+    }
+
+
+@router.get("/stats/plan-comparison")
+def get_plan_comparison(
+    recent_draws: int = 10,
+    db: Session = Depends(get_db),
+):
+    """
+    플랜별 성과 비교 (공개)
+
+    Returns:
+        - 각 플랜별 평균 일치 수, 당첨 횟수 등
+    """
+    from app.services.lotto import get_plan_performance_summary
+
+    result = get_plan_performance_summary(db, recent_draws)
+
+    return {
+        "success": True,
+        "plan_comparison": result,
+        "recent_draws": recent_draws,
+    }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ML 모델 API (Phase 5)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@router.get("/ml/status")
+def get_ml_status(
+    db: Session = Depends(get_db),
+):
+    """
+    ML 모델 상태 조회 (공개)
+
+    Returns:
+        - is_loaded: 모델 로드 여부
+        - model_exists: 모델 파일 존재 여부
+        - ai_weights: 현재 가중치
+    """
+    from app.services.lotto import LottoMLTrainer
+
+    trainer = LottoMLTrainer()
+    status = trainer.get_model_status()
+
+    return {
+        "success": True,
+        **status,
+    }
+
+
+@router.post("/ml/train")
+def train_ml_model(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    ML 모델 학습 (관리자 전용)
+
+    Returns:
+        - train_accuracy: 학습 정확도
+        - test_accuracy: 테스트 정확도
+        - feature_importance: 특성 중요도
+        - ai_weights: AI 가중치
+    """
+    from app.services.lotto import LottoMLTrainer, draws_to_dict_list
+
+    # 관리자 권한 확인
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="관리자만 ML 모델을 학습할 수 있습니다.")
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if len(draws) < 100:
+        raise HTTPException(status_code=400, detail="학습을 위해 최소 100회차 데이터가 필요합니다.")
+
+    trainer = LottoMLTrainer()
+    result = trainer.train(draws_to_dict_list(draws))
+
+    return {
+        "success": True,
+        **result,
+        "message": "ML 모델 학습이 완료되었습니다.",
+    }
+
+
+@router.get("/ml/backtest")
+def run_backtest(
+    test_draws: int = 20,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    ML 모델 백테스트 (PREMIUM 이상)
+
+    Args:
+        test_draws: 테스트 회차 수 (기본 20)
+
+    Returns:
+        - test_results: 각 회차별 테스트 결과
+        - top10_hit_rate: 상위 10개 중 평균 적중
+        - top15_hit_rate: 상위 15개 중 평균 적중
+        - top20_hit_rate: 상위 20개 중 평균 적중
+    """
+    from app.services.lotto import LottoMLTrainer, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type in ["free", "basic"]:
+        raise HTTPException(
+            status_code=403,
+            detail="ML 백테스트는 PREMIUM 이상 플랜에서 사용 가능합니다."
+        )
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if len(draws) < test_draws + 50:
+        raise HTTPException(status_code=400, detail="테스트를 위한 데이터가 부족합니다.")
+
+    trainer = LottoMLTrainer()
+    trainer.load_model()
+
+    result = trainer.backtest(draws_to_dict_list(draws), test_draws)
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return {
+        "success": True,
+        **result,
+    }
+
+
+@router.get("/ml/prediction")
+def get_ml_prediction(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    다음 회차 ML 예측 리포트 (PREMIUM 이상)
+
+    Returns:
+        - predicted_numbers: 추천 번호 (상위 15개)
+        - confidence_scores: 각 번호별 신뢰도
+        - analysis: 분석 코멘트
+    """
+    from app.services.lotto import LottoMLTrainer, draws_to_dict_list
+
+    plan_type = (user.subscription_type or "free").lower()
+    if plan_type in ["free", "basic"]:
+        raise HTTPException(
+            status_code=403,
+            detail="ML 예측 리포트는 PREMIUM 이상 플랜에서 사용 가능합니다."
+        )
+
+    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no.asc()).all()
+    if not draws:
+        raise HTTPException(status_code=404, detail="추첨 데이터가 없습니다.")
+
+    latest_draw = draws[-1]
+    target_draw_no = latest_draw.draw_no + 1
+
+    trainer = LottoMLTrainer()
+    if not trainer.load_model():
+        raise HTTPException(status_code=400, detail="ML 모델이 학습되지 않았습니다. 관리자에게 문의하세요.")
+
+    result = trainer.get_prediction_report(draws_to_dict_list(draws), target_draw_no)
+
+    return {
+        "success": True,
+        **result,
     }

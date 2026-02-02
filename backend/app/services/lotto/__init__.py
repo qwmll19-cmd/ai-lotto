@@ -37,13 +37,29 @@ def get_next_draw_no(db) -> int:
     return (latest[0] + 1) if latest is not None else 1
 
 
-from .generator import generate_15_lines, generate_20_lines, generate_free_line, generate_free_lines, generate_mixed_line, generate_paid_lines, generate_basic_lines, generate_premium_lines, generate_vip_lines, lucky_number
+from .generator import (
+    generate_15_lines,
+    generate_20_lines,
+    generate_free_line,
+    generate_free_lines,
+    generate_mixed_line,
+    generate_paid_lines,
+    generate_basic_lines,
+    generate_premium_lines,
+    generate_vip_lines,
+    generate_with_advanced_options,
+    validate_advanced_options,
+    lucky_number,
+)
 from .ml_trainer import LottoMLTrainer
 from .result_matcher import (
     match_single_line,
     match_recommend_log,
     match_all_pending_logs,
-    get_plan_performance_summary
+    get_plan_performance_summary,
+    get_user_performance_stats,
+    get_global_performance_summary,
+    get_draw_performance_detail,
 )
 from .pool_service import PoolService
 # 미사용 모듈 (향후 사용 가능성 있음 - 파일 유지)
@@ -88,6 +104,30 @@ def build_stats_from_draws(draws: List[dict]) -> dict:
         "bonus_top": bonus_top,
     }
 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 패턴 분석 심화 함수 (Phase 3)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def analyze_pair_frequency(draws: List[dict], top_n: int = 20):
+    """동반 출현 분석"""
+    return LottoStatsCalculator.analyze_pair_frequency(draws, top_n)
+
+
+def analyze_number_detail(draws: List[dict], number: int):
+    """특정 번호 상세 분석"""
+    return LottoStatsCalculator.analyze_number_detail(draws, number)
+
+
+def analyze_cycle_pattern(draws: List[dict]):
+    """번호별 출현 주기 분석"""
+    return LottoStatsCalculator.analyze_cycle_pattern(draws)
+
+
+def analyze_position_pattern(draws: List[dict]):
+    """번호 위치별 패턴 분석"""
+    return LottoStatsCalculator.analyze_position_pattern(draws)
+
 __all__ = [
     # 유틸리티
     'format_line',
@@ -107,6 +147,8 @@ __all__ = [
     'generate_basic_lines',
     'generate_premium_lines',
     'generate_vip_lines',
+    'generate_with_advanced_options',
+    'validate_advanced_options',
     'lucky_number',
     # ML
     'LottoMLTrainer',
@@ -115,6 +157,15 @@ __all__ = [
     'match_recommend_log',
     'match_all_pending_logs',
     'get_plan_performance_summary',
+    # 성능 추적 (Phase 4)
+    'get_user_performance_stats',
+    'get_global_performance_summary',
+    'get_draw_performance_detail',
     # 풀 관리 (통합 서비스)
     'PoolService',
+    # 패턴 분석 심화 (Phase 3)
+    'analyze_pair_frequency',
+    'analyze_number_detail',
+    'analyze_cycle_pattern',
+    'analyze_position_pattern',
 ]

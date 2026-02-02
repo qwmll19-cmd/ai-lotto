@@ -349,3 +349,262 @@ def get_plan_performance_summary(db: Session, recent_draws: int = 10) -> Dict:
             }
 
     return results
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Phase 4: 성능 추적 시스템 확장
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def get_user_performance_stats(db: Session, user_id: int) -> Dict:
+    """
+    특정 사용자의 성능 통계
+
+    Returns:
+        - total_lines: 전체 추천받은 줄 수
+        - total_draws: 참여 회차 수
+        - match_distribution: 일치 개수별 분포
+        - best_rank: 역대 최고 등수
+        - recent_performance: 최근 5회차 성과
+        - win_rate: 당첨율 (3개 이상 일치)
+    """
+    import json as json_module
+    from sqlalchemy import func, desc
+
+    # 전체 추천 로그 조회
+    logs = db.query(LottoRecommendLog).filter(
+        LottoRecommendLog.user_id == user_id,
+        LottoRecommendLog.is_matched == True
+    ).order_by(desc(LottoRecommendLog.target_draw_no)).all()
+
+    if not logs:
+        return {
+            "total_lines": 0,
+            "total_draws": 0,
+            "match_distribution": {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, "5+bonus": 0, 6: 0},
+            "best_rank": None,
+            "recent_performance": [],
+            "win_rate": 0,
+            "avg_match_count": 0,
+        }
+
+    total_lines = 0
+    match_distribution = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, "5+bonus": 0, 6: 0}
+    best_rank = None
+    total_match = 0
+    win_count = 0  # 3개 이상 일치
+    recent_performance = []
+
+    for log in logs:
+        if not log.match_results:
+            continue
+
+        try:
+            result = json_module.loads(log.match_results) if isinstance(log.match_results, str) else log.match_results
+        except:
+            continue
+
+        line_results = result.get("line_results", [])
+        total_lines += len(line_results)
+
+        for line_result in line_results:
+            match_count = line_result.get("match_count", 0)
+            bonus_match = line_result.get("bonus_match", False)
+            total_match += match_count
+
+            if match_count == 5 and bonus_match:
+                match_distribution["5+bonus"] += 1
+                win_count += 1
+            else:
+                match_distribution[match_count] = match_distribution.get(match_count, 0) + 1
+                if match_count >= 3:
+                    win_count += 1
+
+        log_best_rank = result.get("best_rank")
+        if log_best_rank:
+            if best_rank is None or log_best_rank < best_rank:
+                best_rank = log_best_rank
+
+        # 최근 성과 (최대 5개)
+        if len(recent_performance) < 5:
+            recent_performance.append({
+                "draw_no": result.get("draw_no"),
+                "total_lines": len(line_results),
+                "total_match": result.get("total_match_count", 0),
+                "best_rank": log_best_rank,
+                "matched_at": result.get("matched_at"),
+            })
+
+    win_rate = (win_count / total_lines * 100) if total_lines > 0 else 0
+    avg_match = total_match / total_lines if total_lines > 0 else 0
+
+    return {
+        "total_lines": total_lines,
+        "total_draws": len(logs),
+        "match_distribution": match_distribution,
+        "best_rank": best_rank,
+        "recent_performance": recent_performance,
+        "win_rate": round(win_rate, 2),
+        "avg_match_count": round(avg_match, 2),
+    }
+
+
+def get_global_performance_summary(db: Session) -> Dict:
+    """
+    전체 시스템 성능 요약 (관리자/공개용)
+
+    Returns:
+        - total_recommendations: 전체 추천 수
+        - total_users: 참여 사용자 수
+        - total_wins: 전체 당첨 횟수 (3개 이상)
+        - rank_distribution: 등수별 분포
+        - plan_comparison: 플랜별 성과 비교
+        - trend: 최근 10회차 성과 추이
+    """
+    import json as json_module
+    from sqlalchemy import func, desc
+
+    # 전체 통계
+    total_recommendations = db.query(func.count(LottoRecommendLog.id)).filter(
+        LottoRecommendLog.is_matched == True
+    ).scalar() or 0
+
+    total_users = db.query(func.count(func.distinct(LottoRecommendLog.user_id))).filter(
+        LottoRecommendLog.is_matched == True
+    ).scalar() or 0
+
+    # 플랜별 성과 요약
+    plan_comparison = get_plan_performance_summary(db, recent_draws=20)
+
+    # 최근 10회차 성과 추이
+    recent_draws = db.query(PlanPerformanceStats.draw_no).distinct().order_by(
+        desc(PlanPerformanceStats.draw_no)
+    ).limit(10).all()
+
+    trend = []
+    for (draw_no,) in recent_draws:
+        draw_stats = db.query(
+            func.sum(PlanPerformanceStats.total_lines).label("total_lines"),
+            func.sum(PlanPerformanceStats.match_3 + PlanPerformanceStats.match_4 +
+                     PlanPerformanceStats.match_5 + PlanPerformanceStats.match_5_bonus +
+                     PlanPerformanceStats.match_6).label("total_wins"),
+            func.avg(PlanPerformanceStats.avg_match_count).label("avg_match"),
+        ).filter(
+            PlanPerformanceStats.draw_no == draw_no
+        ).first()
+
+        if draw_stats and draw_stats.total_lines:
+            trend.append({
+                "draw_no": draw_no,
+                "total_lines": draw_stats.total_lines or 0,
+                "total_wins": draw_stats.total_wins or 0,
+                "avg_match": round(draw_stats.avg_match or 0, 2),
+            })
+
+    # 등수별 전체 분포 계산
+    rank_totals = db.query(
+        func.sum(PlanPerformanceStats.match_3).label("rank5"),
+        func.sum(PlanPerformanceStats.match_4).label("rank4"),
+        func.sum(PlanPerformanceStats.match_5).label("rank3"),
+        func.sum(PlanPerformanceStats.match_5_bonus).label("rank2"),
+        func.sum(PlanPerformanceStats.match_6).label("rank1"),
+    ).first()
+
+    rank_distribution = {
+        "1등": rank_totals.rank1 or 0,
+        "2등": rank_totals.rank2 or 0,
+        "3등": rank_totals.rank3 or 0,
+        "4등": rank_totals.rank4 or 0,
+        "5등": rank_totals.rank5 or 0,
+    } if rank_totals else {}
+
+    total_wins = sum(rank_distribution.values())
+
+    return {
+        "total_recommendations": total_recommendations,
+        "total_users": total_users,
+        "total_wins": total_wins,
+        "rank_distribution": rank_distribution,
+        "plan_comparison": plan_comparison,
+        "trend": trend,
+    }
+
+
+def get_draw_performance_detail(db: Session, draw_no: int) -> Dict:
+    """
+    특정 회차의 성능 상세
+
+    Returns:
+        - draw_info: 당첨 번호 정보
+        - plan_stats: 플랜별 통계
+        - top_matched_lines: 가장 많이 맞춘 줄들 (상위 5개)
+    """
+    import json as json_module
+
+    draw = db.query(LottoDraw).filter(LottoDraw.draw_no == draw_no).first()
+    if not draw:
+        return {"error": "draw_not_found"}
+
+    draw_info = {
+        "draw_no": draw.draw_no,
+        "winning_numbers": [draw.n1, draw.n2, draw.n3, draw.n4, draw.n5, draw.n6],
+        "bonus": draw.bonus,
+        "draw_date": draw.draw_date.isoformat() if draw.draw_date else None,
+    }
+
+    # 플랜별 통계 조회
+    plan_stats_list = db.query(PlanPerformanceStats).filter(
+        PlanPerformanceStats.draw_no == draw_no
+    ).all()
+
+    plan_stats = {}
+    for ps in plan_stats_list:
+        plan_stats[ps.plan_type] = {
+            "total_lines": ps.total_lines,
+            "total_users": ps.total_users,
+            "match_distribution": {
+                0: ps.match_0,
+                1: ps.match_1,
+                2: ps.match_2,
+                3: ps.match_3,
+                4: ps.match_4,
+                5: ps.match_5,
+                "5+bonus": ps.match_5_bonus,
+                6: ps.match_6,
+            },
+            "avg_match": ps.avg_match_count,
+        }
+
+    # 가장 많이 맞춘 줄들 (상위 5개)
+    logs = db.query(LottoRecommendLog).filter(
+        LottoRecommendLog.target_draw_no == draw_no,
+        LottoRecommendLog.is_matched == True
+    ).all()
+
+    top_lines = []
+    for log in logs:
+        if not log.match_results:
+            continue
+
+        try:
+            result = json_module.loads(log.match_results) if isinstance(log.match_results, str) else log.match_results
+        except:
+            continue
+
+        for line_result in result.get("line_results", []):
+            if line_result.get("match_count", 0) >= 4:  # 4개 이상 일치만
+                top_lines.append({
+                    "match_count": line_result.get("match_count"),
+                    "matched_numbers": line_result.get("matched_numbers"),
+                    "bonus_match": line_result.get("bonus_match"),
+                    "rank": line_result.get("rank"),
+                    "plan_type": log.plan_type,
+                })
+
+    # match_count 높은 순으로 정렬, 상위 5개
+    top_lines = sorted(top_lines, key=lambda x: (-x["match_count"], -int(x["bonus_match"])))[:5]
+
+    return {
+        "draw_info": draw_info,
+        "plan_stats": plan_stats,
+        "top_matched_lines": top_lines,
+    }

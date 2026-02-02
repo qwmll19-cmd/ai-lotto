@@ -35,6 +35,11 @@ import {
   deleteRecommendLog,
   fetchSocialAccounts,
   deleteSocialAccount,
+  fetchPushStats,
+  fetchPushSubscriptions,
+  deletePushSubscription,
+  fetchPushLogs,
+  sendPushNotification,
 } from '../../api/adminApi.js'
 import {
   DashboardTab,
@@ -47,6 +52,7 @@ import {
   PerformanceTab,
   MatchingTab,
   BacktestTab,
+  PushNotificationsTab,
   TABS,
 } from './components/index.js'
 
@@ -114,6 +120,11 @@ function AdminPage() {
   // 추천 로그 state
   const [recommendLogs, setRecommendLogs] = useState({ logs: [], total: 0, page: 1, page_size: 20 })
 
+  // 푸시 알림 state
+  const [pushStats, setPushStats] = useState(null)
+  const [pushSubscriptions, setPushSubscriptions] = useState({ subscriptions: [], total: 0, page: 1, page_size: 20 })
+  const [pushLogs, setPushLogs] = useState({ logs: [], total: 0, page: 1, page_size: 20 })
+
   useEffect(() => {
     if (authLoading) return
     if (!isAuthed) {
@@ -139,6 +150,7 @@ function AdminPage() {
     else if (activeTab === 'ml') loadMLData()
     else if (activeTab === 'performance') loadPerformanceData()
     else if (activeTab === 'matching') loadMatchData()
+    else if (activeTab === 'push') loadPushStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAdmin])
 
@@ -550,6 +562,57 @@ function AdminPage() {
     }
   }
 
+  // 푸시 알림 관련 함수
+  const loadPushStats = async () => {
+    setLoading(true)
+    try {
+      const data = await fetchPushStats()
+      setPushStats(data)
+      setError('')
+    } catch (err) {
+      setError(err.message || '푸시 알림 통계를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadPushSubscriptionsList = async (page = 1) => {
+    setLoading(true)
+    try {
+      const data = await fetchPushSubscriptions({ page, page_size: 20 })
+      setPushSubscriptions(data)
+    } catch (err) {
+      alert(err.message || '구독자 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadPushLogsList = async (page = 1) => {
+    setLoading(true)
+    try {
+      const data = await fetchPushLogs({ page, page_size: 20 })
+      setPushLogs(data)
+    } catch (err) {
+      alert(err.message || '발송 로그를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSendPush = async (formData) => {
+    return await sendPushNotification(formData)
+  }
+
+  const handleDeletePushSubscription = async (subscriptionId) => {
+    try {
+      await deletePushSubscription(subscriptionId)
+      alert('구독이 삭제되었습니다.')
+    } catch (err) {
+      alert(err.message || '삭제 실패')
+    }
+  }
+
   // Render loading
   if (authLoading) {
     return (
@@ -722,6 +785,20 @@ function AdminPage() {
           )}
 
           {activeTab === 'backtest' && <BacktestTab />}
+
+          {activeTab === 'push' && (
+            <PushNotificationsTab
+              stats={pushStats}
+              subscriptions={pushSubscriptions}
+              logs={pushLogs}
+              loading={loading}
+              onLoadStats={loadPushStats}
+              onLoadSubscriptions={loadPushSubscriptionsList}
+              onLoadLogs={loadPushLogsList}
+              onSendPush={handleSendPush}
+              onDeleteSubscription={handleDeletePushSubscription}
+            />
+          )}
         </div>
       </main>
     </div>

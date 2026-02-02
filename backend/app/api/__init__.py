@@ -6,6 +6,7 @@ from app.api.admin import router as admin_router
 from app.api.subscription import router as subscription_router
 from app.api.oauth import router as oauth_router
 from app.api.guest import router as guest_router
+from app.api.notification import router as notification_router
 
 __all__ = [
     "auth_router",
@@ -16,4 +17,5 @@ __all__ = [
     "subscription_router",
     "oauth_router",
     "guest_router",
+    "notification_router",
 ]
