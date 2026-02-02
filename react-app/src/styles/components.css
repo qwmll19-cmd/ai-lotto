@@ -1722,9 +1722,13 @@
     }
   }
 
+  .profile-dropdown__header {
+    padding: 14px 16px;
+  }
+
   .profile-dropdown__item {
-    padding: 16px 20px;
-    font-size: 15px;
+    padding: 14px 16px;
+    font-size: 14px;
   }
 
   .notification-dropdown__item {

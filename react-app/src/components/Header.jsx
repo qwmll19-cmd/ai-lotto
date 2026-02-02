@@ -98,10 +98,10 @@ function Header() {
               }
             }}
           >AI 시스템</a>
-          <Link className="site-nav__link" to="/stats">통계</Link>
-          <Link className="site-nav__link" to="/history">히스토리</Link>
-          <Link className="site-nav__link" to="/pricing">요금제</Link>
-          <Link className="site-nav__link" to="/support">고객센터</Link>
+          <Link className="site-nav__link" to="/stats" onClick={() => window.scrollTo(0, 0)}>통계</Link>
+          <Link className="site-nav__link" to="/history" onClick={() => window.scrollTo(0, 0)}>히스토리</Link>
+          <Link className="site-nav__link" to="/pricing" onClick={() => window.scrollTo(0, 0)}>요금제</Link>
+          <Link className="site-nav__link" to="/support" onClick={() => window.scrollTo(0, 0)}>고객센터</Link>
           {isAdmin && <Link className="site-nav__link site-nav__link--admin" to="/admin">관리자</Link>}
 
           {authLoading ? (
