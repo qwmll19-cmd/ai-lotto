@@ -1617,6 +1617,12 @@
 }
 
 @media (max-width: 900px) {
+  .site-nav {
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .hero {
     grid-template-columns: 1fr;
   }
@@ -1650,6 +1656,26 @@
 }
 
 @media (max-width: 600px) {
+  .site-header__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* 모바일에서 드롭다운 위치 수정 */
+  .site-nav__user-area {
+    position: static;
+  }
+
+  .profile-wrapper,
+  .notification-wrapper {
+    position: static;
+  }
+
   /* 모바일 드롭다운 배경 오버레이 */
   .dropdown-overlay {
     position: fixed;
