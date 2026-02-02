@@ -2,12 +2,16 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function Pricing() {
-  const { isAuthed } = useAuth()
+  const { isAuthed, user } = useAuth()
   // hash 네비게이션은 ScrollToTop에서 중앙 처리
+
+  // 사용자의 현재 티어 (로그인 안 했으면 null)
+  const userTier = user?.tier?.toUpperCase() || null
 
   const plans = [
     {
       id: 'free',
+      tier: 'FREE',
       name: 'Free',
       price: 0,
       period: '월',
@@ -22,13 +26,11 @@ function Pricing() {
         { text: '번호 제외 설정', included: false },
         { text: '번호 고정 설정', included: false },
       ],
-      buttonText: isAuthed ? '현재 플랜' : '무료로 시작',
-      buttonLink: isAuthed ? null : '/signup',
       buttonVariant: 'ghost',
-      isCurrent: true,
     },
     {
       id: 'basic',
+      tier: 'BASIC',
       name: 'Basic',
       price: 4900,
       period: '월',
@@ -42,12 +44,11 @@ function Pricing() {
         { text: '번호 고정 설정', included: false },
         { text: '우선 고객 지원', included: false },
       ],
-      buttonText: '시작하기',
-      buttonLink: '/checkout?plan=basic',
       buttonVariant: 'primary',
     },
     {
       id: 'premium',
+      tier: 'PREMIUM',
       name: 'Premium',
       price: 9900,
       period: '월',
@@ -62,12 +63,11 @@ function Pricing() {
         { text: '고급 패턴 분석', included: true },
         { text: '우선 고객 지원', included: false },
       ],
-      buttonText: '시작하기',
-      buttonLink: '/checkout?plan=premium',
       buttonVariant: 'ghost',
     },
     {
       id: 'vip',
+      tier: 'VIP',
       name: 'VIP',
       price: 13900,
       period: '월',
@@ -81,11 +81,41 @@ function Pricing() {
         { text: '고급 패턴 분석', included: true },
         { text: '우선 고객 지원', included: true },
       ],
-      buttonText: '시작하기',
-      buttonLink: '/checkout?plan=vip',
       buttonVariant: 'ghost',
     },
   ]
+
+  // 플랜 순서 (업그레이드/다운그레이드 판단용)
+  const tierOrder = { FREE: 0, BASIC: 1, PREMIUM: 2, VIP: 3 }
+
+  // 각 플랜에 대해 버튼 텍스트와 링크 결정
+  const getButtonProps = (plan) => {
+    const isCurrent = userTier === plan.tier
+    const currentIndex = tierOrder[userTier] ?? -1
+    const planIndex = tierOrder[plan.tier]
+
+    if (isCurrent) {
+      return { text: '현재 플랜', link: null, disabled: true }
+    }
+
+    if (!isAuthed) {
+      if (plan.tier === 'FREE') {
+        return { text: '무료로 시작', link: '/signup', disabled: false }
+      }
+      return { text: '시작하기', link: `/checkout?plan=${plan.id}`, disabled: false }
+    }
+
+    // 로그인한 상태
+    if (planIndex > currentIndex) {
+      return { text: '업그레이드', link: `/checkout?plan=${plan.id}`, disabled: false }
+    }
+
+    if (planIndex < currentIndex) {
+      return { text: '다운그레이드', link: `/checkout?plan=${plan.id}`, disabled: false }
+    }
+
+    return { text: '시작하기', link: `/checkout?plan=${plan.id}`, disabled: false }
+  }
 
   return (
     <div className="page pricing-page">
@@ -102,54 +132,60 @@ function Pricing() {
       <section className="pricing-plans">
         <div className="pricing-plans__inner">
           <div className="pricing-plans__grid">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`pricing-card ${plan.popular ? 'pricing-card--popular' : ''}`}
-              >
-                {plan.popular && <div className="pricing-card__badge">인기</div>}
-                {plan.highlight && <div className="pricing-card__badge pricing-card__badge--bonus">{plan.highlight}</div>}
-                <div className="pricing-card__header">
-                  <h3>{plan.name}</h3>
-                  <p className="pricing-card__desc">{plan.description}</p>
-                  {plan.subDescription && (
-                    <p className="pricing-card__sub-desc">{plan.subDescription}</p>
-                  )}
-                  <div className="pricing-card__price">
-                    <span className="pricing-card__currency">₩</span>
-                    <span className="pricing-card__amount">{plan.price.toLocaleString()}</span>
-                    <span className="pricing-card__period">/{plan.period}</span>
+            {plans.map((plan) => {
+              const buttonProps = getButtonProps(plan)
+              const isCurrent = userTier === plan.tier
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`pricing-card ${plan.popular ? 'pricing-card--popular' : ''} ${isCurrent ? 'pricing-card--current' : ''}`}
+                >
+                  {isCurrent && <div className="pricing-card__badge pricing-card__badge--current">현재 이용 중</div>}
+                  {plan.popular && !isCurrent && <div className="pricing-card__badge">인기</div>}
+                  {plan.highlight && !isCurrent && <div className="pricing-card__badge pricing-card__badge--bonus">{plan.highlight}</div>}
+                  <div className="pricing-card__header">
+                    <h3>{plan.name}</h3>
+                    <p className="pricing-card__desc">{plan.description}</p>
+                    {plan.subDescription && (
+                      <p className="pricing-card__sub-desc">{plan.subDescription}</p>
+                    )}
+                    <div className="pricing-card__price">
+                      <span className="pricing-card__currency">₩</span>
+                      <span className="pricing-card__amount">{plan.price.toLocaleString()}</span>
+                      <span className="pricing-card__period">/{plan.period}</span>
+                    </div>
                   </div>
-                </div>
 
-                <ul className="pricing-card__features">
-                  {plan.features.map((feature, idx) => (
-                    <li
-                      key={idx}
-                      className={`${feature.included ? '' : 'pricing-card__features--disabled'} ${feature.bonus ? 'pricing-card__features--bonus' : ''}`}
+                  <ul className="pricing-card__features">
+                    {plan.features.map((feature, idx) => (
+                      <li
+                        key={idx}
+                        className={`${feature.included ? '' : 'pricing-card__features--disabled'} ${feature.bonus ? 'pricing-card__features--bonus' : ''}`}
+                      >
+                        {feature.included ? '✓' : '✗'} {feature.text}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {buttonProps.link ? (
+                    <Link
+                      to={buttonProps.link}
+                      className={`btn btn--${plan.buttonVariant} btn--full`}
                     >
-                      {feature.included ? '✓' : '✗'} {feature.text}
-                    </li>
-                  ))}
-                </ul>
-
-                {plan.buttonLink ? (
-                  <Link
-                    to={plan.buttonLink}
-                    className={`btn btn--${plan.buttonVariant} btn--full`}
-                  >
-                    {plan.buttonText}
-                  </Link>
-                ) : (
-                  <button
-                    className={`btn btn--${plan.buttonVariant} btn--full`}
-                    disabled
-                  >
-                    {plan.buttonText}
-                  </button>
-                )}
-              </div>
-            ))}
+                      {buttonProps.text}
+                    </Link>
+                  ) : (
+                    <button
+                      className={`btn btn--${plan.buttonVariant} btn--full`}
+                      disabled={buttonProps.disabled}
+                    >
+                      {buttonProps.text}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
