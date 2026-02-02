@@ -211,6 +211,17 @@
   padding: 12px 20px 20px;
 }
 
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .site-header__inner {
   max-width: 1120px;
   margin: 0 auto;
