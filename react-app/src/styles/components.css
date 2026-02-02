@@ -247,6 +247,12 @@
   padding: 12px 16px;
   border-bottom: 1px solid #f0f0f0;
   transition: background 0.15s;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
 }
 
 .notification-dropdown__item:last-child {
@@ -446,6 +452,16 @@
 }
 
 .profile-dropdown__item--logout:hover {
+  background: rgba(231, 76, 60, 0.08);
+  color: #c0392b;
+}
+
+.profile-dropdown__item--admin {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.profile-dropdown__item--admin:hover {
   background: rgba(231, 76, 60, 0.08);
   color: #c0392b;
 }
@@ -5832,40 +5848,38 @@
     position: static;
   }
 
+  /* 모바일 사이드바: 2줄 그리드로 변경 */
   .mypage-sidebar__nav {
-    flex-direction: row;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    padding-bottom: 8px;
   }
 
   .mypage-sidebar__item {
     flex-shrink: 0;
-    padding: 10px 14px;
+    padding: 10px 12px;
+    font-size: 12px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* 번호 받기 버튼은 전체 너비 */
+  .mypage-sidebar__item--primary {
+    grid-column: 1 / -1;
   }
 
   .mypage-lines__summary {
     grid-template-columns: 1fr;
   }
 
-  .mypage-lines__item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
   .mypage-lines__item-match {
     margin-left: 0;
   }
 
-  /* 모바일 사이드바 개선 */
-  .mypage-sidebar__nav {
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .mypage-sidebar__item {
-    white-space: nowrap;
-    font-size: 13px;
+  /* 모바일 사이드바 아이콘 */
+  .mypage-sidebar__icon {
+    font-size: 14px;
   }
 
   /* 로또볼 모바일에서 줄바꿈 허용 */
@@ -5916,22 +5930,46 @@
     width: 100%;
     padding: 14px 20px;
     font-size: 15px;
+    box-sizing: border-box;
   }
 
   .mypage-lines__item-check-btn {
     margin-left: 0;
     margin-top: 8px;
-    width: 100%;
-    padding: 12px 16px;
+    width: auto;
+    min-width: 80px;
+    padding: 10px 20px;
     font-size: 14px;
-    min-height: 44px;
+    min-height: 40px;
+    flex-shrink: 0;
   }
 
   .mypage-lines__item-status,
   .mypage-lines__item-result {
     margin-left: 0;
-    width: 100%;
-    text-align: left;
+    width: auto;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* 모바일에서 아이템 레이아웃 개선 */
+  .mypage-lines__item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .mypage-lines__item-label {
+    align-self: flex-start;
+  }
+
+  .mypage-lines__item-numbers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
   }
 
   /* 매칭 결과 모바일 */

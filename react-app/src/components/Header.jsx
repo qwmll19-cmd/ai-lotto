@@ -5,7 +5,7 @@ import { useNotification } from '../context/NotificationContext.jsx'
 
 function Header() {
   const { isAuthed, isAdmin, user, logout, authLoading } = useAuth()
-  const { notifications, unreadCount, markAllAsRead } = useNotification()
+  const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotification()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const profileRef = useRef(null)
@@ -162,9 +162,13 @@ function Header() {
                       ) : (
                         <div className="notification-dropdown__list">
                           {notifications.slice(0, 5).map((notification) => (
-                            <div
+                            <button
                               key={notification.id}
+                              type="button"
                               className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : ''}`}
+                              onClick={() => {
+                                markAsRead(notification.id)
+                              }}
                             >
                               <div className={`notification-dropdown__icon notification-dropdown__icon--${notification.type}`}>
                                 {notification.type === 'success' && '✓'}
@@ -176,7 +180,7 @@ function Header() {
                                 {notification.title && <strong>{notification.title}</strong>}
                                 <p>{notification.message}</p>
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -257,6 +261,18 @@ function Header() {
                         </svg>
                         알림 설정
                       </Link>
+                      {isAdmin && (
+                        <>
+                          <div className="profile-dropdown__divider" />
+                          <Link to="/admin" className="profile-dropdown__item profile-dropdown__item--admin" onClick={() => setShowProfileMenu(false)}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="3" />
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            관리자
+                          </Link>
+                        </>
+                      )}
                       <div className="profile-dropdown__divider" />
                       <button
                         type="button"
