@@ -111,7 +111,7 @@ function Pricing() {
     }
 
     if (planIndex < currentIndex) {
-      return { text: '다운그레이드', link: `/checkout?plan=${plan.id}`, disabled: false }
+      return { text: '현재 플랜보다 낮음', link: null, disabled: true }
     }
 
     return { text: '시작하기', link: `/checkout?plan=${plan.id}`, disabled: false }

@@ -41,7 +41,10 @@
       "Bash(git restore:*)",
       "Bash(npm run lint:*)",
       "Bash(brew list:*)",
-      "Bash(node -e \"require\\(''./src/pages/Auth/OAuthCallback.jsx''\\)\")"
+      "Bash(node -e \"require\\(''./src/pages/Auth/OAuthCallback.jsx''\\)\")",
+      "Bash(PGPASSWORD=oQ9IKKMf5DAqaiF35ZdI2BtlOSD055sZ psql:*)",
+      "Bash(pip show:*)",
+      "Bash(source .venv/bin/activate)"
     ]
   }
 }
