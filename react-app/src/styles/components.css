@@ -3483,9 +3483,14 @@
   }
 
   .lotto-ball {
-    width: 32px;
-    height: 32px;
-    font-size: 12px;
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  /* 추천 결과 페이지 모바일 레이아웃 */
+  .recommend-result__line-numbers {
+    gap: 4px;
   }
 }
 
@@ -5450,6 +5455,117 @@
 
   .mypage-lines__item-match {
     margin-left: 0;
+  }
+
+  /* 모바일 사이드바 개선 */
+  .mypage-sidebar__nav {
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mypage-sidebar__item {
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .mypage-sidebar__icon {
+    font-size: 14px;
+  }
+
+  /* 모바일 플랜 관리 탭 */
+  .mypage-subscription__current {
+    padding: 20px 16px;
+  }
+
+  .mypage-subscription__current h3 {
+    font-size: 24px;
+  }
+
+  .mypage-subscription__current ul {
+    max-width: 100%;
+  }
+
+  .mypage-subscription__history {
+    padding: 16px;
+  }
+
+  /* 모바일 로또 번호 표시 개선 */
+  .mypage-lines__item-numbers {
+    gap: 4px;
+  }
+
+  .mypage-lines__item-numbers .lotto-ball {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  /* 당첨번호 확인 버튼 모바일 */
+  .mypage-lines__reveal-btn {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+
+  .mypage-lines__item-check-btn {
+    margin-left: 0;
+    margin-top: 4px;
+    width: 100%;
+  }
+
+  .mypage-lines__item-status,
+  .mypage-lines__item-result {
+    margin-left: 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  /* 매칭 결과 모바일 */
+  .mypage-lines__match-numbers {
+    gap: 4px;
+  }
+
+  .mypage-lines__match-numbers .lotto-ball {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .mypage-lines__result-numbers {
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mypage-lines__result-numbers .lotto-ball {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  /* 계정 설정 탭 모바일 */
+  .mypage-account__section {
+    padding: 16px;
+  }
+
+  .mypage-account__edit-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mypage-account__edit-row .btn {
+    width: 100%;
+  }
+
+  /* 알림 설정 탭 모바일 */
+  .mypage-notifications__section {
+    padding: 16px;
+  }
+
+  .mypage-notifications__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
 

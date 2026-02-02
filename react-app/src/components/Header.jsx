@@ -168,13 +168,42 @@ function Header() {
                         <span className="mobile-menu__tier">{user?.tier || 'FREE'} 플랜</span>
                       </div>
                     </div>
-                    <Link className="mobile-menu__link" to="/mypage" onClick={() => setShowMobileMenu(false)}>
+                    {/* PC 프로필 드롭다운과 동일한 메뉴 항목 */}
+                    <Link className="mobile-menu__link mobile-menu__link--primary" to="/recommend" onClick={() => setShowMobileMenu(false)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                      번호 받기
+                    </Link>
+                    <Link className="mobile-menu__link" to="/mypage?tab=lines" onClick={() => setShowMobileMenu(false)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      내 조합
+                    </Link>
+                    <Link className="mobile-menu__link" to="/mypage?tab=account" onClick={() => setShowMobileMenu(false)}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                      마이페이지
+                      계정 설정
                     </Link>
+                    <Link className="mobile-menu__link" to="/mypage?tab=subscription" onClick={() => setShowMobileMenu(false)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                      </svg>
+                      플랜 관리
+                    </Link>
+                    <Link className="mobile-menu__link" to="/mypage?tab=notifications" onClick={() => setShowMobileMenu(false)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                      </svg>
+                      알림 설정
+                    </Link>
+                    <div className="mobile-menu__divider" />
                     <button
                       type="button"
                       className="mobile-menu__link mobile-menu__link--logout"
