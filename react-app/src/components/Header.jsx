@@ -166,7 +166,9 @@ function Header() {
                               key={notification.id}
                               type="button"
                               className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : ''}`}
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
                                 markAsRead(notification.id)
                               }}
                             >
