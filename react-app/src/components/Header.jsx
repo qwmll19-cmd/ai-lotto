@@ -224,70 +224,87 @@ function Header() {
                   <>
                     <div className="dropdown-overlay" onClick={() => setShowProfileMenu(false)} />
                     <div className="profile-dropdown">
+                      {/* 모바일용 닫기 핸들 */}
+                      <div className="profile-dropdown__handle">
+                        <div className="profile-dropdown__handle-bar" />
+                      </div>
                       <div className="profile-dropdown__header">
                         <span className="profile-dropdown__name">{getDisplayName()}</span>
                         <span className="profile-dropdown__plan">{user?.tier || 'Free'} 플랜</span>
                       </div>
-                      <div className="profile-dropdown__divider" />
-                      <Link to="/recommend" className="profile-dropdown__item profile-dropdown__item--primary" onClick={() => setShowProfileMenu(false)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                        </svg>
-                        번호 받기
-                      </Link>
-                      <Link to="/mypage?tab=lines" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                          <polyline points="9 22 9 12 15 12 15 22" />
-                        </svg>
-                        내 조합
-                      </Link>
-                      <Link to="/mypage?tab=account" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        계정 설정
-                      </Link>
-                      <Link to="/mypage?tab=subscription" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                          <line x1="1" y1="10" x2="23" y2="10" />
-                        </svg>
-                        플랜 관리
-                      </Link>
-                      <Link to="/mypage?tab=notifications" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                        </svg>
-                        알림 설정
-                      </Link>
-                      {isAdmin && (
-                        <>
-                          <div className="profile-dropdown__divider" />
-                          <Link to="/admin" className="profile-dropdown__item profile-dropdown__item--admin" onClick={() => setShowProfileMenu(false)}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="3" />
-                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                            </svg>
-                            관리자
-                          </Link>
-                        </>
-                      )}
-                      <div className="profile-dropdown__divider" />
-                      <button
-                        type="button"
-                        className="profile-dropdown__item profile-dropdown__item--logout"
-                        onClick={() => { logout(); setShowProfileMenu(false); }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                          <polyline points="16 17 21 12 16 7" />
-                          <line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                        로그아웃
-                      </button>
+                      {/* 스크롤 가능한 메뉴 영역 */}
+                      <div className="profile-dropdown__content">
+                        <div className="profile-dropdown__divider" />
+                        <Link to="/recommend" className="profile-dropdown__item profile-dropdown__item--primary" onClick={() => setShowProfileMenu(false)}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                          </svg>
+                          번호 받기
+                        </Link>
+                        <Link to="/mypage?tab=lines" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                          </svg>
+                          내 조합
+                        </Link>
+                        <Link to="/mypage?tab=account" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          계정 설정
+                        </Link>
+                        <Link to="/mypage?tab=subscription" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                            <line x1="1" y1="10" x2="23" y2="10" />
+                          </svg>
+                          플랜 관리
+                        </Link>
+                        <Link to="/mypage?tab=notifications" className="profile-dropdown__item" onClick={() => setShowProfileMenu(false)}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          </svg>
+                          알림 설정
+                        </Link>
+                        {isAdmin && (
+                          <>
+                            <div className="profile-dropdown__divider" />
+                            <Link to="/admin" className="profile-dropdown__item profile-dropdown__item--admin" onClick={() => setShowProfileMenu(false)}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                              </svg>
+                              관리자
+                            </Link>
+                          </>
+                        )}
+                        <div className="profile-dropdown__divider" />
+                        <button
+                          type="button"
+                          className="profile-dropdown__item profile-dropdown__item--logout"
+                          onClick={() => { logout(); setShowProfileMenu(false); }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                          </svg>
+                          로그아웃
+                        </button>
+                      </div>
+                      {/* 모바일용 닫기 버튼 */}
+                      <div className="profile-dropdown__footer">
+                        <button
+                          type="button"
+                          className="profile-dropdown__close"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          닫기
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
