@@ -28,6 +28,7 @@ from app.services.oauth import (
     fetch_naver_profile,
     fetch_kakao_profile,
     social_login,
+    create_pending_signup,
 )
 from app.api.auth import create_oauth_one_time_token
 
@@ -108,13 +109,19 @@ async def naver_callback(
 
         # 회원 처리 (신규 가입 여부 반환)
         user, is_new_user = social_login(db, "NAVER", profile, access_token)
-        db.commit()  # 사용자 정보 먼저 커밋
 
-        # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
-        one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=is_new_user)
-        redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-        logger.info("Naver login success: user_id=%s, is_new=%s", user.id, is_new_user)
-        return RedirectResponse(url=redirect_url, status_code=302)
+        if is_new_user:
+            # 신규 사용자: User 생성 없이 pending_token만 발급
+            pending_token = create_pending_signup(db, "NAVER", profile, access_token)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?pending_token={pending_token}&provider=NAVER&is_new=true"
+            logger.info("Naver new user pending: provider_user_id=%s", profile.get("provider_user_id"))
+            return RedirectResponse(url=redirect_url, status_code=302)
+        else:
+            # 기존 사용자: one-time token 발급
+            one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=False)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+            logger.info("Naver login success: user_id=%s", user.id)
+            return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
         logger.error("Naver callback failed: %s", e.message)
@@ -190,13 +197,19 @@ async def kakao_callback(
 
         # 회원 처리 (신규 가입 여부 반환)
         user, is_new_user = social_login(db, "KAKAO", profile, access_token)
-        db.commit()  # 사용자 정보 먼저 커밋
 
-        # 모든 브라우저에서 one-time token 방식 사용 (Token 기반 인증, DB 저장)
-        one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=is_new_user)
-        redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
-        logger.info("Kakao login success: user_id=%s, is_new=%s", user.id, is_new_user)
-        return RedirectResponse(url=redirect_url, status_code=302)
+        if is_new_user:
+            # 신규 사용자: User 생성 없이 pending_token만 발급
+            pending_token = create_pending_signup(db, "KAKAO", profile, access_token)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?pending_token={pending_token}&provider=KAKAO&is_new=true"
+            logger.info("Kakao new user pending: provider_user_id=%s", profile.get("provider_user_id"))
+            return RedirectResponse(url=redirect_url, status_code=302)
+        else:
+            # 기존 사용자: one-time token 발급
+            one_time_token = create_oauth_one_time_token(user.id, db, is_new_user=False)
+            redirect_url = f"{settings.FRONTEND_URL}/oauth/callback?token={one_time_token}"
+            logger.info("Kakao login success: user_id=%s", user.id)
+            return RedirectResponse(url=redirect_url, status_code=302)
 
     except OAuthError as e:
         logger.error("Kakao callback failed: %s", e.message)

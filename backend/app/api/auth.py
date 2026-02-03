@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_cookie_settings, settings
 from app.db.session import get_db
-from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken, SocialAccount
+from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken, SocialAccount, OAuthPendingSignup
 from app.services.auth import hash_password, verify_password, hash_token, verify_token
 from app.services.jwt import decode_jwt, encode_jwt
 from app.services.sms import get_sms_client, SmsSendRequest
@@ -1276,8 +1276,9 @@ def complete_social_signup(
 ):
     """
     소셜 로그인 신규 가입 동의 완료
-    - pending_token 검증
+    - pending_token 검증 (OAuthPendingSignup 테이블)
     - 약관 동의 확인
+    - User 생성
     - JWT 발급
     """
     # 필수 약관 동의 확인
@@ -1287,44 +1288,85 @@ def complete_social_signup(
             message="필수 약관에 동의해야 합니다.",
         )
 
-    # DB에서 토큰 조회 (아직 사용되지 않은 신규 가입 토큰)
-    oauth_token = db.query(OAuthOneTimeToken).filter(
-        OAuthOneTimeToken.token == payload.pending_token,
-        OAuthOneTimeToken.used_at.is_(None),
-        OAuthOneTimeToken.is_new_user == True,
+    # DB에서 pending signup 조회
+    pending = db.query(OAuthPendingSignup).filter(
+        OAuthPendingSignup.token == payload.pending_token,
     ).first()
 
-    if not oauth_token:
+    if not pending:
         return CompleteSocialSignupResponse(
             success=False,
             message="유효하지 않거나 만료된 토큰입니다. 다시 로그인해주세요.",
         )
 
     # 만료 확인
-    if oauth_token.expires_at < datetime.utcnow():
-        db.delete(oauth_token)
+    if pending.expires_at < datetime.utcnow():
+        db.delete(pending)
         db.commit()
         return CompleteSocialSignupResponse(
             success=False,
             message="토큰이 만료되었습니다. 다시 로그인해주세요.",
         )
 
-    # 사용자 조회
-    user = db.query(User).filter(User.id == oauth_token.user_id).first()
-    if not user:
-        db.delete(oauth_token)
+    # 이미 가입된 사용자인지 확인 (동시 요청 방지)
+    existing = db.query(SocialAccount).filter(
+        SocialAccount.provider == pending.provider,
+        SocialAccount.provider_user_id == pending.provider_user_id,
+    ).first()
+
+    if existing:
+        # 이미 가입됨 - pending 삭제 후 기존 사용자로 로그인 처리
+        db.delete(pending)
         db.commit()
+        user = db.query(User).filter(User.id == existing.user_id).first()
+        if user:
+            identifier = user.identifier or f"oauth_{user.id}"
+            access_token, refresh_token = _create_tokens(user.id, identifier)
+            _set_auth_cookies(response, access_token, refresh_token)
+            user.refresh_token_hash = hash_token(refresh_token)
+            user.refresh_token_updated_at = datetime.utcnow()
+            db.commit()
+            return CompleteSocialSignupResponse(
+                success=True,
+                message="이미 가입된 계정입니다. 로그인되었습니다.",
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="Bearer",
+                expires_in=settings.JWT_TTL_SECONDS,
+                user=_build_user_dict(user),
+            )
         return CompleteSocialSignupResponse(
             success=False,
-            message="사용자를 찾을 수 없습니다.",
+            message="계정 연동 오류가 발생했습니다.",
         )
 
-    # 토큰 사용 처리
-    oauth_token.used_at = datetime.utcnow()
-    db.add(oauth_token)
+    # User 생성 (동의 완료 후에만 생성!)
+    user = User(
+        email=pending.email,
+        name=pending.name,
+        phone_number=pending.phone_number,
+        profile_image_url=pending.profile_image_url,
+        last_login_at=datetime.utcnow(),
+        is_active=True,
+        subscription_type="free",
+    )
+    db.add(user)
+    db.flush()  # user.id 확보
+
+    # SocialAccount 연결
+    social_account = SocialAccount(
+        user_id=user.id,
+        provider=pending.provider,
+        provider_user_id=pending.provider_user_id,
+        access_token=pending.access_token,
+    )
+    db.add(social_account)
+
+    # pending 삭제
+    db.delete(pending)
 
     # JWT 생성
-    identifier = user.identifier or f"oauth_{user.id}"
+    identifier = f"oauth_{user.id}"
     access_token, refresh_token = _create_tokens(user.id, identifier)
 
     # 쿠키 설정 (기존 호환)
@@ -1335,7 +1377,8 @@ def complete_social_signup(
     user.refresh_token_updated_at = datetime.utcnow()
     db.commit()
 
-    logger.info("Social signup completed: user_id=%s, marketing=%s", user.id, payload.consent_marketing)
+    logger.info("Social signup completed: user_id=%s, provider=%s, name=%s, phone=%s, marketing=%s",
+                user.id, pending.provider, user.name, user.phone_number, payload.consent_marketing)
 
     return CompleteSocialSignupResponse(
         success=True,

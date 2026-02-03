@@ -409,6 +409,23 @@ class OAuthState(Base):
     expires_at = Column(DateTime, nullable=False)
 
 
+class OAuthPendingSignup(Base):
+    """OAuth 가입 대기 (동의 전 임시 프로필 저장)"""
+    __tablename__ = "oauth_pending_signups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String(64), nullable=False, unique=True, index=True)
+    provider = Column(String(20), nullable=False)  # NAVER, KAKAO
+    provider_user_id = Column(String(100), nullable=False)
+    email = Column(String(200), nullable=True)
+    name = Column(String(100), nullable=True)
+    phone_number = Column(String(30), nullable=True)
+    profile_image_url = Column(String(500), nullable=True)
+    access_token = Column(String(1000), nullable=True)  # OAuth access token
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class MLTrainingLog(Base):
     """ML 학습 로그"""
     __tablename__ = "ml_training_logs"

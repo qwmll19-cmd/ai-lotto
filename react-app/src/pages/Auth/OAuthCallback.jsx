@@ -7,8 +7,9 @@ import { request, saveTokens } from '../../api/client.js'
 /**
  * OAuth 콜백 처리 페이지
  *
- * 카카오톡/네이버 등 인앱 브라우저에서 쿠키가 설정되지 않는 문제를 해결하기 위해
- * one-time token을 URL 파라미터로 받아서 처리합니다.
+ * 두 가지 경우를 처리:
+ * 1. 신규 사용자: pending_token → 동의 페이지로 이동 (User 미생성 상태)
+ * 2. 기존 사용자: token → exchange-token API → 로그인 확인 페이지
  */
 function OAuthCallback() {
   const [searchParams] = useSearchParams()
@@ -24,7 +25,10 @@ function OAuthCallback() {
     processedRef.current = true
 
     const processCallback = async () => {
-      const token = searchParams.get('token')
+      const token = searchParams.get('token')  // 기존 사용자용 (one-time token)
+      const pendingToken = searchParams.get('pending_token')  // 신규 사용자용
+      const provider = searchParams.get('provider')  // NAVER 또는 KAKAO
+      const isNew = searchParams.get('is_new') === 'true'
       const error = searchParams.get('error')
       const message = searchParams.get('message')
 
@@ -39,7 +43,21 @@ function OAuthCallback() {
         return
       }
 
-      // 토큰이 없으면 에러
+      // 신규 사용자: 동의 페이지로 바로 이동 (User 미생성 상태)
+      if (isNew && pendingToken) {
+        const providerName = provider === 'KAKAO' ? '카카오' : '네이버'
+        setStatus('회원가입 진행 중...')
+        setTimeout(() => {
+          const params = new URLSearchParams({
+            pending_token: pendingToken,
+            provider: providerName,
+          })
+          navigate(`/social-signup?${params.toString()}`, { replace: true })
+        }, 500)
+        return
+      }
+
+      // 기존 사용자: one-time token으로 처리
       if (!token) {
         setStatus('잘못된 접근입니다.')
         setTimeout(() => navigate('/login'), 1500)
@@ -55,21 +73,7 @@ function OAuthCallback() {
 
         if (data.success) {
           // 백엔드에서 받은 provider 사용 (NAVER, KAKAO)
-          const provider = data.provider === 'KAKAO' ? '카카오' : '네이버'
-
-          // 신규 가입자: 동의 페이지로 이동
-          if (data.is_new_user && data.pending_token) {
-            setStatus('회원가입 진행 중...')
-            setTimeout(() => {
-              const params = new URLSearchParams({
-                pending_token: data.pending_token,
-                name: data.name || '회원',
-                provider,
-              })
-              navigate(`/social-signup?${params.toString()}`, { replace: true })
-            }, 500)
-            return
-          }
+          const providerName = data.provider === 'KAKAO' ? '카카오' : '네이버'
 
           // 기존 사용자: 로그인 확인 페이지로 이동
           if (data.pending_token) {
@@ -79,7 +83,7 @@ function OAuthCallback() {
                 pending_token: data.pending_token,
                 name: data.name || '회원',
                 identifier: data.identifier || '',
-                provider,
+                provider: providerName,
               })
               navigate(`/social-login-confirm?${params.toString()}`, { replace: true })
             }, 500)

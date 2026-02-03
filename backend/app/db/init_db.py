@@ -22,9 +22,11 @@ def init_db() -> None:
         _ensure_user_social_columns()
         _ensure_social_accounts_table()
         _ensure_oauth_one_time_tokens_table()
+        _ensure_oauth_pending_signups_table()
     else:
         # PostgreSQL 마이그레이션
         _ensure_postgres_oauth_columns()
+        _ensure_postgres_pending_signups_table()
 
 
 def _is_sqlite() -> bool:
@@ -139,6 +141,65 @@ def _ensure_postgres_oauth_columns() -> None:
                 print("Added is_new_user column to oauth_one_time_tokens (PostgreSQL)")
             except Exception as e:
                 print(f"Column may already exist or error: {e}")
+                conn.rollback()
+
+
+def _ensure_oauth_pending_signups_table() -> None:
+    """SQLite: oauth_pending_signups 테이블 생성 (동의 전 임시 프로필 저장)"""
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='oauth_pending_signups'")
+        )
+        if not result.fetchone():
+            conn.execute(text("""
+                CREATE TABLE oauth_pending_signups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token VARCHAR(64) NOT NULL UNIQUE,
+                    provider VARCHAR(20) NOT NULL,
+                    provider_user_id VARCHAR(100) NOT NULL,
+                    email VARCHAR(200),
+                    name VARCHAR(100),
+                    phone_number VARCHAR(30),
+                    profile_image_url VARCHAR(500),
+                    access_token VARCHAR(1000),
+                    expires_at DATETIME NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_oauth_pending_signups_token ON oauth_pending_signups(token)"))
+            conn.commit()
+            print("Created oauth_pending_signups table (SQLite)")
+
+
+def _ensure_postgres_pending_signups_table() -> None:
+    """PostgreSQL: oauth_pending_signups 테이블 생성"""
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'oauth_pending_signups'
+        """))
+        if not result.fetchone():
+            try:
+                conn.execute(text("""
+                    CREATE TABLE oauth_pending_signups (
+                        id SERIAL PRIMARY KEY,
+                        token VARCHAR(64) NOT NULL UNIQUE,
+                        provider VARCHAR(20) NOT NULL,
+                        provider_user_id VARCHAR(100) NOT NULL,
+                        email VARCHAR(200),
+                        name VARCHAR(100),
+                        phone_number VARCHAR(30),
+                        profile_image_url VARCHAR(500),
+                        access_token VARCHAR(1000),
+                        expires_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.execute(text("CREATE INDEX ix_oauth_pending_signups_token ON oauth_pending_signups(token)"))
+                conn.commit()
+                print("Created oauth_pending_signups table (PostgreSQL)")
+            except Exception as e:
+                print(f"Table may already exist or error: {e}")
                 conn.rollback()
 
 

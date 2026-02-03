@@ -11,7 +11,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import User, SocialAccount, OAuthState
+from app.db.models import User, SocialAccount, OAuthState, OAuthPendingSignup
 from app.db.session import SessionLocal
 
 logger = logging.getLogger("oauth")
@@ -372,13 +372,11 @@ def social_login(
     access_token: Optional[str] = None,
 ) -> tuple:
     """
-    소셜 로그인 공통 처리 (계정 통합 지원)
+    소셜 로그인 공통 처리
 
     1. social_accounts에서 provider + provider_user_id로 검색
-    2. 있으면 → 해당 user 반환
-    3. 없으면 → 이메일/전화번호로 기존 사용자 검색 (계정 통합)
-    4. 기존 사용자 있으면 → 해당 사용자에 새 소셜 계정 연결
-    5. 없으면 → 새 user 생성 + social_accounts 연결
+    2. 있으면 → 해당 user 반환 (기존 사용자)
+    3. 없으면 → None 반환 (신규 사용자, User 생성 안함)
 
     Args:
         db: DB 세션
@@ -387,7 +385,7 @@ def social_login(
         access_token: OAuth access token (선택)
 
     Returns:
-        tuple: (User 객체, 신규 가입 여부 bool)
+        tuple: (User 객체 또는 None, 신규 가입 여부 bool)
     """
     provider_user_id = profile["provider_user_id"]
     if not provider_user_id:
@@ -412,9 +410,11 @@ def social_login(
         # 마지막 로그인 시간 업데이트
         user.last_login_at = datetime.utcnow()
 
-        # 프로필 정보 업데이트 (선택)
+        # 프로필 정보 업데이트 (비어있는 필드만)
         if profile.get("name") and not user.name:
             user.name = profile["name"]
+        if profile.get("phone_number") and not user.phone_number:
+            user.phone_number = profile["phone_number"]
         if profile.get("profile_image_url") and not user.profile_image_url:
             user.profile_image_url = profile["profile_image_url"]
 
@@ -426,17 +426,100 @@ def social_login(
         logger.info("Social login: provider=%s user_id=%s", provider, user.id)
         return user, False  # 기존 사용자
 
-    # 2. 계정 통합 비활성화
-    # 네이버/카카오 계정은 완전히 분리됨 (구독 공유 악용 방지)
-    # - 네이버로 가입한 사용자가 카카오로 로그인하면 새 계정 생성
-    # - 각 소셜 계정은 독립적인 사용자로 관리됨
+    # 2. 신규 사용자: User를 생성하지 않고 None 반환
+    # 동의 완료 후 create_social_user()에서 생성
+    logger.info("Social new user detected: provider=%s provider_user_id=%s", provider, provider_user_id)
+    return None, True  # 신규 사용자
 
-    # 3. 새 사용자 생성
-    user = User(
+
+def create_pending_signup(
+    db: Session,
+    provider: str,
+    profile: OAuthProfile,
+    access_token: Optional[str] = None,
+) -> str:
+    """
+    신규 가입자용 임시 프로필 저장 (동의 전)
+
+    Returns:
+        str: pending_token (5분 유효)
+    """
+    import secrets
+
+    # 기존 동일 provider_user_id의 pending 삭제
+    db.query(OAuthPendingSignup).filter(
+        OAuthPendingSignup.provider == provider,
+        OAuthPendingSignup.provider_user_id == profile["provider_user_id"],
+    ).delete(synchronize_session=False)
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    pending = OAuthPendingSignup(
+        token=token,
+        provider=provider,
+        provider_user_id=profile["provider_user_id"],
         email=profile.get("email"),
         name=profile.get("name"),
         phone_number=profile.get("phone_number"),
         profile_image_url=profile.get("profile_image_url"),
+        access_token=access_token,
+        expires_at=expires_at,
+    )
+    db.add(pending)
+    db.commit()
+
+    logger.info("Pending signup created: provider=%s token=%s...", provider, token[:10])
+    return token
+
+
+def complete_pending_signup(db: Session, pending_token: str) -> User:
+    """
+    동의 완료 후 실제 User 생성
+
+    Args:
+        db: DB 세션
+        pending_token: create_pending_signup()에서 발급받은 토큰
+
+    Returns:
+        User: 생성된 사용자
+
+    Raises:
+        OAuthError: 토큰 만료, 유효하지 않음 등
+    """
+    # 토큰으로 pending 조회
+    pending = db.query(OAuthPendingSignup).filter(
+        OAuthPendingSignup.token == pending_token,
+    ).first()
+
+    if not pending:
+        raise OAuthError("유효하지 않거나 만료된 토큰입니다.", "invalid_token")
+
+    if pending.expires_at < datetime.utcnow():
+        db.delete(pending)
+        db.commit()
+        raise OAuthError("토큰이 만료되었습니다. 다시 로그인해주세요.", "token_expired")
+
+    # 이미 가입된 사용자인지 다시 확인 (동시 요청 방지)
+    existing = db.query(SocialAccount).filter(
+        SocialAccount.provider == pending.provider,
+        SocialAccount.provider_user_id == pending.provider_user_id,
+    ).first()
+
+    if existing:
+        db.delete(pending)
+        db.commit()
+        user = db.query(User).filter(User.id == existing.user_id).first()
+        if user:
+            return user
+        raise OAuthError("계정 연동 오류가 발생했습니다.", "data_error")
+
+    # User 생성
+    user = User(
+        email=pending.email,
+        name=pending.name,
+        phone_number=pending.phone_number,
+        profile_image_url=pending.profile_image_url,
         last_login_at=datetime.utcnow(),
         is_active=True,
         subscription_type="free",
@@ -444,15 +527,31 @@ def social_login(
     db.add(user)
     db.flush()  # user.id 확보
 
-    # 4. 소셜 계정 연결
+    # SocialAccount 연결
     social_account = SocialAccount(
         user_id=user.id,
-        provider=provider,
-        provider_user_id=provider_user_id,
-        access_token=access_token,
+        provider=pending.provider,
+        provider_user_id=pending.provider_user_id,
+        access_token=pending.access_token,
     )
     db.add(social_account)
+
+    # pending 삭제
+    db.delete(pending)
     db.commit()
 
-    logger.info("Social signup: provider=%s user_id=%s email=%s", provider, user.id, user.email)
-    return user, True  # 신규 가입
+    logger.info("Social signup completed: provider=%s user_id=%s email=%s phone=%s",
+                pending.provider, user.id, user.email, user.phone_number)
+    return user
+
+
+def cleanup_expired_pending_signups(db: Session):
+    """만료된 pending signup 정리"""
+    try:
+        now = datetime.utcnow()
+        db.query(OAuthPendingSignup).filter(
+            OAuthPendingSignup.expires_at < now
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
