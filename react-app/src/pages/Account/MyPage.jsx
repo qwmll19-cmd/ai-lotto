@@ -9,6 +9,7 @@ import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatu
 import { changePassword, deleteAccount } from '../../api/authApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
 import { parseNumbers } from '../../utils/lottoUtils.js'
+import { playSound, startLoopSound, stopLoopSound, isSoundEnabled, setSoundEnabled } from '../../utils/soundUtils.js'
 
 function MyPage() {
   const { user, setUser, logout } = useAuth()
@@ -69,6 +70,13 @@ function MyPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  // 사운드 설정 상태 (유저별로 다르므로 user 변경 시 다시 로드)
+  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
+
+  // 유저 변경 시 사운드 설정 다시 로드
+  useEffect(() => {
+    setSoundEnabledState(isSoundEnabled())
+  }, [user?.id])
 
   // 타이머 정리
   useEffect(() => {
@@ -109,6 +117,9 @@ function MyPage() {
 
   // 개별 줄 당첨 확인 - 팡 터지면서 결과 표시
   const handleCheckLine = (lineIdx, nums) => {
+    // 클릭 사운드 재생
+    playSound('click', 0.5)
+
     const winningNumbers = latestDraw.numbers || []
     const bonusNumber = latestDraw.bonus
 
@@ -126,7 +137,8 @@ function MyPage() {
 
     // 클릭 즉시 폭죽 효과 (일치 개수에 따라 다르게)
     if (matchCount >= 3) {
-      // 3개 이상: 큰 폭죽
+      // 3개 이상 당첨: 성공 사운드 + 큰 폭죽
+      playSound('success', 0.6)
       confetti({
         particleCount: 100 + matchCount * 50,
         spread: 80,
@@ -160,8 +172,9 @@ function MyPage() {
 
   // 전체 당첨번호 확인하기 - 드럼롤 후 결과 표시
   const handleCheckResult = () => {
-    // 드럼롤 시작
+    // 드럼롤 시작 (사운드 + 시각 효과)
     setIsDrumRolling(true)
+    startLoopSound('drumroll', 0.4)
 
     // 드럼롤 동안 작은 폭죽들 터뜨리기 (두구두구 느낌)
     const drumInterval = setInterval(() => {
@@ -179,6 +192,7 @@ function MyPage() {
     setTimeout(() => {
       clearInterval(drumInterval)
       setIsDrumRolling(false)
+      stopLoopSound('drumroll')
 
       const winningNumbers = latestDraw.numbers || []
       const bonusNumber = latestDraw.bonus
@@ -215,7 +229,8 @@ function MyPage() {
       setMatchResults(results)
       setShowMatchResult(true)
 
-      // 결과 발표 시 큰 폭죽
+      // 결과 발표 시 성공 사운드 + 폭죽
+      playSound('success', 0.6)
       const hasWin = results.some(r => r.rank !== null)
       if (hasWin) {
         // 당첨! 화려한 폭죽
@@ -255,6 +270,9 @@ function MyPage() {
   const handleCheckPrevLine = (lineIdx, nums) => {
     if (!prevDraw) return
 
+    // 클릭 사운드 재생
+    playSound('click', 0.5)
+
     const winningNumbers = prevDraw.winning_numbers || []
     const bonusNumber = prevDraw.bonus
 
@@ -272,6 +290,8 @@ function MyPage() {
 
     // 클릭 즉시 폭죽 효과
     if (matchCount >= 3) {
+      // 3개 이상 당첨: 성공 사운드 + 큰 폭죽
+      playSound('success', 0.6)
       confetti({
         particleCount: 100 + matchCount * 50,
         spread: 80,
@@ -305,7 +325,9 @@ function MyPage() {
   const handleCheckPrevResult = async () => {
     if (!prevDraw || !prevDraw.has_data) return
 
+    // 드럼롤 시작 (사운드 + 시각 효과)
     setPrevIsDrumRolling(true)
+    startLoopSound('drumroll', 0.4)
 
     // 드럼롤 동안 작은 폭죽들 터뜨리기
     const drumInterval = setInterval(() => {
@@ -331,6 +353,7 @@ function MyPage() {
     setTimeout(() => {
       clearInterval(drumInterval)
       setPrevIsDrumRolling(false)
+      stopLoopSound('drumroll')
 
       const winningNumbers = prevDraw.winning_numbers || []
       const bonusNumber = prevDraw.bonus
@@ -361,7 +384,8 @@ function MyPage() {
       setPrevMatchResults(results)
       setPrevChecked(true)
 
-      // 결과 발표 시 폭죽
+      // 결과 발표 시 성공 사운드 + 폭죽
+      playSound('success', 0.6)
       const hasWin = results.some(r => r.rank !== null)
       if (hasWin) {
         confetti({
@@ -1279,8 +1303,38 @@ function MyPage() {
     }
   }
 
+  // 사운드 설정 변경 핸들러
+  const handleSoundToggle = (enabled) => {
+    setSoundEnabled(enabled)
+    setSoundEnabledState(enabled)
+    // 켤 때 테스트 사운드 재생
+    if (enabled) {
+      setTimeout(() => playSound('click', 0.5), 100)
+    }
+    info(enabled ? '효과음이 활성화되었습니다.' : '효과음이 비활성화되었습니다.', '사운드 설정')
+  }
+
   const renderNotificationsTab = () => (
     <div className="mypage-notifications">
+      {/* 사운드 설정 섹션 */}
+      <div className="mypage-notifications__section">
+        <h3>사운드 설정</h3>
+        <div className="mypage-notifications__item">
+          <div>
+            <strong>효과음</strong>
+            <p>결과 확인 시 클릭음, 드럼롤, 당첨 효과음을 재생합니다.</p>
+          </div>
+          <label className="mypage-notifications__toggle">
+            <input
+              type="checkbox"
+              checked={soundEnabled}
+              onChange={(e) => handleSoundToggle(e.target.checked)}
+            />
+            <span className="mypage-notifications__slider" />
+          </label>
+        </div>
+      </div>
+
       {/* 푸시 알림 활성화 섹션 */}
       <div className="mypage-notifications__section">
         <h3>푸시 알림</h3>

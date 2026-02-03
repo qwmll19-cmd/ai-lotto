@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { login as apiLogin, logout as apiLogout, signup as apiSignup } from '../api/authApi.js'
 import { request, saveTokens, getAccessToken } from '../api/client.js'
+import { setCurrentUser as setSoundUser } from '../utils/soundUtils.js'
 
 const AuthContext = createContext(null)
 
@@ -57,6 +58,7 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+      setSoundUser(nextUser.id) // 사운드 설정용 유저 ID 설정
 
       // 알림 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
@@ -85,12 +87,14 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+      setSoundUser(nextUser.id) // 사운드 설정용 유저 ID 설정
 
       // 알림 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
     } else {
       setUser(null)
       saveUserToStorage(null)
+      setSoundUser(null) // 사운드 설정용 유저 ID 초기화
 
       // 알림 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'logout' } }))
@@ -125,6 +129,7 @@ export function AuthProvider({ children }) {
       }
       setUser(nextUser)
       saveUserToStorage(nextUser)
+      setSoundUser(nextUser.id) // 사운드 설정용 유저 ID 설정
 
       // 알림 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'login' } }))
@@ -145,6 +150,7 @@ export function AuthProvider({ children }) {
     saveTokens(null)
     setUser(null)
     saveUserToStorage(null)
+    setSoundUser(null) // 사운드 설정용 유저 ID 초기화
 
     // 알림 동기화를 위한 이벤트 발생
     window.dispatchEvent(new CustomEvent('auth-change', { detail: { type: 'logout' } }))
@@ -163,6 +169,7 @@ export function AuthProvider({ children }) {
         // 저장된 사용자가 있으면 먼저 표시 (빠른 렌더링)
         if (storedUser && !user) {
           setUser(storedUser)
+          setSoundUser(storedUser.id) // 사운드 설정용 유저 ID 설정
         }
 
         try {
@@ -182,12 +189,14 @@ export function AuthProvider({ children }) {
           }
           setUser(verifiedUser)
           saveUserToStorage(verifiedUser)
+          setSoundUser(verifiedUser.id) // 사운드 설정용 유저 ID 설정
         } catch {
           if (!active) return
           // 토큰이 유효하지 않으면 삭제
           saveTokens(null)
           setUser(null)
           saveUserToStorage(null)
+          setSoundUser(null) // 사운드 설정용 유저 ID 초기화
         }
       } else {
         // 토큰과 저장된 사용자 모두 없음 - 비로그인 상태
