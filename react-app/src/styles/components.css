@@ -1852,17 +1852,16 @@
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
-    max-height: 85vh !important;
-    min-height: auto !important;
+    max-height: 80vh !important;
     height: auto !important;
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
-    overflow: visible !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     animation: slideUp 0.2s ease-out;
     z-index: 1001;
-    padding-bottom: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
     background: white !important;
-    display: block !important;
   }
 
   /* 모바일 드롭다운 핸들 바 */
@@ -1880,11 +1879,12 @@
     border-radius: 2px;
   }
 
-  /* 모바일 프로필 드롭다운 컨텐츠 - 스크롤 없이 전체 표시 */
+  /* 모바일 프로필 드롭다운 컨텐츠 */
   .profile-dropdown__content {
-    overflow-y: visible !important;
+    display: block !important;
+    overflow: visible !important;
     max-height: none !important;
-    padding: 0 !important;
+    padding: 0 8px !important;
   }
 
   /* 모바일 프로필 드롭다운 푸터 */

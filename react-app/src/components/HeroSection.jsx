@@ -1,17 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { fetchLatestDraw, getAiRecommendation } from '../api/lottoApi.js'
+import { fetchLatestDraw } from '../api/lottoApi.js'
 import { latestDrawMock } from '../data/mockData.js'
-import { useAuth } from '../context/AuthContext.jsx'
-import { useNotification } from '../context/NotificationContext.jsx'
 import LuckyBallBanner from './LuckyBallBanner.jsx'
 
 function HeroSection() {
   const [latest, setLatest] = useState(null)
-  const [recommendation, setRecommendation] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const { isAuthed } = useAuth()
-  const { error: showError } = useNotification()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -38,21 +32,9 @@ function HeroSection() {
   const latestRound = latestData?.draw_no ? `${latestData.draw_no}회` : '회차 미확정'
   const latestNumbers = Array.isArray(latestData?.numbers) ? latestData.numbers : []
 
-  const handleGetAiNumbers = async () => {
-    if (!isAuthed) {
-      navigate('/signup')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const data = await getAiRecommendation()
-      setRecommendation(data)
-    } catch (err) {
-      showError(err.message || 'AI 추천 번호를 가져오는데 실패했습니다.', '오류')
-    } finally {
-      setLoading(false)
-    }
+  // 번호 추천 페이지로 이동
+  const handleGetAiNumbers = () => {
+    navigate('/recommend')
   }
 
   return (
@@ -92,29 +74,13 @@ function HeroSection() {
           <button
             className="btn btn--primary"
             onClick={handleGetAiNumbers}
-            disabled={loading}
           >
-            {loading ? '로딩 중...' : '📩 이번 주 AI 번호 받기'}
+            이번 주 AI 번호 받기
           </button>
           <a className="btn btn--ghost" href="#why">
             어떻게 추천하나요?
           </a>
         </div>
-        {recommendation && (
-          <div className="hero__recommendation">
-            <h3>🎯 AI 추천 번호</h3>
-            <div className="hero__recommendation-numbers">
-              {recommendation.numbers?.map((set, idx) => (
-                <div key={idx} className="hero__recommendation-row">
-                  <span className="hero__recommendation-label">{idx + 1}줄</span>
-                  {set.map((num) => (
-                    <span key={num} className="hero__latest-ball">{num}</span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <p className="hero__footnote">
           본 서비스는 과거 통계 기반 정보 제공용이며, 당첨 및 수익을 보장하지 않습니다.
         </p>
