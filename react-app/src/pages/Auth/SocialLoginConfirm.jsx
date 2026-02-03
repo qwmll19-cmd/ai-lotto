@@ -13,7 +13,7 @@ function SocialLoginConfirm() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { setUser } = useAuth()
-  const { notifySuccess, error: showError } = useNotification()
+  const { success, error: showError } = useNotification()
 
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -77,7 +77,7 @@ function SocialLoginConfirm() {
           setUser(userData)
         }
 
-        notifySuccess('로그인되었습니다!', `${userName}님 환영합니다`)
+        success('로그인되었습니다!', `${userName}님 환영합니다`)
         navigate('/mypage?login=success', { replace: true })
       } else {
         setErrorMessage(data.message || '로그인 처리에 실패했습니다.')

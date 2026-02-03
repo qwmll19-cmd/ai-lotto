@@ -13,7 +13,7 @@ function Login() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { login, isAuthed, authLoading } = useAuth()
-  const { notifySuccess, error: showError } = useNotification()
+  const { success, error: showError } = useNotification()
   const navigate = useNavigate()
   const location = useLocation()
   const redirectTo = location.state?.from?.pathname || '/mypage'
@@ -43,7 +43,7 @@ function Login() {
       return
     }
     setMessage('')
-    notifySuccess('로그인되었습니다!', '환영합니다')
+    success('로그인되었습니다!', '환영합니다')
     navigate(redirectTo)
   }
 
