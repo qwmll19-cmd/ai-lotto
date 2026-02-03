@@ -953,6 +953,30 @@ def update_user_plan(
     if not plan_config:
         raise HTTPException(status_code=400, detail="유효하지 않은 플랜입니다.")
 
+    # 플랜 순서 정의 (다운그레이드/동일 플랜 검증용)
+    tier_order = {'free': 0, 'basic': 1, 'premium': 2, 'vip': 3}
+
+    # 현재 플랜과 요청 플랜 비교
+    current_tier = (user.subscription_type or 'free').lower()
+    requested_tier = payload.plan_type.lower()
+
+    current_index = tier_order.get(current_tier, 0)
+    requested_index = tier_order.get(requested_tier, 0)
+
+    # 다운그레이드 차단
+    if requested_index < current_index:
+        raise HTTPException(
+            status_code=400,
+            detail=f"현재 {current_tier.upper()} 플랜에서 {requested_tier.upper()} 플랜으로 다운그레이드할 수 없습니다."
+        )
+
+    # 동일 플랜 중복 결제 차단
+    if requested_index == current_index and current_tier != 'free':
+        raise HTTPException(
+            status_code=400,
+            detail=f"이미 {current_tier.upper()} 플랜을 이용 중입니다."
+        )
+
     now = datetime.utcnow()
     expires_at = now + timedelta(days=payload.duration_days)
 

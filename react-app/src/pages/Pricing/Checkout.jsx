@@ -5,12 +5,22 @@ import { useNotification } from '../../context/NotificationContext.jsx'
 import { updateUserPlan } from '../../api/authApi.js'
 
 function Checkout() {
-  const { isAuthed, setUser } = useAuth()
+  const { isAuthed, user, setUser } = useAuth()
   const { success, error: showError } = useNotification()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   const planId = searchParams.get('plan') || 'basic'
+
+  // 티어 비교 로직
+  const userTier = user?.tier?.toUpperCase() || 'FREE'
+  const tierOrder = { FREE: 0, BASIC: 1, PREMIUM: 2, VIP: 3 }
+  const currentIndex = tierOrder[userTier] ?? 0
+  const planIndex = tierOrder[planId.toUpperCase()] ?? 0
+
+  // 다운그레이드 또는 동일 플랜 체크
+  const isDowngrade = planIndex < currentIndex
+  const isSamePlan = planIndex === currentIndex && userTier !== 'FREE'
   const [loading, setLoading] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('card')
   const [agreeTerms, setAgreeTerms] = useState(false)
@@ -70,8 +80,17 @@ function Checkout() {
   useEffect(() => {
     if (!isAuthed) {
       navigate('/login', { state: { from: { pathname: `/checkout?plan=${planId}` } } })
+    } else if (isDowngrade || isSamePlan) {
+      // 다운그레이드 또는 동일 플랜 결제 시도 시 요금제 페이지로 리다이렉트
+      showError(
+        isDowngrade
+          ? '현재 플랜보다 낮은 플랜으로 변경할 수 없습니다.'
+          : '이미 동일한 플랜을 이용 중입니다.',
+        '결제 불가'
+      )
+      navigate('/pricing')
     }
-  }, [isAuthed, navigate, planId])
+  }, [isAuthed, navigate, planId, isDowngrade, isSamePlan, showError])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -117,7 +136,7 @@ function Checkout() {
     }
   }
 
-  if (!isAuthed) {
+  if (!isAuthed || isDowngrade || isSamePlan) {
     return null
   }
 

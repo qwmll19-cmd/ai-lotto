@@ -1,8 +1,43 @@
 import { Link } from 'react-router-dom'
 import HeroSection from '../../components/HeroSection.jsx'
 import WhySection from '../../components/WhySection.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 function Home() {
+  const { isAuthed, user } = useAuth()
+
+  // 사용자 현재 티어
+  const userTier = user?.tier?.toUpperCase() || null
+
+  // 플랜 순서 (업그레이드/다운그레이드 판단용)
+  const tierOrder = { FREE: 0, BASIC: 1, PREMIUM: 2, VIP: 3 }
+
+  // 버튼 상태 결정 함수
+  const getButtonProps = (planTier, planId) => {
+    const currentIndex = tierOrder[userTier] ?? -1
+    const planIndex = tierOrder[planTier]
+
+    // 현재 이용 중인 플랜
+    if (userTier === planTier) {
+      return { text: '현재 이용 중', link: null, disabled: true, variant: 'ghost' }
+    }
+
+    // 로그인 상태에서 낮은 플랜
+    if (isAuthed && planIndex < currentIndex) {
+      return { text: '현재 플랜보다 낮음', link: null, disabled: true, variant: 'ghost' }
+    }
+
+    // 로그인 상태에서 높은 플랜
+    if (isAuthed && planIndex > currentIndex) {
+      return { text: '업그레이드', link: `/checkout?plan=${planId}`, disabled: false, variant: 'primary' }
+    }
+
+    // 비로그인 또는 FREE 사용자
+    if (planId === 'free') {
+      return { text: '무료로 시작', link: '/signup', disabled: false, variant: 'ghost' }
+    }
+    return { text: '시작하기', link: `/checkout?plan=${planId}`, disabled: false, variant: 'primary' }
+  }
   // hash 네비게이션은 ScrollToTop에서 중앙 처리
 
   return (
@@ -22,72 +57,119 @@ function Home() {
 
           <div className="pricing-preview__grid">
             {/* Free */}
-            <div className="pricing-preview__card">
-              <h3>Free</h3>
-              <p className="pricing-preview__subtitle">로또 AI를 처음 체험해보는 분께</p>
-              <div className="pricing-preview__price">
-                <span className="pricing-preview__amount">₩0</span>
-                <span className="pricing-preview__period">/월</span>
-              </div>
-              <ul className="pricing-preview__features">
-                <li>✓ 매주 AI 추천 (1줄)</li>
-                <li className="pricing-preview__bonus">✓ 가입 첫 회차 보너스 +1줄</li>
-                <li>✓ 기본 통계 조회</li>
-                <li>✓ 히스토리 14일 보관</li>
-              </ul>
-              <Link to="/signup" className="btn btn--ghost btn--full">무료로 시작</Link>
-            </div>
+            {(() => {
+              const btnProps = getButtonProps('FREE', 'free')
+              const isCurrent = userTier === 'FREE'
+              return (
+                <div className={`pricing-preview__card ${isCurrent ? 'pricing-preview__card--current' : ''}`}>
+                  {isCurrent && <div className="pricing-preview__badge pricing-preview__badge--current">현재 이용 중</div>}
+                  <h3>Free</h3>
+                  <p className="pricing-preview__subtitle">로또 AI를 처음 체험해보는 분께</p>
+                  <div className="pricing-preview__price">
+                    <span className="pricing-preview__amount">₩0</span>
+                    <span className="pricing-preview__period">/월</span>
+                  </div>
+                  <ul className="pricing-preview__features">
+                    <li>✓ 매주 AI 추천 (1줄)</li>
+                    <li className="pricing-preview__bonus">✓ 가입 첫 회차 보너스 +1줄</li>
+                    <li>✓ 기본 통계 조회</li>
+                    <li>✓ 히스토리 14일 보관</li>
+                  </ul>
+                  {btnProps.link ? (
+                    <Link to={btnProps.link} className={`btn btn--${btnProps.variant} btn--full`}>{btnProps.text}</Link>
+                  ) : (
+                    <button className={`btn btn--${btnProps.variant} btn--full`} disabled={btnProps.disabled}>{btnProps.text}</button>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Basic */}
-            <div className="pricing-preview__card">
-              <h3>Basic</h3>
-              <p className="pricing-preview__subtitle">더 많은 조합이 필요한 분께</p>
-              <div className="pricing-preview__price">
-                <span className="pricing-preview__amount">₩4,900</span>
-                <span className="pricing-preview__period">/월</span>
-              </div>
-              <ul className="pricing-preview__features">
-                <li>✓ 매주 AI 추천 (5줄)</li>
-                <li>✓ 상세 통계 및 분석</li>
-                <li>✓ 히스토리 14일 보관</li>
-              </ul>
-              <Link to="/checkout?plan=basic" className="btn btn--primary btn--full">시작하기</Link>
-            </div>
+            {(() => {
+              const btnProps = getButtonProps('BASIC', 'basic')
+              const isCurrent = userTier === 'BASIC'
+              return (
+                <div className={`pricing-preview__card ${isCurrent ? 'pricing-preview__card--current' : ''}`}>
+                  {isCurrent && <div className="pricing-preview__badge pricing-preview__badge--current">현재 이용 중</div>}
+                  <h3>Basic</h3>
+                  <p className="pricing-preview__subtitle">더 많은 조합이 필요한 분께</p>
+                  <div className="pricing-preview__price">
+                    <span className="pricing-preview__amount">₩4,900</span>
+                    <span className="pricing-preview__period">/월</span>
+                  </div>
+                  <ul className="pricing-preview__features">
+                    <li>✓ 매주 AI 추천 (5줄)</li>
+                    <li>✓ 상세 통계 및 분석</li>
+                    <li>✓ 히스토리 14일 보관</li>
+                  </ul>
+                  {btnProps.link ? (
+                    <Link to={btnProps.link} className={`btn btn--${btnProps.variant} btn--full`}>{btnProps.text}</Link>
+                  ) : (
+                    <button className={`btn btn--${btnProps.variant} btn--full`} disabled={btnProps.disabled}>{btnProps.text}</button>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Premium */}
-            <div className="pricing-preview__card pricing-preview__card--popular">
-              <div className="pricing-preview__badge">인기</div>
-              <h3>Premium</h3>
-              <p className="pricing-preview__subtitle">본격적인 AI 분석이 필요한 분께</p>
-              <div className="pricing-preview__price">
-                <span className="pricing-preview__amount">₩9,900</span>
-                <span className="pricing-preview__period">/월</span>
-              </div>
-              <ul className="pricing-preview__features">
-                <li>✓ 매주 AI 추천 (10줄)</li>
-                <li>✓ AI 핵심 조합 1줄 포함</li>
-                <li>✓ 히스토리 60일 보관</li>
-                <li>✓ 고급 패턴 분석</li>
-              </ul>
-              <Link to="/checkout?plan=premium" className="btn btn--ghost btn--full">시작하기</Link>
-            </div>
+            {(() => {
+              const btnProps = getButtonProps('PREMIUM', 'premium')
+              const isCurrent = userTier === 'PREMIUM'
+              return (
+                <div className={`pricing-preview__card ${isCurrent ? 'pricing-preview__card--current' : 'pricing-preview__card--popular'}`}>
+                  {isCurrent ? (
+                    <div className="pricing-preview__badge pricing-preview__badge--current">현재 이용 중</div>
+                  ) : (
+                    <div className="pricing-preview__badge">인기</div>
+                  )}
+                  <h3>Premium</h3>
+                  <p className="pricing-preview__subtitle">본격적인 AI 분석이 필요한 분께</p>
+                  <div className="pricing-preview__price">
+                    <span className="pricing-preview__amount">₩9,900</span>
+                    <span className="pricing-preview__period">/월</span>
+                  </div>
+                  <ul className="pricing-preview__features">
+                    <li>✓ 매주 AI 추천 (10줄)</li>
+                    <li>✓ AI 핵심 조합 1줄 포함</li>
+                    <li>✓ 히스토리 60일 보관</li>
+                    <li>✓ 고급 패턴 분석</li>
+                  </ul>
+                  {btnProps.link ? (
+                    <Link to={btnProps.link} className={`btn btn--${btnProps.variant} btn--full`}>{btnProps.text}</Link>
+                  ) : (
+                    <button className={`btn btn--${btnProps.variant} btn--full`} disabled={btnProps.disabled}>{btnProps.text}</button>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* VIP */}
-            <div className="pricing-preview__card">
-              <h3>VIP</h3>
-              <p className="pricing-preview__subtitle">최대 당첨 확률을 원하는 분께</p>
-              <div className="pricing-preview__price">
-                <span className="pricing-preview__amount">₩13,900</span>
-                <span className="pricing-preview__period">/월</span>
-              </div>
-              <ul className="pricing-preview__features">
-                <li>✓ 매주 AI 추천 (20줄)</li>
-                <li>✓ AI 핵심 조합 2줄 포함</li>
-                <li>✓ 히스토리 90일 보관</li>
-                <li>✓ 우선 고객 지원</li>
-              </ul>
-              <Link to="/checkout?plan=vip" className="btn btn--ghost btn--full">시작하기</Link>
-            </div>
+            {(() => {
+              const btnProps = getButtonProps('VIP', 'vip')
+              const isCurrent = userTier === 'VIP'
+              return (
+                <div className={`pricing-preview__card ${isCurrent ? 'pricing-preview__card--current' : ''}`}>
+                  {isCurrent && <div className="pricing-preview__badge pricing-preview__badge--current">현재 이용 중</div>}
+                  <h3>VIP</h3>
+                  <p className="pricing-preview__subtitle">최대 당첨 확률을 원하는 분께</p>
+                  <div className="pricing-preview__price">
+                    <span className="pricing-preview__amount">₩13,900</span>
+                    <span className="pricing-preview__period">/월</span>
+                  </div>
+                  <ul className="pricing-preview__features">
+                    <li>✓ 매주 AI 추천 (20줄)</li>
+                    <li>✓ AI 핵심 조합 2줄 포함</li>
+                    <li>✓ 히스토리 90일 보관</li>
+                    <li>✓ 우선 고객 지원</li>
+                  </ul>
+                  {btnProps.link ? (
+                    <Link to={btnProps.link} className={`btn btn--${btnProps.variant} btn--full`}>{btnProps.text}</Link>
+                  ) : (
+                    <button className={`btn btn--${btnProps.variant} btn--full`} disabled={btnProps.disabled}>{btnProps.text}</button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           <div className="pricing-preview__more">
