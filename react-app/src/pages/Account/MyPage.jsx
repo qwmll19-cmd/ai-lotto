@@ -9,7 +9,7 @@ import { fetchMyPageLines, fetchLatestDraw, getFreeRecommendStatus, getPoolStatu
 import { changePassword, deleteAccount } from '../../api/authApi.js'
 import LottoBall from '../../components/LottoBall.jsx'
 import { parseNumbers } from '../../utils/lottoUtils.js'
-import { playSound, startLoopSound, stopLoopSound, isSoundEnabled, setSoundEnabled } from '../../utils/soundUtils.js'
+import { playSound, startLoopSound, stopLoopSoundWithDelay, isSoundEnabled, setSoundEnabled } from '../../utils/soundUtils.js'
 
 function MyPage() {
   const { user, setUser, logout } = useAuth()
@@ -192,7 +192,7 @@ function MyPage() {
     setTimeout(() => {
       clearInterval(drumInterval)
       setIsDrumRolling(false)
-      stopLoopSound('drumroll')
+      stopLoopSoundWithDelay('drumroll', 1500)
 
       const winningNumbers = latestDraw.numbers || []
       const bonusNumber = latestDraw.bonus
@@ -353,7 +353,7 @@ function MyPage() {
     setTimeout(() => {
       clearInterval(drumInterval)
       setPrevIsDrumRolling(false)
-      stopLoopSound('drumroll')
+      stopLoopSoundWithDelay('drumroll', 1500)
 
       const winningNumbers = prevDraw.winning_numbers || []
       const bonusNumber = prevDraw.bonus

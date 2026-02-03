@@ -94,13 +94,17 @@ export const playSound = (soundName, volume = 0.5) => {
   }
 }
 
+// 드럼롤 최소 재생 시간 (ms)
+let drumrollStartTime = null
+
 /**
  * 루프 사운드 시작 (드럼롤용)
  * @param {'drumroll'} soundName
  * @param {number} volume
+ * @param {number} startAt - 시작 위치 (초), 기본 2초부터 (클라이맥스 부분)
  * @returns {Audio | null} - 정지할 때 사용할 오디오 객체
  */
-export const startLoopSound = (soundName, volume = 0.4) => {
+export const startLoopSound = (soundName, volume = 0.4, startAt = 2) => {
   // 사운드가 꺼져있으면 재생하지 않음
   if (!isSoundEnabled()) return null
 
@@ -117,15 +121,35 @@ export const startLoopSound = (soundName, volume = 0.4) => {
     const audio = new Audio(soundPath)
     audio.volume = volume
     audio.loop = true
+    audio.currentTime = startAt // 중간부터 시작
     audio.play().catch(() => {
       // 자동 재생 정책으로 인한 에러 무시
     })
 
     audioCache[soundName] = audio
+    drumrollStartTime = Date.now() // 시작 시간 기록
     return audio
   } catch {
     return null
   }
+}
+
+/**
+ * 루프 사운드 정지 (최소 재생 시간 보장)
+ * @param {'drumroll'} soundName
+ * @param {number} minDuration - 최소 재생 시간 (ms), 기본 1.5초
+ * @returns {Promise<void>}
+ */
+export const stopLoopSoundWithDelay = async (soundName, minDuration = 1500) => {
+  const elapsed = drumrollStartTime ? Date.now() - drumrollStartTime : minDuration
+  const remaining = Math.max(0, minDuration - elapsed)
+
+  if (remaining > 0) {
+    await new Promise(resolve => setTimeout(resolve, remaining))
+  }
+
+  stopLoopSound(soundName)
+  drumrollStartTime = null
 }
 
 /**
