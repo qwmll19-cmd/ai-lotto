@@ -1,7 +1,25 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useNotification } from '../context/NotificationContext.jsx'
+
+// 시간 표시 헬퍼 함수
+function getTimeAgo(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - date
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHour = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHour / 24)
+
+  if (diffSec < 60) return '방금 전'
+  if (diffMin < 60) return `${diffMin}분 전`
+  if (diffHour < 24) return `${diffHour}시간 전`
+  if (diffDay < 7) return `${diffDay}일 전`
+  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+}
 
 function Header() {
   const { isAuthed, isAdmin, user, logout, authLoading } = useAuth()
@@ -161,17 +179,23 @@ function Header() {
                         </div>
                       ) : (
                         <div className="notification-dropdown__list">
-                          {notifications.slice(0, 5).map((notification) => (
+                          {notifications.map((notification) => (
                             <button
                               key={notification.id}
                               type="button"
-                              className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : ''}`}
+                              className={`notification-dropdown__item ${!notification.read ? 'notification-dropdown__item--unread' : 'notification-dropdown__item--read'}`}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 e.preventDefault()
-                                markAsRead(notification.id)
+                                if (!notification.read) {
+                                  markAsRead(notification.id)
+                                }
                               }}
                             >
+                              {/* 읽지 않음 표시 점 */}
+                              {!notification.read && (
+                                <span className="notification-dropdown__unread-dot" />
+                              )}
                               <div className={`notification-dropdown__icon notification-dropdown__icon--${notification.type}`}>
                                 {notification.type === 'success' && '✓'}
                                 {notification.type === 'error' && '✕'}
@@ -179,7 +203,12 @@ function Header() {
                                 {notification.type === 'info' && 'i'}
                               </div>
                               <div className="notification-dropdown__content">
-                                {notification.title && <strong>{notification.title}</strong>}
+                                <div className="notification-dropdown__title-row">
+                                  {notification.title && <strong>{notification.title}</strong>}
+                                  <span className="notification-dropdown__time">
+                                    {getTimeAgo(notification.createdAt)}
+                                  </span>
+                                </div>
                                 <p>{notification.message}</p>
                               </div>
                             </button>
