@@ -171,7 +171,7 @@ function MyPage() {
   }
 
   // 전체 당첨번호 확인하기 - 드럼롤 후 결과 표시
-  const handleCheckResult = () => {
+  const handleCheckResult = async () => {
     // 드럼롤 시작 (사운드 + 시각 효과)
     setIsDrumRolling(true)
     startLoopSound('drumroll', 0.4)
@@ -188,50 +188,51 @@ function MyPage() {
       })
     }, 150)
 
-    // 2초 후 결과 표시
-    setTimeout(() => {
-      clearInterval(drumInterval)
-      setIsDrumRolling(false)
-      stopLoopSoundWithDelay('drumroll', 1500)
+    // 최소 2초 대기 후 드럼롤 종료
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    clearInterval(drumInterval)
+    await stopLoopSoundWithDelay('drumroll', 0) // 이미 2초 지났으므로 즉시 정지
+    setIsDrumRolling(false)
 
-      const winningNumbers = latestDraw.numbers || []
-      const bonusNumber = latestDraw.bonus
+    // 결과 계산
+    const winningNumbers = latestDraw.numbers || []
+    const bonusNumber = latestDraw.bonus
 
-      // 내 번호들과 당첨번호 비교
-      const linesToCheck = isFree
-        ? (freeStatus.lines || [])
-        : (poolStatus.revealed_lines?.length > 0 ? poolStatus.revealed_lines : lines)
+    // 내 번호들과 당첨번호 비교
+    const linesToCheck = isFree
+      ? (freeStatus.lines || [])
+      : (poolStatus.revealed_lines?.length > 0 ? poolStatus.revealed_lines : lines)
 
-      const results = linesToCheck.map((line, idx) => {
-        const nums = parseNumbers(line)
-        const matchedMain = nums.filter(n => winningNumbers.includes(n))
-        const matchedBonus = nums.includes(bonusNumber)
-        const matchCount = matchedMain.length
+    const results = linesToCheck.map((line, idx) => {
+      const nums = parseNumbers(line)
+      const matchedMain = nums.filter(n => winningNumbers.includes(n))
+      const matchedBonus = nums.includes(bonusNumber)
+      const matchCount = matchedMain.length
 
-        // 등수 계산
-        let rank = null
-        if (matchCount === 6) rank = 1
-        else if (matchCount === 5 && matchedBonus) rank = 2
-        else if (matchCount === 5) rank = 3
-        else if (matchCount === 4) rank = 4
-        else if (matchCount === 3) rank = 5
+      // 등수 계산
+      let rank = null
+      if (matchCount === 6) rank = 1
+      else if (matchCount === 5 && matchedBonus) rank = 2
+      else if (matchCount === 5) rank = 3
+      else if (matchCount === 4) rank = 4
+      else if (matchCount === 3) rank = 5
 
-        return {
-          lineNo: idx + 1,
-          numbers: nums,
-          matchedMain,
-          matchedBonus,
-          matchCount,
-          rank
-        }
-      })
+      return {
+        lineNo: idx + 1,
+        numbers: nums,
+        matchedMain,
+        matchedBonus,
+        matchCount,
+        rank
+      }
+    })
 
-      setMatchResults(results)
-      setShowMatchResult(true)
+    setMatchResults(results)
+    setShowMatchResult(true)
 
-      // 결과 발표 시 성공 사운드 + 폭죽
-      playSound('success', 0.6)
-      const hasWin = results.some(r => r.rank !== null)
+    // 드럼롤 끝나고 바로 성공 사운드 + 폭죽 (동시에!)
+    playSound('success', 0.6)
+    const hasWin = results.some(r => r.rank !== null)
       if (hasWin) {
         // 당첨! 화려한 폭죽
         confetti({
@@ -263,7 +264,6 @@ function MyPage() {
           colors: ['#9ca3af', '#d1d5db', '#f9a8d4']
         })
       }
-    }, 2000)
   }
 
   // 이전 회차 개별 줄 당첨 확인 - 팡 터지면서 결과 표시
@@ -341,72 +341,69 @@ function MyPage() {
       })
     }, 150)
 
-    // 백엔드에 결과 확인 완료 기록 (비동기)
-    try {
-      await markResultChecked(prevDraw.draw_no)
-    } catch (err) {
+    // 백엔드에 결과 확인 완료 기록 (비동기, 병렬 실행)
+    markResultChecked(prevDraw.draw_no).catch(err => {
       console.error('Failed to mark result checked:', err)
-      // 실패해도 UI는 계속 진행
-    }
+    })
 
-    // 2초 후 결과 표시
-    setTimeout(() => {
-      clearInterval(drumInterval)
-      setPrevIsDrumRolling(false)
-      stopLoopSoundWithDelay('drumroll', 1500)
+    // 최소 2초 대기 후 드럼롤 종료
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    clearInterval(drumInterval)
+    await stopLoopSoundWithDelay('drumroll', 0)
+    setPrevIsDrumRolling(false)
 
-      const winningNumbers = prevDraw.winning_numbers || []
-      const bonusNumber = prevDraw.bonus
+    // 결과 계산
+    const winningNumbers = prevDraw.winning_numbers || []
+    const bonusNumber = prevDraw.bonus
 
-      const results = (prevDraw.my_lines || []).map((line, idx) => {
-        const nums = parseNumbers(line)
-        const matchedMain = nums.filter(n => winningNumbers.includes(n))
-        const matchedBonus = nums.includes(bonusNumber)
-        const matchCount = matchedMain.length
+    const results = (prevDraw.my_lines || []).map((line, idx) => {
+      const nums = parseNumbers(line)
+      const matchedMain = nums.filter(n => winningNumbers.includes(n))
+      const matchedBonus = nums.includes(bonusNumber)
+      const matchCount = matchedMain.length
 
-        let rank = null
-        if (matchCount === 6) rank = 1
-        else if (matchCount === 5 && matchedBonus) rank = 2
-        else if (matchCount === 5) rank = 3
-        else if (matchCount === 4) rank = 4
-        else if (matchCount === 3) rank = 5
+      let rank = null
+      if (matchCount === 6) rank = 1
+      else if (matchCount === 5 && matchedBonus) rank = 2
+      else if (matchCount === 5) rank = 3
+      else if (matchCount === 4) rank = 4
+      else if (matchCount === 3) rank = 5
 
-        return {
-          lineNo: idx + 1,
-          numbers: nums,
-          matchedMain,
-          matchedBonus,
-          matchCount,
-          rank
-        }
-      })
-
-      setPrevMatchResults(results)
-      setPrevChecked(true)
-
-      // 결과 발표 시 성공 사운드 + 폭죽
-      playSound('success', 0.6)
-      const hasWin = results.some(r => r.rank !== null)
-      if (hasWin) {
-        confetti({
-          particleCount: 200,
-          spread: 120,
-          origin: { y: 0.5 },
-          colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#a855f7']
-        })
-        setTimeout(() => {
-          confetti({ particleCount: 100, angle: 60, spread: 80, origin: { x: 0 } })
-          confetti({ particleCount: 100, angle: 120, spread: 80, origin: { x: 1 } })
-        }, 300)
-      } else {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.6 },
-          colors: ['#9ca3af', '#d1d5db', '#f9a8d4']
-        })
+      return {
+        lineNo: idx + 1,
+        numbers: nums,
+        matchedMain,
+        matchedBonus,
+        matchCount,
+        rank
       }
-    }, 2000)
+    })
+
+    setPrevMatchResults(results)
+    setPrevChecked(true)
+
+    // 드럼롤 끝나고 바로 성공 사운드 + 폭죽 (동시에!)
+    playSound('success', 0.6)
+    const hasWin = results.some(r => r.rank !== null)
+    if (hasWin) {
+      confetti({
+        particleCount: 200,
+        spread: 120,
+        origin: { y: 0.5 },
+        colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#a855f7']
+      })
+      setTimeout(() => {
+        confetti({ particleCount: 100, angle: 60, spread: 80, origin: { x: 0 } })
+        confetti({ particleCount: 100, angle: 120, spread: 80, origin: { x: 1 } })
+      }, 300)
+    } else {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#9ca3af', '#d1d5db', '#f9a8d4']
+      })
+    }
   }
 
   const loadData = async () => {

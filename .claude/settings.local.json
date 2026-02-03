@@ -45,7 +45,8 @@
       "Bash(PGPASSWORD=oQ9IKKMf5DAqaiF35ZdI2BtlOSD055sZ psql:*)",
       "Bash(pip show:*)",
       "Bash(source .venv/bin/activate)",
-      "Bash(npx web-push:*)"
+      "Bash(npx web-push:*)",
+      "Bash(file:*)"
     ]
   }
 }
