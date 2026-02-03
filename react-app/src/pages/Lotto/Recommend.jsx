@@ -100,11 +100,6 @@ function Recommend() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [loadingCandidates, setLoadingCandidates] = useState(false)
 
-  // 추가 고급 설정 (PREMIUM/VIP 전용)
-  const [oddEvenRatio, setOddEvenRatio] = useState('any')  // "3:3", "4:2", "2:4", "any"
-  const [consecutiveLimit, setConsecutiveLimit] = useState(null)  // 1, 2, 3, null(제한없음)
-  const [sumRange, setSumRange] = useState({ min: 21, max: 255 })  // 합계 범위
-
   // 초기 로드 완료 여부 (설정 변경 감지용)
   const initialLoadDone = useRef(false)
 
@@ -122,7 +117,6 @@ function Recommend() {
 
   // 고급 설정 사용 여부 (로컬 기준)
   const hasAdvancedSettings = excludeNumbers.length > 0 || fixedNumbers.length > 0
-  const hasExtraAdvancedSettings = oddEvenRatio !== 'any' || consecutiveLimit !== null || sumRange.min > 21 || sumRange.max < 255
 
   // 페이지 로드시 기존 번호 로드
   useEffect(() => {
@@ -306,11 +300,6 @@ function Recommend() {
       const advancedOptions = {
         exclude: excludeNumbers,
         fixed: fixedNumbers,
-        ...(hasExtraAdvancedSettings && {
-          odd_even_ratio: oddEvenRatio !== 'any' ? oddEvenRatio : null,
-          consecutive_limit: consecutiveLimit,
-          sum_range: sumRange.min !== 21 || sumRange.max !== 255 ? sumRange : null,
-        }),
       }
       console.log('[요청] 1줄씩 받기:', advancedOptions)
 
@@ -363,11 +352,6 @@ function Recommend() {
       const advancedOptions = {
         exclude: excludeNumbers,
         fixed: fixedNumbers,
-        ...(hasExtraAdvancedSettings && {
-          odd_even_ratio: oddEvenRatio !== 'any' ? oddEvenRatio : null,
-          consecutive_limit: consecutiveLimit,
-          sum_range: sumRange.min !== 21 || sumRange.max !== 255 ? sumRange : null,
-        }),
       }
       console.log('[요청] 전체 받기:', advancedOptions)
 
@@ -604,107 +588,13 @@ function Recommend() {
                     </div>
                   </div>
 
-                  {/* 추가 고급 옵션 (PREMIUM/VIP 전용) */}
-                  <div className="recommend-advanced__section recommend-advanced__section--extra">
-                    <h4>
-                      추가 옵션
-                      {!features.advancedOptions && (
-                        <span className="recommend-advanced__badge">PREMIUM+</span>
-                      )}
-                    </h4>
-                    {features.advancedOptions ? (
-                      <div className="recommend-advanced__extra-options">
-                        {/* 홀짝 비율 */}
-                        <div className="recommend-advanced__option">
-                          <label>홀짝 비율</label>
-                          <select
-                            value={oddEvenRatio}
-                            onChange={(e) => setOddEvenRatio(e.target.value)}
-                            disabled={poolStatus.all_revealed}
-                            className="recommend-advanced__select"
-                          >
-                            <option value="any">제한 없음</option>
-                            <option value="3:3">3:3 (균형)</option>
-                            <option value="4:2">4:2 (홀수 많음)</option>
-                            <option value="2:4">2:4 (짝수 많음)</option>
-                          </select>
-                        </div>
-
-                        {/* 연속 번호 제한 */}
-                        <div className="recommend-advanced__option">
-                          <label>연속 번호 제한</label>
-                          <select
-                            value={consecutiveLimit ?? 'none'}
-                            onChange={(e) => setConsecutiveLimit(e.target.value === 'none' ? null : Number(e.target.value))}
-                            disabled={poolStatus.all_revealed}
-                            className="recommend-advanced__select"
-                          >
-                            <option value="none">제한 없음</option>
-                            <option value="1">연속 번호 없음</option>
-                            <option value="2">최대 2개 연속</option>
-                            <option value="3">최대 3개 연속</option>
-                          </select>
-                        </div>
-
-                        {/* 합계 범위 */}
-                        <div className="recommend-advanced__option recommend-advanced__option--range">
-                          <label>합계 범위 ({sumRange.min} ~ {sumRange.max})</label>
-                          <div className="recommend-advanced__range-inputs">
-                            <input
-                              type="number"
-                              min="21"
-                              max={sumRange.max}
-                              value={sumRange.min}
-                              onChange={(e) => setSumRange({ ...sumRange, min: Math.max(21, Number(e.target.value)) })}
-                              disabled={poolStatus.all_revealed}
-                              className="recommend-advanced__input"
-                            />
-                            <span>~</span>
-                            <input
-                              type="number"
-                              min={sumRange.min}
-                              max="255"
-                              value={sumRange.max}
-                              onChange={(e) => setSumRange({ ...sumRange, max: Math.min(255, Number(e.target.value)) })}
-                              disabled={poolStatus.all_revealed}
-                              className="recommend-advanced__input"
-                            />
-                          </div>
-                          <p className="recommend-advanced__hint">권장 범위: 100~170 (통계 기반)</p>
-                        </div>
-
-                        {hasExtraAdvancedSettings && (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => {
-                              setOddEvenRatio('any')
-                              setConsecutiveLimit(null)
-                              setSumRange({ min: 21, max: 255 })
-                            }}
-                            disabled={poolStatus.all_revealed}
-                          >
-                            추가 옵션 초기화
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="recommend-advanced__notice-text">
-                        홀짝 비율, 연속 번호 제한, 합계 범위 설정은 Premium 플랜 이상에서 사용 가능합니다.
-                      </p>
-                    )}
-                  </div>
-
                   {/* 설정 요약 */}
-                  {(hasAdvancedSettings || hasExtraAdvancedSettings) && (
+                  {hasAdvancedSettings && (
                     <div className="recommend-advanced__summary">
                       <div className="recommend-advanced__summary-item">
                         <span>적용된 설정:</span>
                         {excludeNumbers.length > 0 && <span>제외 {excludeNumbers.length}개</span>}
                         {fixedNumbers.length > 0 && <span>고정 {fixedNumbers.length}개</span>}
-                        {oddEvenRatio !== 'any' && <span>홀짝 {oddEvenRatio}</span>}
-                        {consecutiveLimit !== null && <span>연속 최대 {consecutiveLimit}개</span>}
-                        {(sumRange.min > 21 || sumRange.max < 255) && <span>합계 {sumRange.min}~{sumRange.max}</span>}
                       </div>
                     </div>
                   )}

@@ -220,7 +220,16 @@ function Header() {
                         <button
                           type="button"
                           className="notification-dropdown__close"
-                          onClick={() => setShowNotifications(false)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            setShowNotifications(false)
+                          }}
+                          onTouchEnd={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            setShowNotifications(false)
+                          }}
                         >
                           닫기
                         </button>

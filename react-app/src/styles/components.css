@@ -7244,6 +7244,88 @@
   }
 }
 
+/* 모바일 (480px 이하) */
+@media (max-width: 480px) {
+  .checkout-hero {
+    padding: 24px 16px;
+  }
+
+  .checkout-hero h1 {
+    font-size: 22px;
+  }
+
+  .checkout-hero p {
+    font-size: 14px;
+  }
+
+  .checkout-content {
+    padding: 20px 12px;
+  }
+
+  .checkout-test-mode {
+    padding: 12px 14px;
+  }
+
+  .checkout-form-area {
+    padding: 20px 16px;
+    border-radius: 12px;
+  }
+
+  .checkout-section h2 {
+    font-size: 15px;
+  }
+
+  .checkout-method {
+    padding: 14px 10px;
+  }
+
+  .checkout-field input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .checkout-summary {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .checkout-summary h2 {
+    font-size: 16px;
+  }
+
+  .checkout-summary__plan {
+    padding: 12px;
+  }
+
+  .checkout-summary__plan-header h3 {
+    font-size: 16px;
+  }
+
+  .checkout-summary__row--total {
+    font-size: 16px;
+  }
+
+  .checkout-note {
+    font-size: 11px;
+  }
+
+  /* 핵심: 카드 입력 2열 → 1열 변경 (가로 스크롤 원인) */
+  .checkout-field-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* gap 감소 */
+  .checkout-content__inner {
+    gap: 20px;
+  }
+
+  /* grid gap 감소 */
+  .checkout-methods {
+    gap: 8px;
+  }
+}
+
 /* ======================= */
 /* 404 Not Found 페이지 스타일 */
 /* ======================= */
