@@ -115,7 +115,7 @@ function MyPage() {
     messageTimerRef.current = setTimeout(() => setSaveMessage(''), 3000)
   }
 
-  // 개별 줄 당첨 확인 - 팡 터지면서 결과 표시
+  // 개별 줄 당첨 확인 - 클릭 → 0.3초 대기 → 폭죽+사운드+결과 동시
   const handleCheckLine = (lineIdx, nums) => {
     // 클릭 사운드 재생
     playSound('click', 0.5)
@@ -135,39 +135,42 @@ function MyPage() {
     else if (matchCount === 4) rank = 4
     else if (matchCount === 3) rank = 5
 
-    // 클릭 즉시 폭죽 효과 (일치 개수에 따라 다르게)
-    if (matchCount >= 3) {
-      // 3개 이상 당첨: 성공 사운드 + 큰 폭죽
-      playSound('success', 0.6)
-      confetti({
-        particleCount: 100 + matchCount * 50,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
-      })
-    } else if (matchCount >= 1) {
-      // 1~2개: 작은 폭죽
-      confetti({
-        particleCount: 30 + matchCount * 20,
-        spread: 50,
-        origin: { y: 0.6 },
-        colors: ['#ec4899', '#f9a8d4']
-      })
-    } else {
-      // 0개: 아쉬움 표현 (작은 회색 효과)
-      confetti({
-        particleCount: 20,
-        spread: 30,
-        origin: { y: 0.6 },
-        colors: ['#9ca3af', '#d1d5db'],
-        gravity: 1.5
-      })
-    }
+    // 0.3초 대기 후 폭죽 + 사운드 + 결과 동시에 (임팩트)
+    setTimeout(() => {
+      if (matchCount >= 3) {
+        // 3개 이상 당첨: 성공 사운드 + 큰 폭죽 동시에
+        playSound('success', 0.6)
+        confetti({
+          particleCount: 100 + matchCount * 50,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
+        })
+      } else if (matchCount >= 1) {
+        // 1~2개: 작은 폭죽
+        confetti({
+          particleCount: 30 + matchCount * 20,
+          spread: 50,
+          origin: { y: 0.6 },
+          colors: ['#ec4899', '#f9a8d4']
+        })
+      } else {
+        // 0개: 아쉬움 표현 (작은 회색 효과)
+        confetti({
+          particleCount: 20,
+          spread: 30,
+          origin: { y: 0.6 },
+          colors: ['#9ca3af', '#d1d5db'],
+          gravity: 1.5
+        })
+      }
 
-    setCheckedLines(prev => ({
-      ...prev,
-      [lineIdx]: { matchCount, matchedNums, matchedBonus, rank }
-    }))
+      // 폭죽과 동시에 결과 표시
+      setCheckedLines(prev => ({
+        ...prev,
+        [lineIdx]: { matchCount, matchedNums, matchedBonus, rank }
+      }))
+    }, 300)
   }
 
   // 전체 당첨번호 확인하기 - 드럼롤 후 결과 표시
@@ -266,7 +269,7 @@ function MyPage() {
       }
   }
 
-  // 이전 회차 개별 줄 당첨 확인 - 팡 터지면서 결과 표시
+  // 이전 회차 개별 줄 당첨 확인 - 클릭 → 0.3초 대기 → 폭죽+사운드+결과 동시
   const handleCheckPrevLine = (lineIdx, nums) => {
     if (!prevDraw) return
 
@@ -288,37 +291,40 @@ function MyPage() {
     else if (matchCount === 4) rank = 4
     else if (matchCount === 3) rank = 5
 
-    // 클릭 즉시 폭죽 효과
-    if (matchCount >= 3) {
-      // 3개 이상 당첨: 성공 사운드 + 큰 폭죽
-      playSound('success', 0.6)
-      confetti({
-        particleCount: 100 + matchCount * 50,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
-      })
-    } else if (matchCount >= 1) {
-      confetti({
-        particleCount: 30 + matchCount * 20,
-        spread: 50,
-        origin: { y: 0.6 },
-        colors: ['#ec4899', '#f9a8d4']
-      })
-    } else {
-      confetti({
-        particleCount: 20,
-        spread: 30,
-        origin: { y: 0.6 },
-        colors: ['#9ca3af', '#d1d5db'],
-        gravity: 1.5
-      })
-    }
+    // 0.3초 대기 후 폭죽 + 사운드 + 결과 동시에 (임팩트)
+    setTimeout(() => {
+      if (matchCount >= 3) {
+        // 3개 이상 당첨: 성공 사운드 + 큰 폭죽 동시에
+        playSound('success', 0.6)
+        confetti({
+          particleCount: 100 + matchCount * 50,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#ec4899', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
+        })
+      } else if (matchCount >= 1) {
+        confetti({
+          particleCount: 30 + matchCount * 20,
+          spread: 50,
+          origin: { y: 0.6 },
+          colors: ['#ec4899', '#f9a8d4']
+        })
+      } else {
+        confetti({
+          particleCount: 20,
+          spread: 30,
+          origin: { y: 0.6 },
+          colors: ['#9ca3af', '#d1d5db'],
+          gravity: 1.5
+        })
+      }
 
-    setPrevCheckedLines(prev => ({
-      ...prev,
-      [lineIdx]: { matchCount, matchedNums, matchedBonus, rank }
-    }))
+      // 폭죽과 동시에 결과 표시
+      setPrevCheckedLines(prev => ({
+        ...prev,
+        [lineIdx]: { matchCount, matchedNums, matchedBonus, rank }
+      }))
+    }, 300)
   }
 
   // 이전 회차 당첨번호 확인하기 - 드럼롤 후 결과 표시
