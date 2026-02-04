@@ -70,7 +70,7 @@ function MLTab({
         </div>
       )}
 
-      {mlLatest && (
+      {mlLatest && !mlLatest.message && (
         <div className="admin__section">
           <h3>최신 ML 상태</h3>
           <div className="admin__stats-grid">
@@ -91,6 +91,16 @@ function MLTab({
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {mlLatest && mlLatest.message && (
+        <div className="admin__section">
+          <h3>최신 ML 상태</h3>
+          <p style={{ color: '#666' }}>{mlLatest.message}</p>
+          <p style={{ fontSize: '14px', marginTop: '8px' }}>
+            "ML 재학습" 또는 "전체 업데이트 트리거" 버튼을 눌러 첫 학습을 진행하세요.
+          </p>
         </div>
       )}
 
