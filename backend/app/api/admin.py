@@ -1303,6 +1303,8 @@ def trigger_ml_retrain(
     if not draws:
         raise HTTPException(status_code=400, detail="로또 데이터가 없습니다.")
 
+    print(f"[ML Retrain] 시작: {len(draws)}개 회차 데이터")
+
     draws_dict = [
         {
             "draw_no": d.draw_no,
@@ -1313,25 +1315,36 @@ def trigger_ml_retrain(
         for d in draws
     ]
 
-    trainer = LottoMLTrainer()
-    train_result = trainer.train(draws_dict)
+    try:
+        trainer = LottoMLTrainer()
+        train_result = trainer.train(draws_dict)
+        print(f"[ML Retrain] 학습 완료: {train_result}")
+    except Exception as e:
+        print(f"[ML Retrain] 학습 에러: {e}")
+        raise HTTPException(status_code=500, detail=f"ML 학습 실패: {str(e)}")
 
-    # 학습 로그 저장
-    plan_perf = get_plan_performance_summary(db, recent_draws=10)
-    ml_log = MLTrainingLog(
-        total_draws=len(draws_dict),
-        total_feedback_records=0,
-        train_accuracy=train_result.get("train_accuracy"),
-        test_accuracy=train_result.get("test_accuracy"),
-        weight_logic1=train_result.get("ai_weights", {}).get("logic1"),
-        weight_logic2=train_result.get("ai_weights", {}).get("logic2"),
-        weight_logic3=train_result.get("ai_weights", {}).get("logic3"),
-        weight_logic4=train_result.get("ai_weights", {}).get("logic4"),
-        plan_performance=plan_perf,
-        notes="수동 재학습"
-    )
-    db.add(ml_log)
-    db.commit()
+    try:
+        # 학습 로그 저장
+        plan_perf = get_plan_performance_summary(db, recent_draws=10)
+        ml_log = MLTrainingLog(
+            total_draws=len(draws_dict),
+            total_feedback_records=0,
+            train_accuracy=train_result.get("train_accuracy"),
+            test_accuracy=train_result.get("test_accuracy"),
+            weight_logic1=train_result.get("ai_weights", {}).get("logic1"),
+            weight_logic2=train_result.get("ai_weights", {}).get("logic2"),
+            weight_logic3=train_result.get("ai_weights", {}).get("logic3"),
+            weight_logic4=train_result.get("ai_weights", {}).get("logic4"),
+            plan_performance=plan_perf,
+            notes="수동 재학습"
+        )
+        db.add(ml_log)
+        db.commit()
+        print(f"[ML Retrain] DB 저장 완료: id={ml_log.id}")
+    except Exception as e:
+        print(f"[ML Retrain] DB 저장 에러: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"학습 로그 저장 실패: {str(e)}")
 
     return {
         "ok": True,
