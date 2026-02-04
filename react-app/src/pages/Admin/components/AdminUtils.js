@@ -4,7 +4,12 @@
 
 export function formatDate(value) {
   if (!value) return '-'
-  const date = new Date(value)
+  // 서버에서 timezone 정보 없이 UTC 시간이 오므로, 'Z'를 붙여서 UTC로 인식시킴
+  let dateStr = value
+  if (typeof value === 'string' && !value.endsWith('Z') && !value.includes('+')) {
+    dateStr = value + 'Z'
+  }
+  const date = new Date(dateStr)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
 }
