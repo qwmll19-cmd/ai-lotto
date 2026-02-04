@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 
 logger = logging.getLogger(__name__)
 from pydantic import BaseModel
@@ -1290,40 +1291,35 @@ def trigger_match(
     }
 
 
-@router.post("/ml/retrain")
-def trigger_ml_retrain(
-    db: Session = Depends(get_db),
-    admin: User = Depends(require_admin)
-):
-    """수동 ML 재학습"""
+def _run_ml_retrain_background():
+    """백그라운드에서 ML 재학습 실행"""
     from app.services.lotto.ml_trainer import LottoMLTrainer
     from app.services.lotto.result_matcher import get_plan_performance_summary
+    from app.db.session import SessionLocal
 
-    draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
-    if not draws:
-        raise HTTPException(status_code=400, detail="로또 데이터가 없습니다.")
-
-    print(f"[ML Retrain] 시작: {len(draws)}개 회차 데이터")
-
-    draws_dict = [
-        {
-            "draw_no": d.draw_no,
-            "n1": d.n1, "n2": d.n2, "n3": d.n3,
-            "n4": d.n4, "n5": d.n5, "n6": d.n6,
-            "bonus": d.bonus,
-        }
-        for d in draws
-    ]
-
+    db = SessionLocal()
     try:
+        draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
+        if not draws:
+            print("[ML Retrain BG] 로또 데이터가 없습니다.")
+            return
+
+        print(f"[ML Retrain BG] 시작: {len(draws)}개 회차 데이터")
+
+        draws_dict = [
+            {
+                "draw_no": d.draw_no,
+                "n1": d.n1, "n2": d.n2, "n3": d.n3,
+                "n4": d.n4, "n5": d.n5, "n6": d.n6,
+                "bonus": d.bonus,
+            }
+            for d in draws
+        ]
+
         trainer = LottoMLTrainer()
         train_result = trainer.train(draws_dict)
-        print(f"[ML Retrain] 학습 완료: {train_result}")
-    except Exception as e:
-        print(f"[ML Retrain] 학습 에러: {e}")
-        raise HTTPException(status_code=500, detail=f"ML 학습 실패: {str(e)}")
+        print(f"[ML Retrain BG] 학습 완료: {train_result}")
 
-    try:
         # 학습 로그 저장
         plan_perf = get_plan_performance_summary(db, recent_draws=10)
         ml_log = MLTrainingLog(
@@ -1340,18 +1336,33 @@ def trigger_ml_retrain(
         )
         db.add(ml_log)
         db.commit()
-        print(f"[ML Retrain] DB 저장 완료: id={ml_log.id}")
+        print(f"[ML Retrain BG] DB 저장 완료: id={ml_log.id}")
     except Exception as e:
-        print(f"[ML Retrain] DB 저장 에러: {e}")
+        print(f"[ML Retrain BG] 에러: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"학습 로그 저장 실패: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.post("/ml/retrain")
+def trigger_ml_retrain(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """수동 ML 재학습 (백그라운드 실행)"""
+    draws_count = db.query(LottoDraw).count()
+    if draws_count == 0:
+        raise HTTPException(status_code=400, detail="로또 데이터가 없습니다.")
+
+    # 백그라운드에서 실행
+    background_tasks.add_task(_run_ml_retrain_background)
+
+    print(f"[ML Retrain] 백그라운드 작업 시작 요청: {draws_count}개 회차")
 
     return {
         "ok": True,
-        "message": "ML 재학습 완료",
-        "train_accuracy": train_result.get("train_accuracy"),
-        "test_accuracy": train_result.get("test_accuracy"),
-        "ai_weights": train_result.get("ai_weights")
+        "message": f"ML 재학습이 백그라운드에서 시작됩니다. ({draws_count}개 회차). 잠시 후 새로고침하여 결과를 확인하세요.",
     }
 
 
