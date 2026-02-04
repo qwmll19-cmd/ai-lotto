@@ -324,6 +324,19 @@ def get_plan_performance_summary(db: Session, recent_draws: int = 10) -> Dict:
     results = {}
 
     for plan_type in ["free", "basic", "premium", "vip"]:
+        # 먼저 최근 N회차의 draw_no를 가져옴
+        recent_draw_nos = db.query(PlanPerformanceStats.draw_no).filter(
+            PlanPerformanceStats.plan_type == plan_type
+        ).order_by(
+            PlanPerformanceStats.draw_no.desc()
+        ).limit(recent_draws).all()
+
+        if not recent_draw_nos:
+            continue
+
+        draw_no_list = [r[0] for r in recent_draw_nos]
+
+        # 해당 회차들에 대해 집계
         stats = db.query(
             func.sum(PlanPerformanceStats.total_lines).label("total_lines"),
             func.sum(PlanPerformanceStats.match_3).label("rank5"),
@@ -333,10 +346,9 @@ def get_plan_performance_summary(db: Session, recent_draws: int = 10) -> Dict:
             func.sum(PlanPerformanceStats.match_6).label("rank1"),
             func.avg(PlanPerformanceStats.avg_match_count).label("avg_match")
         ).filter(
-            PlanPerformanceStats.plan_type == plan_type
-        ).order_by(
-            PlanPerformanceStats.draw_no.desc()
-        ).limit(recent_draws).first()
+            PlanPerformanceStats.plan_type == plan_type,
+            PlanPerformanceStats.draw_no.in_(draw_no_list)
+        ).first()
 
         if stats and stats.total_lines:
             results[plan_type] = {
@@ -346,7 +358,7 @@ def get_plan_performance_summary(db: Session, recent_draws: int = 10) -> Dict:
                 "rank3_count": stats.rank3 or 0,
                 "rank4_count": stats.rank4 or 0,
                 "rank5_count": stats.rank5 or 0,
-                "avg_match": round(stats.avg_match or 0, 2)
+                "avg_match": round(float(stats.avg_match or 0), 2)
             }
 
     return results
