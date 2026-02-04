@@ -50,10 +50,10 @@ export const historyRows = [
 ]
 
 export const latestDrawMock = {
-  draw_no: 1207,
-  numbers: [3, 14, 15, 23, 35, 45],
-  bonus: 26,
-  draw_date: '2026-01-18',
+  draw_no: 1209,
+  numbers: [2, 17, 20, 35, 37, 39],
+  bonus: 24,
+  draw_date: '2026-01-31',
 }
 
 export const mypageSummary = [
