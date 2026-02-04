@@ -2,11 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { fetchLatestDraw } from '../api/lottoApi.js'
 import { latestDrawMock } from '../data/mockData.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import LuckyBallBanner from './LuckyBallBanner.jsx'
 
 function HeroSection() {
   const [latest, setLatest] = useState(null)
   const navigate = useNavigate()
+  const { isAuthed } = useAuth()
 
   useEffect(() => {
     let active = true
@@ -86,7 +88,7 @@ function HeroSection() {
         </p>
       </div>
       <div className="hero__card" id="signup-card">
-        <LuckyBallBanner />
+        <LuckyBallBanner isAuthed={isAuthed} />
       </div>
     </section>
   )

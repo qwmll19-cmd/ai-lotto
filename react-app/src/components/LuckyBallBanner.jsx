@@ -4,12 +4,13 @@ import { guestDraw } from '../api/lottoApi.js'
 import LottoBall from './LottoBall.jsx'
 
 /**
- * 비회원용 공 뽑기 배너
+ * 공 뽑기 배너
  * - 회차당 1회 제한 (localStorage)
  * - AI가 선정한 이번 주 TOP 번호 1개 공개
- * - 회원가입 유도
+ * - 비회원: 회원가입 유도
+ * - 회원: 번호 받기 또는 내 조합 페이지로 유도
  */
-function LuckyBallBanner() {
+function LuckyBallBanner({ isAuthed = false }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState('IDLE') // IDLE | DRAWING | REVEAL | DONE
   const [drawnNumber, setDrawnNumber] = useState(null)
@@ -288,17 +289,42 @@ function LuckyBallBanner() {
             </div>
 
             <div className="lucky-ball-banner__cta">
-              <p className="lucky-ball-banner__cta-summary">
-                전체 조합까지 보고 싶다면, 무료 회원으로 가입해 이번 주 2줄을 먼저 받아보세요.
-              </p>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={goToSignup}
-              >
-                무료로 가입하고 오늘 2줄 받기
-              </button>
-              <p className="lucky-ball-banner__disclaimer">가입 첫 회차에만 2줄이 제공되며, 이후에는 매주 1줄씩 무료로 발급됩니다.</p>
+              {isAuthed ? (
+                <>
+                  <p className="lucky-ball-banner__cta-summary">
+                    전체 조합을 확인하고 이번 주 번호를 받아보세요.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => navigate('/recommend')}
+                  >
+                    이번 주 AI 번호 받기
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    style={{ marginTop: '8px' }}
+                    onClick={() => navigate('/mypage')}
+                  >
+                    내 조합 보러 가기
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="lucky-ball-banner__cta-summary">
+                    전체 조합까지 보고 싶다면, 무료 회원으로 가입해 이번 주 2줄을 먼저 받아보세요.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={goToSignup}
+                  >
+                    무료로 가입하고 오늘 2줄 받기
+                  </button>
+                  <p className="lucky-ball-banner__disclaimer">가입 첫 회차에만 2줄이 제공되며, 이후에는 매주 1줄씩 무료로 발급됩니다.</p>
+                </>
+              )}
               {/* 개발용 초기화 버튼 - 배포 시 삭제 */}
               {import.meta.env.DEV && (
                 <button
