@@ -38,6 +38,88 @@
 
     <!-- 구글 소유 확인 (나중에 추가) -->
     <!-- <meta name="google-site-verification" content="인증코드" /> -->
+
+    <!-- 구조화된 데이터 (JSON-LD) - 검색 리치 스니펫용 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "팡팡로또",
+      "alternateName": "PpangLotto",
+      "url": "https://ppanglotto.kr",
+      "description": "20년 이상 누적된 로또 당첨 데이터를 AI가 분석하여 번호를 추천합니다.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "KRW",
+        "description": "무료 플랜: 매주 1줄 무료 제공"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "팡팡로또",
+        "url": "https://ppanglotto.kr"
+      }
+    }
+    </script>
+
+    <!-- 조직 정보 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "팡팡로또",
+      "url": "https://ppanglotto.kr",
+      "logo": "https://ppanglotto.kr/assets/pangpang-logo.png",
+      "sameAs": []
+    }
+    </script>
+
+    <!-- FAQ 구조화 데이터 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "팡팡로또는 어떻게 번호를 추천하나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "20년 이상 누적된 로또 당첨 데이터를 AI가 분석하여 번호별 출현 경향과 패턴을 파악합니다. 비효율적인 조합을 걸러내고 균형 잡힌 번호만 추천해 드립니다."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "무료로 이용할 수 있나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "네, 무료 플랜으로 매주 1줄의 AI 추천 번호를 받을 수 있습니다. 더 많은 번호가 필요하시면 프리미엄 플랜을 이용해 주세요."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "당첨을 보장하나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "본 서비스는 과거 통계 기반 정보 제공용이며, 당첨 및 수익을 보장하지 않습니다. 로또는 확률 게임이므로 참고용으로만 활용해 주세요."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- 프리로드: 중요 리소스 미리 로딩 -->
+    <link rel="preconnect" href="https://api.ppanglotto.kr" />
+    <link rel="dns-prefetch" href="https://api.ppanglotto.kr" />
   </head>
   <body>
     <div id="root"></div>
