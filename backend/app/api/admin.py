@@ -1250,11 +1250,17 @@ def get_latest_ml_status(
     admin: User = Depends(require_admin)
 ):
     """최신 ML 상태"""
-    latest = db.query(MLTrainingLog).order_by(desc(MLTrainingLog.trained_at)).first()
+    # 전체 레코드 수 확인
+    total_count = db.query(MLTrainingLog).count()
+    print(f"[ML Latest] MLTrainingLog 전체 레코드 수: {total_count}")
+
+    latest = db.query(MLTrainingLog).order_by(desc(MLTrainingLog.id)).first()
 
     if not latest:
+        print("[ML Latest] 레코드 없음")
         return {"message": "학습 기록이 없습니다."}
 
+    print(f"[ML Latest] 최신 레코드: id={latest.id}, trained_at={latest.trained_at}, test_accuracy={latest.test_accuracy}, total_draws={latest.total_draws}")
     return MLTrainingLogItem.model_validate(latest)
 
 
