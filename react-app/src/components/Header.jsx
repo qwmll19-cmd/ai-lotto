@@ -6,7 +6,12 @@ import { useNotification } from '../context/NotificationContext.jsx'
 // 시간 표시 헬퍼 함수
 function getTimeAgo(dateString) {
   if (!dateString) return ''
-  const date = new Date(dateString)
+  // 서버에서 timezone 정보 없이 UTC 시간이 오므로, 'Z'를 붙여서 UTC로 인식시킴
+  let str = dateString
+  if (typeof dateString === 'string' && !dateString.endsWith('Z') && !dateString.includes('+')) {
+    str = dateString + 'Z'
+  }
+  const date = new Date(str)
   const now = new Date()
   const diffMs = now - date
   const diffSec = Math.floor(diffMs / 1000)
@@ -18,7 +23,7 @@ function getTimeAgo(dateString) {
   if (diffMin < 60) return `${diffMin}분 전`
   if (diffHour < 24) return `${diffHour}시간 전`
   if (diffDay < 7) return `${diffDay}일 전`
-  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+  return date.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' })
 }
 
 function Header() {

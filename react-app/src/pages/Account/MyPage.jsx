@@ -890,8 +890,18 @@ function MyPage() {
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
     try {
-      const date = new Date(dateStr)
-      return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+      // 서버에서 timezone 정보 없이 UTC 시간이 오므로, 'Z'를 붙여서 UTC로 인식시킴
+      let str = dateStr
+      if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        str = dateStr + 'Z'
+      }
+      const date = new Date(str)
+      return date.toLocaleDateString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
     } catch {
       return '-'
     }

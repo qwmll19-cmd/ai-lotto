@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 
+from app.utils import now_kst
 from app.db.models import LottoStatsCache, LottoDraw
 from app.db.session import SessionLocal
 from app.services.lotto.stats_calculator import LottoStatsCalculator
@@ -51,7 +51,7 @@ def build_cache() -> bool:
         if cache is None:
             cache = LottoStatsCache(
                 id=1,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=now_kst(),
                 total_draws=len(draws_dict),
                 most_common=json.dumps(most, ensure_ascii=False),
                 least_common=json.dumps(least, ensure_ascii=False),
@@ -59,7 +59,7 @@ def build_cache() -> bool:
             )
             db.add(cache)
         else:
-            cache.updated_at = datetime.now(timezone.utc)
+            cache.updated_at = now_kst()
             cache.total_draws = len(draws_dict)
             cache.most_common = json.dumps(most, ensure_ascii=False)
             cache.least_common = json.dumps(least, ensure_ascii=False)
