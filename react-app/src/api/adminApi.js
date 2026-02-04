@@ -172,6 +172,13 @@ export function triggerMLRetrain() {
   })
 }
 
+export function triggerFullUpdate(drawNo = null) {
+  const params = drawNo ? `?draw_no=${drawNo}` : ''
+  return request(`/api/admin/lotto/full-update${params}`, {
+    method: 'POST',
+  })
+}
+
 // 매칭 관리
 export function fetchMatchStatus() {
   return request('/api/admin/match/status')

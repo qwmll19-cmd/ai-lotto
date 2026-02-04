@@ -17,6 +17,7 @@ from app.services.lotto import build_stats_from_draws, format_line, draws_to_dic
 from app.services.lotto.generator import generate_basic_lines, generate_premium_lines, generate_vip_lines
 from app.services.sms import SmsSendRequest, get_sms_client
 from app.config.constants import PLAN_CONFIG
+from app.utils import now_kst
 
 router = APIRouter()
 logger = logging.getLogger("subscription")
@@ -196,7 +197,7 @@ def send_subscription_numbers(
     if subscription.status != "active":
         raise HTTPException(status_code=400, detail="활성화된 구독이 아닙니다.")
 
-    if subscription.expires_at and subscription.expires_at < datetime.utcnow():
+    if subscription.expires_at and subscription.expires_at < now_kst():
         subscription.status = "expired"
         db.commit()
         raise HTTPException(status_code=400, detail="구독이 만료되었습니다.")
@@ -219,7 +220,7 @@ def send_subscription_numbers(
             )
         )
 
-        now = datetime.utcnow()
+        now = now_kst()
 
         # 로그 기록
         recommend_log = LottoRecommendLog(

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
+from app.utils import now_kst
 
 try:
     from pywebpush import webpush, WebPushException
@@ -60,7 +61,7 @@ class NotificationService:
                 existing.p256dh_key = p256dh_key
                 existing.auth_key = auth_key
                 existing.is_active = True
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = now_kst()
                 db.commit()
                 return {"success": True, "message": "구독이 업데이트되었습니다.", "subscription_id": existing.id}
             else:
@@ -104,7 +105,7 @@ class NotificationService:
             return {"success": False, "message": "구독을 찾을 수 없습니다."}
 
         subscription.is_active = False
-        subscription.updated_at = datetime.utcnow()
+        subscription.updated_at = now_kst()
         db.commit()
 
         logger.info(f"Push subscription deactivated for user {user_id}")
@@ -147,7 +148,7 @@ class NotificationService:
                 sub.notify_recommendation = notify_recommendation
             if notify_subscription is not None:
                 sub.notify_subscription = notify_subscription
-            sub.updated_at = datetime.utcnow()
+            sub.updated_at = now_kst()
 
         db.commit()
 
@@ -241,7 +242,7 @@ class NotificationService:
         if log:
             log.status = status
             if status == "sent":
-                log.sent_at = datetime.utcnow()
+                log.sent_at = now_kst()
             if error_message:
                 log.error_message = error_message
             db.commit()

@@ -1,6 +1,5 @@
 """로또 핸들러 (20줄 + 3가지 로직 + AI핵심)"""
 import json
-from datetime import datetime
 try:
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import ContextTypes
@@ -11,6 +10,7 @@ from app.db.session import SessionLocal
 from app.db.models import LottoStatsCache, LottoRecommendLog, LottoDraw
 from app.services.lotto.generator import generate_20_lines
 from app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.utils import now_kst
 
 async def lotto_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """로또 번호 20줄 생성"""
@@ -107,7 +107,7 @@ async def lotto_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             user_id=user_id,
             target_draw_no=next_draw_no,
             lines=json.dumps(all_20_lines),
-            recommend_time=datetime.now(),
+            recommend_time=now_kst(),
             match_results=None
         )
         

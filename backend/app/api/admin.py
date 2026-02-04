@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from fastapi import Header
 from app.api.auth import get_current_user, require_admin
+from app.utils import now_kst
 from app.config import settings
 from app.db.models import (
     User, FreeTrialApplication, Payment, Subscription,
@@ -48,8 +49,8 @@ def get_admin_dashboard(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
-    today = datetime.utcnow().date()
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    today = now_kst().date()
+    week_ago = now_kst() - timedelta(days=7)
 
     total_users = db.query(func.count(User.id)).scalar() or 0
     active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
@@ -74,7 +75,7 @@ def get_admin_dashboard(
 
     active_subscriptions = db.query(func.count(Subscription.id)).filter(
         Subscription.status == "active",
-        Subscription.expires_at > datetime.utcnow()
+        Subscription.expires_at > now_kst()
     ).scalar() or 0
 
     latest_draw = db.query(LottoDraw.draw_no).order_by(desc(LottoDraw.draw_no)).first()
@@ -196,7 +197,7 @@ def update_user(
                 Subscription.status == "active"
             ).first()
 
-            now = datetime.utcnow()
+            now = now_kst()
             expires_at = payload.subscription_expires_at or (now + timedelta(days=30))
 
             if existing_sub:
@@ -231,7 +232,7 @@ def update_user(
             ).all()
             for sub in active_subs:
                 sub.status = "cancelled"
-                sub.cancelled_at = datetime.utcnow()
+                sub.cancelled_at = now_kst()
             user.subscription_expires_at = None
 
     if payload.subscription_expires_at is not None:
@@ -400,14 +401,14 @@ def refund_payment(
         raise HTTPException(status_code=400, detail="완료된 결제만 환불할 수 있습니다.")
 
     payment.status = "refunded"
-    payment.refunded_at = datetime.utcnow()
+    payment.refunded_at = now_kst()
     payment.refund_reason = payload.reason
 
     # 구독 취소
     subscription = db.query(Subscription).filter(Subscription.payment_id == payment_id).first()
     if subscription:
         subscription.status = "cancelled"
-        subscription.cancelled_at = datetime.utcnow()
+        subscription.cancelled_at = now_kst()
 
     # 사용자 구독 상태 변경
     user = db.query(User).filter(User.id == payment.user_id).first()
@@ -522,7 +523,7 @@ def approve_subscription(
     if subscription.status == "active":
         raise HTTPException(status_code=400, detail="이미 활성화된 구독입니다.")
 
-    now = datetime.utcnow()
+    now = now_kst()
     subscription.status = "active"
     subscription.payment_status = "confirmed"
     subscription.approved_by = admin.identifier
@@ -562,7 +563,7 @@ def reject_subscription(
         raise HTTPException(status_code=400, detail="대기 중인 구독만 거부할 수 있습니다.")
 
     subscription.status = "cancelled"
-    subscription.cancelled_at = datetime.utcnow()
+    subscription.cancelled_at = now_kst()
     db.commit()
 
     return {"ok": True, "message": "구독 신청이 거부되었습니다.", "subscription_id": subscription_id}
@@ -587,7 +588,7 @@ def extend_subscription(
     if subscription.expires_at:
         subscription.expires_at = subscription.expires_at + timedelta(days=payload.days)
     else:
-        subscription.expires_at = datetime.utcnow() + timedelta(days=payload.days)
+        subscription.expires_at = now_kst() + timedelta(days=payload.days)
 
     # 연동된 사용자가 있으면 업데이트
     if subscription.user_id:
@@ -616,7 +617,7 @@ def cancel_subscription_admin(
         raise HTTPException(status_code=404, detail="구독 정보를 찾을 수 없습니다.")
 
     subscription.status = "cancelled"
-    subscription.cancelled_at = datetime.utcnow()
+    subscription.cancelled_at = now_kst()
 
     # 연동된 사용자가 있으면 구독 정보 초기화
     if subscription.user_id:
@@ -791,7 +792,7 @@ def rebuild_lotto_cache(
 
     cache = db.query(LottoStatsCache).filter(LottoStatsCache.id == 1).first()
     if cache:
-        cache.updated_at = datetime.utcnow()
+        cache.updated_at = now_kst()
         cache.total_draws = len(draws)
         cache.most_common = json.dumps(most_common)
         cache.least_common = json.dumps(least_common)
@@ -799,7 +800,7 @@ def rebuild_lotto_cache(
     else:
         cache = LottoStatsCache(
             id=1,
-            updated_at=datetime.utcnow(),
+            updated_at=now_kst(),
             total_draws=len(draws),
             most_common=json.dumps(most_common),
             least_common=json.dumps(least_common),
@@ -809,6 +810,176 @@ def rebuild_lotto_cache(
 
     db.commit()
     return {"ok": True, "message": f"캐시가 재생성되었습니다. ({len(draws)}개 회차)"}
+
+
+@router.post("/lotto/full-update")
+def trigger_full_update(
+    draw_no: Optional[int] = None,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    전체 업데이트 트리거 (수동 입력 후 사용)
+    - 당첨 결과 매칭
+    - 푸시 알림 발송
+    - ML 재학습
+    - 통계 캐시 갱신
+
+    Args:
+        draw_no: 특정 회차 지정 (없으면 최신 회차)
+    """
+    from app.services.lotto.stats_calculator import LottoStatsCalculator
+    from app.services.lotto.result_matcher import match_all_pending_logs, get_plan_performance_summary
+    from app.services.lotto.ml_trainer import LottoMLTrainer
+    from app.services.notification_service import NotificationService
+    from app.db.models import MLTrainingLog
+    import json
+
+    results = {
+        "draw_no": None,
+        "match_result": None,
+        "push_result": None,
+        "ml_result": None,
+        "cache_result": None,
+    }
+
+    try:
+        # 대상 회차 결정
+        if draw_no is None:
+            latest = db.query(LottoDraw).order_by(desc(LottoDraw.draw_no)).first()
+            if not latest:
+                raise HTTPException(status_code=400, detail="로또 데이터가 없습니다.")
+            draw_no = latest.draw_no
+
+        results["draw_no"] = draw_no
+        logger.info(f"전체 업데이트 시작: 회차 {draw_no}")
+
+        # 1. 당첨 결과 매칭
+        try:
+            match_result = match_all_pending_logs(db, draw_no)
+            results["match_result"] = {
+                "matched_count": match_result.get("matched_count", 0),
+                "status": "success"
+            }
+            logger.info(f"당첨 매칭 완료: {match_result.get('matched_count', 0)}건")
+        except Exception as e:
+            results["match_result"] = {"status": "failed", "error": str(e)}
+            logger.error(f"당첨 매칭 실패: {e}")
+
+        # 2. 푸시 알림 발송
+        try:
+            push_result = NotificationService.broadcast_new_draw_announcement(
+                db=db,
+                draw_no=draw_no,
+            )
+            results["push_result"] = {
+                "sent": push_result.get("sent", 0),
+                "user_count": push_result.get("user_count", 0),
+                "status": "success"
+            }
+            logger.info(f"푸시 알림 완료: {push_result.get('sent', 0)}건")
+        except Exception as e:
+            results["push_result"] = {"status": "failed", "error": str(e)}
+            logger.error(f"푸시 알림 실패: {e}")
+
+        # 3. ML 재학습
+        try:
+            draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
+            draws_dict = [
+                {
+                    "draw_no": d.draw_no,
+                    "n1": d.n1, "n2": d.n2, "n3": d.n3,
+                    "n4": d.n4, "n5": d.n5, "n6": d.n6,
+                    "bonus": d.bonus,
+                }
+                for d in draws
+            ]
+
+            trainer = LottoMLTrainer()
+            train_result = trainer.train(draws_dict)
+
+            # 학습 로그 저장
+            plan_perf = get_plan_performance_summary(db, recent_draws=10)
+            ml_log = MLTrainingLog(
+                total_draws=len(draws_dict),
+                total_feedback_records=results["match_result"].get("matched_count", 0) if results["match_result"] else 0,
+                train_accuracy=train_result.get("train_accuracy"),
+                test_accuracy=train_result.get("test_accuracy"),
+                weight_logic1=train_result.get("ai_weights", {}).get("logic1"),
+                weight_logic2=train_result.get("ai_weights", {}).get("logic2"),
+                weight_logic3=train_result.get("ai_weights", {}).get("logic3"),
+                weight_logic4=train_result.get("ai_weights", {}).get("logic4"),
+                plan_performance=plan_perf,
+                notes=f"수동 트리거 - 회차 {draw_no}"
+            )
+            db.add(ml_log)
+            db.commit()
+
+            results["ml_result"] = {
+                "test_accuracy": train_result.get("test_accuracy"),
+                "status": "success"
+            }
+            logger.info(f"ML 재학습 완료: 정확도 {train_result.get('test_accuracy', 0):.4f}")
+        except Exception as e:
+            results["ml_result"] = {"status": "failed", "error": str(e)}
+            logger.error(f"ML 재학습 실패: {e}")
+
+        # 4. 통계 캐시 갱신
+        try:
+            draws = db.query(LottoDraw).order_by(LottoDraw.draw_no).all()
+            draws_dict = [
+                {
+                    "draw_no": d.draw_no,
+                    "n1": d.n1, "n2": d.n2, "n3": d.n3,
+                    "n4": d.n4, "n5": d.n5, "n6": d.n6,
+                    "bonus": d.bonus,
+                }
+                for d in draws
+            ]
+
+            most_common, least_common = LottoStatsCalculator.calculate_most_least(draws_dict)
+            ai_scores = {
+                "logic1": LottoStatsCalculator.calculate_ai_scores_logic1(draws_dict),
+                "logic2": LottoStatsCalculator.calculate_ai_scores_logic2(draws_dict),
+                "logic3": LottoStatsCalculator.calculate_ai_scores_logic3(draws_dict),
+            }
+
+            cache = db.query(LottoStatsCache).filter(LottoStatsCache.id == 1).first()
+            if cache:
+                cache.updated_at = now_kst()
+                cache.total_draws = len(draws)
+                cache.most_common = json.dumps(most_common)
+                cache.least_common = json.dumps(least_common)
+                cache.ai_scores = json.dumps(ai_scores)
+            else:
+                cache = LottoStatsCache(
+                    id=1,
+                    updated_at=now_kst(),
+                    total_draws=len(draws),
+                    most_common=json.dumps(most_common),
+                    least_common=json.dumps(least_common),
+                    ai_scores=json.dumps(ai_scores),
+                )
+                db.add(cache)
+            db.commit()
+
+            results["cache_result"] = {"total_draws": len(draws), "status": "success"}
+            logger.info(f"통계 캐시 갱신 완료: {len(draws)}개 회차")
+        except Exception as e:
+            results["cache_result"] = {"status": "failed", "error": str(e)}
+            logger.error(f"통계 캐시 갱신 실패: {e}")
+
+        return {
+            "ok": True,
+            "message": f"{draw_no}회차 전체 업데이트 완료",
+            "results": results
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"전체 업데이트 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"전체 업데이트 실패: {str(e)}")
 
 
 # ============================================
@@ -883,7 +1054,7 @@ def update_recommend_log(
     if payload.is_matched is not None:
         log.is_matched = payload.is_matched
         if payload.is_matched:
-            log.matched_at = datetime.utcnow()
+            log.matched_at = now_kst()
 
     db.commit()
     return {"ok": True, "message": "추천 로그가 수정되었습니다."}
@@ -1692,13 +1863,19 @@ def cron_fetch_lotto(
     """
     Cron Job용 로또 데이터 자동 수집 엔드포인트
 
-    매주 토요일 8:50 PM KST에 자동 실행됨
+    매주 토요일 20:45 KST에 자동 실행됨
     - 동행복권 API에서 최신 회차 데이터 수집
     - 통계 캐시 자동 갱신
     - 미매칭 추천 로그 자동 매칭
+
+    실패 시 5분 간격으로 최대 7번 재시도 (20:45 ~ 21:15)
     """
+    import time
     from app.collectors.lotto.api_client import LottoAPIClient
     from app.collectors.lotto.db_manager import LottoDBManager
+
+    MAX_RETRIES = 7  # 최대 7번 재시도 (20:45, 20:50, 20:55, 21:00, 21:05, 21:10, 21:15)
+    RETRY_INTERVAL = 300  # 5분 (초)
 
     try:
         api = LottoAPIClient(delay=0.5)
@@ -1707,17 +1884,42 @@ def cron_fetch_lotto(
         # DB의 최신 회차 확인
         latest_db = db_manager.get_max_draw_no() or 0
 
-        # API에서 최신 회차 확인
-        latest_api = api.get_latest_draw_no()
+        # 오늘이 토요일인지 확인하고, 예상 회차 계산
+        today = now_kst()
+        if today.weekday() == 5:  # 토요일
+            # 토요일이면 새 회차가 나와야 함
+            expected_draw = latest_db + 1
+        else:
+            expected_draw = latest_db
 
-        if latest_api <= latest_db:
-            logger.info(f"Cron fetch: 이미 최신 데이터 보유 (DB: {latest_db}회차, API: {latest_api}회차)")
+        # 재시도 로직
+        latest_api = None
+        retry_count = 0
+
+        while retry_count < MAX_RETRIES:
+            latest_api = api.get_latest_draw_no()
+
+            # 새 회차를 가져왔거나, 토요일이 아니면 루프 탈출
+            if latest_api > latest_db or today.weekday() != 5:
+                break
+
+            # 토요일인데 새 회차가 없으면 재시도
+            retry_count += 1
+            if retry_count < MAX_RETRIES:
+                logger.info(f"Cron fetch: 새 회차 미발표, {RETRY_INTERVAL // 60}분 후 재시도 ({retry_count}/{MAX_RETRIES})")
+                time.sleep(RETRY_INTERVAL)
+            else:
+                logger.warning(f"Cron fetch: 최대 재시도 횟수 초과 ({MAX_RETRIES}회)")
+
+        if latest_api is None or latest_api <= latest_db:
+            logger.info(f"Cron fetch: 이미 최신 데이터 보유 (DB: {latest_db}회차, API: {latest_api}회차), 재시도: {retry_count}회")
             return {
                 "ok": True,
-                "message": "이미 최신 데이터입니다.",
+                "message": "이미 최신 데이터입니다." if retry_count == 0 else f"새 회차 미발표 (재시도 {retry_count}회 후 종료)",
                 "latest_db": latest_db,
                 "latest_api": latest_api,
-                "saved_count": 0
+                "saved_count": 0,
+                "retry_count": retry_count
             }
 
         # 새 회차 데이터 수집
@@ -1794,7 +1996,8 @@ def cron_fetch_lotto(
             "saved_count": saved_count,
             "new_draws": new_draws,
             "ml_trained": ml_result is not None,
-            "ml_accuracy": ml_result.get("test_accuracy") if ml_result else None
+            "ml_accuracy": ml_result.get("test_accuracy") if ml_result else None,
+            "retry_count": retry_count
         }
 
     except Exception as e:
@@ -1830,7 +2033,7 @@ def _rebuild_cache_internal(db: Session):
 
     cache = db.query(LottoStatsCache).filter(LottoStatsCache.id == 1).first()
     if cache:
-        cache.updated_at = datetime.utcnow()
+        cache.updated_at = now_kst()
         cache.total_draws = len(draws)
         cache.most_common = json.dumps(most_common)
         cache.least_common = json.dumps(least_common)
@@ -1838,7 +2041,7 @@ def _rebuild_cache_internal(db: Session):
     else:
         cache = LottoStatsCache(
             id=1,
-            updated_at=datetime.utcnow(),
+            updated_at=now_kst(),
             total_draws=len(draws),
             most_common=json.dumps(most_common),
             least_common=json.dumps(least_common),
@@ -2015,7 +2218,7 @@ def get_push_stats(
     ).scalar() or 0
 
     # 최근 알림 통계
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = now_kst() - timedelta(days=7)
     recent_sent = db.query(func.count(NotificationLog.id)).filter(
         NotificationLog.sent_at >= week_ago,
         NotificationLog.status == "sent"
@@ -2145,7 +2348,7 @@ def send_push_notification(
                 body=payload.body,
                 data=notification.get("data"),
                 status="sent" if success else "failed",
-                sent_at=datetime.utcnow() if success else None
+                sent_at=now_kst() if success else None
             )
             db.add(log)
 

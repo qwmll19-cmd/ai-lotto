@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.models import FreeTrialApplication, LottoDraw, LottoRecommendLog
 from app.db.session import get_db
 from app.services.lotto import build_stats_from_draws, format_line, validate_phone, draws_to_dict_list, get_next_draw_no
+from app.utils import now_kst
 from app.services.lotto.generator import generate_mixed_line
 from app.services.sms import SmsSendRequest, get_sms_client
 from app.rate_limit import limiter
@@ -125,7 +126,7 @@ def apply_free_trial(request: Request, payload: ApplyFreeTrialRequest, db: Sessi
             account_user_id=None,
             target_draw_no=get_next_draw_no(db),
             lines=json.dumps(formatted_lines, ensure_ascii=False),
-            recommend_time=datetime.utcnow(),
+            recommend_time=now_kst(),
             match_results=None,
             plan_type="free",
             is_matched=False,

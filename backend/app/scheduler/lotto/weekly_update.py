@@ -1,8 +1,10 @@
-"""매주 토요일 21:00 자동 업데이트"""
+"""매주 토요일 20:45 자동 업데이트"""
 import json
 from datetime import datetime, timedelta
 
 from sqlalchemy import text
+
+from app.utils import now_kst
 
 from app.collectors.lotto.api_client import LottoAPIClient
 from app.collectors.lotto.db_manager import LottoDBManager
@@ -32,7 +34,7 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
     """
     try:
         print(f"\n{'='*60}")
-        print(f"[{datetime.now()}] 주간 로또 업데이트 시작")
+        print(f"[{now_kst()}] 주간 로또 업데이트 시작")
         print(f"{'='*60}")
 
         with session_factory() as db:
@@ -167,7 +169,7 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
             db.execute(
                 query,
                 {
-                    "updated_at": datetime.now(),
+                    "updated_at": now_kst(),
                     "total_draws": len(draws_dict),
                     "most_common": json.dumps(most),
                     "least_common": json.dumps(least),
@@ -201,14 +203,14 @@ async def weekly_lotto_update(session_factory=SessionLocal, bot=None, admin_chat
                 f"🎯 매칭 완료: {match_result.get('matched_count', 0) if match_result else 0}건\n"
                 f"🤖 ML 정확도: {train_result.get('test_accuracy', 0):.4f}"
                 f"{push_msg}\n"
-                f"🕐 갱신 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                f"🕐 갱신 시간: {now_kst().strftime('%Y-%m-%d %H:%M:%S')}"
                 f"{perf_msg}"
             )
 
             if bot and admin_chat_id:
                 await bot.send_message(chat_id=admin_chat_id, text=msg)
 
-        print(f"[{datetime.now()}] 주간 로또 업데이트 완료")
+        print(f"[{now_kst()}] 주간 로또 업데이트 완료")
         print(f"{'='*60}\n")
 
     except Exception as e:

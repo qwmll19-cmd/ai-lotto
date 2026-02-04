@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.models import FreeTrialApplication, LottoRecommendLog, OpsRequestLog
 from app.db.session import get_db
 from app.api.auth import get_current_user, require_admin
+from app.utils import now_kst
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def ops_summary(
         if total_apps
         else None
     )
-    now = datetime.utcnow()
+    now = now_kst()
     last_24h = now - timedelta(hours=24)
     last_7d = now - timedelta(days=7)
     apps_24h = (
@@ -98,7 +99,7 @@ def ops_metrics(
     db: Session = Depends(get_db),
     user=Depends(require_admin),
 ) -> dict:
-    now = datetime.utcnow()
+    now = now_kst()
     since = now - timedelta(hours=24)
 
     logs = (

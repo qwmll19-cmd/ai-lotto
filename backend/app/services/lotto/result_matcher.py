@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import LottoDraw, LottoRecommendLog, PlanPerformanceStats
 from app.services.lotto.stats_calculator import LottoStatsCalculator
+from app.utils import now_kst
 
 logger = logging.getLogger("result_matcher")
 
@@ -116,13 +117,13 @@ def match_recommend_log(
             "total_match_count": total_match,
             "avg_match_count": total_match / len(parsed_lines) if parsed_lines else 0,
             "best_rank": best_rank,
-            "matched_at": datetime.utcnow().isoformat()
+            "matched_at": now_kst().isoformat()
         }
 
         # DB 업데이트
         recommend_log.match_results = json.dumps(match_data, ensure_ascii=False)
         recommend_log.is_matched = True
-        recommend_log.matched_at = datetime.utcnow()
+        recommend_log.matched_at = now_kst()
 
         return match_data
 

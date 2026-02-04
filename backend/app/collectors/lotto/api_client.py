@@ -9,10 +9,12 @@ import logging
 from typing import Optional, Dict, Tuple
 from datetime import datetime, timedelta
 from app.config import settings
+from app.utils import now_kst
 
 BASE_URL = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={}"
 LATEST_URL = "https://dhlottery.co.kr/gameResult.do?method=byWin"
 RESULT_URL = "https://www.dhlottery.co.kr/gameResult.do?method=byWin&drwNo={}"
+MOBILE_API_URL = "https://m.dhlottery.co.kr/lt645/selectPstLt645Info.do"
 
 logger = logging.getLogger(__name__)
 
@@ -42,22 +44,24 @@ class LottoAPIClient:
         """
         # 로또는 2002년 12월 7일 1회 시작, 매주 토요일
         start_date = datetime(2002, 12, 7)
-        now = datetime.now()
-        weeks_passed = (now - start_date).days // 7
+        now = now_kst()
+        weeks_passed = (now.replace(tzinfo=None) - start_date).days // 7
         estimated = weeks_passed + 1  # 추정 회차
 
         logger.info(f"로또 회차 추정: {estimated}회 (시작일로부터 {weeks_passed}주 경과)")
 
-        # JSON API 시도 (역순 탐색)
-        for draw_no in range(estimated, max(estimated - 20, 1), -1):
+        # 방법 1: 모바일 API 먼저 시도 (가장 안정적)
+        mobile_info = self._fetch_draw_mobile()
+        if mobile_info:
+            logger.info(f"✅ 최신 회차: {mobile_info['draw_no']}회 (모바일 API)")
+            return mobile_info["draw_no"]
+
+        # 방법 2: JSON API 시도 (역순 탐색)
+        for draw_no in range(estimated, max(estimated - 5, 1), -1):
             data, blocked = self._get_json(BASE_URL.format(draw_no))
             if blocked:
-                logger.warning("로또 API 접근 차단 감지 (redirect). HTML 파싱으로 재시도")
-                html_draw = self._fetch_draw_html(draw_no)
-                if html_draw:
-                    logger.info(f"✅ 최신 회차: {draw_no}회 (HTML 파싱)")
-                    return draw_no
-                continue
+                logger.warning("로또 API 접근 차단 감지 (redirect)")
+                break  # 차단되면 더 이상 시도 안 함
             if not data:
                 continue
             if data.get("returnValue") == "success":
@@ -65,7 +69,7 @@ class LottoAPIClient:
                 return draw_no
             time.sleep(0.2)
 
-        logger.error("최신 회차 확인 실패 (JSON API)")
+        logger.warning("최신 회차 확인 실패 (모바일/JSON). 네이버 뉴스 시도")
         return self._get_latest_draw_no_from_naver()
 
     def _fetch_draw_html(self, draw_no: int) -> Optional[Dict]:
@@ -137,6 +141,75 @@ class LottoAPIClient:
 
         except Exception as e:
             logger.debug(f"HTML 파싱 실패 (회차 {draw_no}): {e}")
+            return None
+
+    def _fetch_draw_mobile(self, draw_no: int = None) -> Optional[Dict]:
+        """
+        동행복권 모바일 API에서 회차 정보 가져오기
+
+        Args:
+            draw_no: 회차 번호 (None이면 최신 회차)
+
+        Returns:
+            회차 정보 dict 또는 None
+
+        Note:
+            이 API는 최신 회차만 반환함. draw_no가 최신이 아니면 None 반환.
+        """
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://m.dhlottery.co.kr/lt645/result',
+                'Accept': 'application/json',
+            }
+
+            res = requests.get(MOBILE_API_URL, headers=headers, timeout=10)
+            res.raise_for_status()
+
+            data = res.json()
+            if not data or not data.get("data") or not data["data"].get("list"):
+                logger.debug("모바일 API 응답 데이터 없음")
+                return None
+
+            item = data["data"]["list"][0]
+            api_draw_no = item.get("ltEpsd")
+
+            # 요청한 회차와 다르면 None (최신 회차만 제공)
+            if draw_no is not None and api_draw_no != draw_no:
+                logger.debug(f"모바일 API 회차 불일치: 요청={draw_no}, 응답={api_draw_no}")
+                return None
+
+            # 날짜 변환 (YYYYMMDD -> YYYY-MM-DD)
+            raw_date = str(item.get("ltRflYmd", ""))
+            if len(raw_date) == 8:
+                draw_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
+            else:
+                draw_date = now_kst().date().isoformat()
+
+            result = {
+                "draw_no": api_draw_no,
+                "date": draw_date,
+                "n1": item.get("tm1WnNo"),
+                "n2": item.get("tm2WnNo"),
+                "n3": item.get("tm3WnNo"),
+                "n4": item.get("tm4WnNo"),
+                "n5": item.get("tm5WnNo"),
+                "n6": item.get("tm6WnNo"),
+                "bonus": item.get("bnsWnNo"),
+            }
+
+            # 데이터 검증
+            numbers = [result["n1"], result["n2"], result["n3"], result["n4"], result["n5"], result["n6"], result["bonus"]]
+            if not all(isinstance(n, int) and 1 <= n <= 45 for n in numbers):
+                logger.warning(f"모바일 API 번호 검증 실패: {numbers}")
+                return None
+
+            logger.info(f"✅ 회차 {api_draw_no} 조회 성공 (모바일 API)")
+            return result
+
+        except Exception as e:
+            logger.debug(f"모바일 API 실패: {e}")
             return None
 
     def _extract_json_from_text(self, text: str) -> Optional[Dict]:
@@ -287,7 +360,7 @@ class LottoAPIClient:
                     draw_date = None
                 return {
                     "draw_no": draw_no,
-                    "date": draw_date or datetime.now().date().isoformat(),
+                    "date": draw_date or now_kst().date().isoformat(),
                     "n1": nums[0],
                     "n2": nums[1],
                     "n3": nums[2],
@@ -315,10 +388,16 @@ class LottoAPIClient:
                 url = BASE_URL.format(draw_no)
                 data, blocked = self._get_json(url)
                 if blocked:
-                    logger.error("로또 API 접근 차단 감지 (redirect). HTML 파싱 시도")
+                    logger.warning("로또 API 접근 차단 감지 (redirect). 대체 방법 시도")
+                    # HTML 파싱 시도
                     draw_info = self._fetch_draw_html(draw_no)
                     if draw_info:
                         return draw_info
+                    # 모바일 API 시도
+                    mobile_info = self._fetch_draw_mobile(draw_no)
+                    if mobile_info:
+                        return mobile_info
+                    # 네이버 뉴스 시도
                     return self._get_draw_from_naver(draw_no)
                 if data and data.get("returnValue") == "success":
                     logger.info(f"✅ 회차 {draw_no} 조회 성공 (JSON API)")
@@ -346,7 +425,12 @@ class LottoAPIClient:
                 logger.info(f"✅ 회차 {draw_no} 조회 성공 (HTML 파싱)")
                 return draw_info
 
-            # 방법 3: 네이버 뉴스 검색 대체
+            # 방법 3: 모바일 API 시도 (최신 회차만 가능)
+            mobile_info = self._fetch_draw_mobile(draw_no)
+            if mobile_info:
+                return mobile_info
+
+            # 방법 4: 네이버 뉴스 검색 대체 (최후 수단)
             naver_info = self._get_draw_from_naver(draw_no)
             if naver_info:
                 logger.info(f"✅ 회차 {draw_no} 조회 성공 (Naver 대체)")

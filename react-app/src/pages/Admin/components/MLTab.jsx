@@ -1,17 +1,74 @@
 import { formatDate } from './AdminUtils.js'
 
-function MLTab({ mlAnalysis, mlLatest, mlLogs, retraining, handleRetrain }) {
+function MLTab({
+  mlAnalysis,
+  mlLatest,
+  mlLogs,
+  retraining,
+  handleRetrain,
+  fullUpdating,
+  handleFullUpdate,
+  fullUpdateResult,
+}) {
   return (
     <div className="admin__ml">
       <div className="admin__toolbar">
         <button
           className="admin__btn admin__btn--primary"
           onClick={handleRetrain}
-          disabled={retraining}
+          disabled={retraining || fullUpdating}
         >
           {retraining ? '재학습 중...' : 'ML 재학습'}
         </button>
+        <button
+          className="admin__btn admin__btn--warning"
+          onClick={handleFullUpdate}
+          disabled={retraining || fullUpdating}
+          style={{ marginLeft: '8px' }}
+        >
+          {fullUpdating ? '업데이트 중...' : '전체 업데이트 트리거'}
+        </button>
       </div>
+
+      {fullUpdateResult && (
+        <div className="admin__section" style={{ marginTop: '16px' }}>
+          <h3>전체 업데이트 결과 (회차: {fullUpdateResult.draw_no})</h3>
+          <div className="admin__stats-grid">
+            <div className="admin__stat-card">
+              <h4>당첨 매칭</h4>
+              <p className="admin__stat-value" style={{ color: fullUpdateResult.match_result?.status === 'success' ? 'green' : 'red' }}>
+                {fullUpdateResult.match_result?.status === 'success'
+                  ? `${fullUpdateResult.match_result.matched_count}건 매칭`
+                  : fullUpdateResult.match_result?.error || '실패'}
+              </p>
+            </div>
+            <div className="admin__stat-card">
+              <h4>푸시 알림</h4>
+              <p className="admin__stat-value" style={{ color: fullUpdateResult.push_result?.status === 'success' ? 'green' : 'red' }}>
+                {fullUpdateResult.push_result?.status === 'success'
+                  ? `${fullUpdateResult.push_result.sent}건 발송`
+                  : fullUpdateResult.push_result?.error || '실패'}
+              </p>
+            </div>
+            <div className="admin__stat-card">
+              <h4>ML 재학습</h4>
+              <p className="admin__stat-value" style={{ color: fullUpdateResult.ml_result?.status === 'success' ? 'green' : 'red' }}>
+                {fullUpdateResult.ml_result?.status === 'success'
+                  ? `정확도: ${(fullUpdateResult.ml_result.accuracy * 100).toFixed(2)}%`
+                  : fullUpdateResult.ml_result?.error || '실패'}
+              </p>
+            </div>
+            <div className="admin__stat-card">
+              <h4>캐시 갱신</h4>
+              <p className="admin__stat-value" style={{ color: fullUpdateResult.cache_result?.status === 'success' ? 'green' : 'red' }}>
+                {fullUpdateResult.cache_result?.status === 'success'
+                  ? '완료'
+                  : fullUpdateResult.cache_result?.error || '실패'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {mlLatest && (
         <div className="admin__section">

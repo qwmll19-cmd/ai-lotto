@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.models import LottoRecommendLog, LottoDraw
+from app.utils import now_kst
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +267,7 @@ class PoolService:
             account_user_id=user_id,
             target_draw_no=target_draw_no,
             lines=self.to_json([]),
-            recommend_time=datetime.utcnow(),
+            recommend_time=now_kst(),
             plan_type=plan_type,
             pool_lines=pool,
             revealed_indices=[],

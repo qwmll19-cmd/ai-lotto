@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.models import User, SocialAccount, OAuthState, OAuthPendingSignup
+from app.utils import now_kst
 from app.db.session import SessionLocal
 
 logger = logging.getLogger("oauth")
@@ -41,12 +42,12 @@ class OAuthError(Exception):
 def generate_oauth_state() -> str:
     """CSRF 방지용 state 생성 (DB 저장)"""
     state = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = now_kst() + timedelta(minutes=5)
 
     db = SessionLocal()
     try:
         # 만료된 state 정리
-        db.query(OAuthState).filter(OAuthState.expires_at < datetime.utcnow()).delete()
+        db.query(OAuthState).filter(OAuthState.expires_at < now_kst()).delete()
 
         # 새 state 저장
         oauth_state = OAuthState(state=state, expires_at=expires_at)
@@ -71,7 +72,7 @@ def verify_oauth_state(state: str) -> bool:
     try:
         oauth_state = db.query(OAuthState).filter(
             OAuthState.state == state,
-            OAuthState.expires_at > datetime.utcnow()
+            OAuthState.expires_at > now_kst()
         ).first()
 
         if not oauth_state:
@@ -408,7 +409,7 @@ def social_login(
             raise OAuthError("계정 연동 오류가 발생했습니다. 다시 시도해주세요.", "data_error")
 
         # 마지막 로그인 시간 업데이트
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = now_kst()
 
         # 프로필 정보 업데이트 (비어있는 필드만)
         if profile.get("name") and not user.name:
@@ -453,7 +454,7 @@ def create_pending_signup(
     ).delete(synchronize_session=False)
 
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = now_kst() + timedelta(minutes=5)
 
     pending = OAuthPendingSignup(
         token=token,
@@ -495,7 +496,7 @@ def complete_pending_signup(db: Session, pending_token: str) -> User:
     if not pending:
         raise OAuthError("유효하지 않거나 만료된 토큰입니다.", "invalid_token")
 
-    if pending.expires_at < datetime.utcnow():
+    if pending.expires_at < now_kst():
         db.delete(pending)
         db.commit()
         raise OAuthError("토큰이 만료되었습니다. 다시 로그인해주세요.", "token_expired")
@@ -520,7 +521,7 @@ def complete_pending_signup(db: Session, pending_token: str) -> User:
         name=pending.name,
         phone_number=pending.phone_number,
         profile_image_url=pending.profile_image_url,
-        last_login_at=datetime.utcnow(),
+        last_login_at=now_kst(),
         is_active=True,
         subscription_type="free",
     )
@@ -548,7 +549,7 @@ def complete_pending_signup(db: Session, pending_token: str) -> User:
 def cleanup_expired_pending_signups(db: Session):
     """만료된 pending signup 정리"""
     try:
-        now = datetime.utcnow()
+        now = now_kst()
         db.query(OAuthPendingSignup).filter(
             OAuthPendingSignup.expires_at < now
         ).delete(synchronize_session=False)

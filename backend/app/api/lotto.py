@@ -12,6 +12,7 @@ from app.api.auth import get_current_user
 from app.db.models import LottoDraw, LottoRecommendLog, LottoStatsCache
 from app.db.session import get_db
 from app.services.lotto import build_stats_from_draws, draws_to_dict_list, LottoStatsCalculator, PoolService
+from app.utils import now_kst
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +227,7 @@ def history(
     # 플랜별 히스토리 조회 기간 제한
     user_plan = (user.subscription_type or "free").lower()
     retention_days = HISTORY_RETENTION_DAYS.get(user_plan, 14)
-    cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff_date = now_kst() - timedelta(days=retention_days)
     cutoff_date_str = cutoff_date.strftime("%Y-%m-%d")
 
     # 기간 내 추첨 데이터만 조회
@@ -345,7 +346,7 @@ def history_public(
 
 @router.get("/mypage/summary")
 def mypage_summary(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    now = datetime.utcnow()
+    now = now_kst()
     recent_cutoff = now - timedelta(days=28)
 
     total_recent = (
@@ -496,7 +497,7 @@ def mark_result_checked(
         raise HTTPException(status_code=404, detail="해당 회차의 추천 기록이 없습니다.")
 
     # 모든 로그에 user_checked_at 기록
-    now = datetime.utcnow()
+    now = now_kst()
     for log in logs:
         log.user_checked_at = now
 
@@ -532,7 +533,7 @@ def latest_draw(db: Session = Depends(get_db)):
 
 def _get_week_start():
     """현재 주의 시작일 (월요일 00:00) 반환"""
-    now = datetime.utcnow()
+    now = now_kst()
     days_since_monday = now.weekday()
     week_start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
     return week_start
@@ -616,7 +617,7 @@ def request_free_recommendation(
     # 첫 주 보너스: 가입 후 7일 이내면 +1줄 추가
     is_first_week = False
     if user.created_at:
-        days_since_signup = (datetime.utcnow() - user.created_at).days
+        days_since_signup = (now_kst() - user.created_at).days
         if days_since_signup <= 7:
             is_first_week = True
             weekly_limit += 1
@@ -666,7 +667,7 @@ def request_free_recommendation(
         existing_lines = _parse_json(existing_log.lines, "free_weekly existing_log.lines") or []
         existing_lines.append(line)
         existing_log.lines = json.dumps(existing_lines)
-        existing_log.recommend_time = datetime.utcnow()
+        existing_log.recommend_time = now_kst()
     else:
         # 새 레코드 생성
         log = LottoRecommendLog(
@@ -674,7 +675,7 @@ def request_free_recommendation(
             account_user_id=user.id,
             target_draw_no=target_draw_no,
             lines=json.dumps([line]),
-            recommend_time=datetime.utcnow(),
+            recommend_time=now_kst(),
             plan_type="free_weekly",
             is_matched=False,
         )
@@ -704,7 +705,7 @@ def get_free_recommendation_status(
     # 첫 주 보너스 체크
     is_first_week = False
     if user.created_at:
-        days_since_signup = (datetime.utcnow() - user.created_at).days
+        days_since_signup = (now_kst() - user.created_at).days
         if days_since_signup <= 7:
             is_first_week = True
             weekly_limit += 1
@@ -876,7 +877,7 @@ def recommend_numbers(
             account_user_id=user.id,
             target_draw_no=target_draw_no,
             lines=json.dumps(recommended),
-            recommend_time=datetime.utcnow(),
+            recommend_time=now_kst(),
             plan_type=plan_type,
             is_matched=False,
         )

@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, JSON, CheckConstraint, UniqueConstraint, ForeignKey
 
 from app.db.session import Base
+from app.utils import now_kst
 
 
 class NewsDaily(Base):
@@ -32,7 +33,7 @@ class NewsDaily(Base):
     # 핫 점수
     hot_score = Column(Integer, default=0, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
     published_at = Column(DateTime, nullable=True)
 
 
@@ -90,7 +91,7 @@ class MarketDaily(Base):
     summary_comment = Column(Text, nullable=True)
 
     # 데이터 수집 타임스탬프
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class Subscriber(Base):
@@ -99,7 +100,7 @@ class Subscriber(Base):
     chat_id = Column(String(50), primary_key=True, index=True)
     subscribed_alert = Column(Boolean, default=True)
     custom_time = Column(String(10), default="09:10")  # 알림 시간 (HH:MM 형식)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class User(Base):
@@ -133,8 +134,8 @@ class User(Base):
     first_week_bonus_used = Column(Boolean, default=False)  # 첫 주 보너스 사용 여부
     weekly_free_used_at = Column(DateTime, nullable=True)  # 주간 무료 추천 마지막 사용 시간
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
+    updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
 
 class SocialAccount(Base):
@@ -148,7 +149,7 @@ class SocialAccount(Base):
     access_token = Column(String(1000), nullable=True)  # OAuth access token (필요시)
     refresh_token = Column(String(1000), nullable=True)  # OAuth refresh token (필요시)
     token_expires_at = Column(DateTime, nullable=True)
-    linked_at = Column(DateTime, default=datetime.utcnow)
+    linked_at = Column(DateTime, default=now_kst)
 
     __table_args__ = (
         UniqueConstraint('provider', 'provider_user_id', name='uq_social_provider_user'),
@@ -164,7 +165,7 @@ class OAuthOneTimeToken(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)  # 사용 시 기록
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
     is_new_user = Column(Boolean, default=False)  # 신규 가입 여부
 
 
@@ -178,8 +179,8 @@ class FreeTrialApplication(Base):
     status = Column(String(20), nullable=False, default="pending")
     consent_terms = Column(Boolean, nullable=False, default=False)
     consent_marketing = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
+    updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
     __table_args__ = (
         CheckConstraint("combo_count BETWEEN 1 AND 50", name="combo_count_range"),
@@ -215,7 +216,7 @@ class LottoDraw(Base):
     n5 = Column(Integer, nullable=False)
     n6 = Column(Integer, nullable=False)
     bonus = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
     __table_args__ = (
         CheckConstraint('n1 BETWEEN 1 AND 45', name='n1_range'),
@@ -237,7 +238,7 @@ class LottoRecommendLog(Base):
     account_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     target_draw_no = Column(Integer, nullable=False, index=True)
     lines = Column(Text, nullable=False)  # JSON string: 추천한 번호 조합들 (공개된 번호)
-    recommend_time = Column(DateTime, default=datetime.utcnow)
+    recommend_time = Column(DateTime, default=now_kst)
     match_results = Column(Text, nullable=True)  # JSON string: 당첨 결과
 
     # 플랜 타입 (무료/베이직/프리미엄/VIP)
@@ -272,7 +273,7 @@ class OpsRequestLog(Base):
     status_code = Column(Integer, nullable=False)
     duration_ms = Column(Float, nullable=False)
     is_error = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=now_kst, index=True)
 
 
 class Payment(Base):
@@ -293,8 +294,8 @@ class Payment(Base):
     paid_at = Column(DateTime, nullable=True)
     refunded_at = Column(DateTime, nullable=True)
     refund_reason = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
+    updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
 
 class Subscription(Base):
@@ -335,8 +336,8 @@ class Subscription(Base):
     last_sent_at = Column(DateTime, nullable=True)  # 마지막 번호 발송 시간
     total_sent_count = Column(Integer, default=0)  # 총 발송 횟수
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
+    updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
 
 class PlanPerformanceStats(Base):
@@ -369,7 +370,7 @@ class PlanPerformanceStats(Base):
     top_15_hit_rate = Column(Float, nullable=True)  # 상위 15개 중 적중 개수
     top_20_hit_rate = Column(Float, nullable=True)  # 상위 20개 중 적중 개수
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class PasswordResetToken(Base):
@@ -381,7 +382,7 @@ class PasswordResetToken(Base):
     token_hash = Column(String(255), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)  # 사용 시 타임스탬프 기록 (일회용)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class SmsVerification(Base):
@@ -396,7 +397,7 @@ class SmsVerification(Base):
     verified_at = Column(DateTime, nullable=True)  # 인증 완료 시간
     verified_token = Column(String(64), nullable=True)  # 인증 완료 후 발급된 토큰
     attempts = Column(Integer, default=0)  # 인증 시도 횟수
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class OAuthState(Base):
@@ -405,7 +406,7 @@ class OAuthState(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     state = Column(String(64), nullable=False, unique=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
     expires_at = Column(DateTime, nullable=False)
 
 
@@ -423,7 +424,7 @@ class OAuthPendingSignup(Base):
     profile_image_url = Column(String(500), nullable=True)
     access_token = Column(String(1000), nullable=True)  # OAuth access token
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class MLTrainingLog(Base):
@@ -431,7 +432,7 @@ class MLTrainingLog(Base):
     __tablename__ = "ml_training_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    trained_at = Column(DateTime, default=datetime.utcnow, index=True)
+    trained_at = Column(DateTime, default=now_kst, index=True)
 
     # 학습 데이터
     total_draws = Column(Integer, nullable=False)  # 학습에 사용된 회차 수
@@ -474,8 +475,8 @@ class WebPushSubscription(Base):
     user_agent = Column(String(500), nullable=True)  # 브라우저 정보
     is_active = Column(Boolean, default=True, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
+    updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
 
 class NotificationLog(Base):
@@ -502,7 +503,7 @@ class NotificationLog(Base):
 
     sent_at = Column(DateTime, nullable=True)
     clicked_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)
 
 
 class InAppNotification(Base):
@@ -521,4 +522,4 @@ class InAppNotification(Base):
     is_read = Column(Boolean, default=False, nullable=False)
     read_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_kst)

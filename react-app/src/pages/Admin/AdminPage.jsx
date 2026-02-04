@@ -25,6 +25,7 @@ import {
   fetchMLLatest,
   fetchMLTrainingLogs,
   triggerMLRetrain,
+  triggerFullUpdate,
   fetchPerformanceSummary,
   fetchPerformanceByDraw,
   fetchPerformanceHistory,
@@ -105,6 +106,8 @@ function AdminPage() {
   const [mlLatest, setMLLatest] = useState(null)
   const [mlLogs, setMLLogs] = useState({ logs: [], total: 0, page: 1, page_size: 10 })
   const [retraining, setRetraining] = useState(false)
+  const [fullUpdating, setFullUpdating] = useState(false)
+  const [fullUpdateResult, setFullUpdateResult] = useState(null)
 
   // 플랜 성과 state
   const [performanceSummary, setPerformanceSummary] = useState(null)
@@ -454,6 +457,22 @@ function AdminPage() {
     }
   }
 
+  const handleFullUpdate = async () => {
+    if (!window.confirm('전체 업데이트를 실행하시겠습니까?\n\n다음 작업이 순차적으로 진행됩니다:\n- 당첨 결과 매칭\n- 푸시 알림 발송\n- ML 재학습\n- 통계 캐시 갱신\n\n시간이 걸릴 수 있습니다.')) return
+    setFullUpdating(true)
+    setFullUpdateResult(null)
+    try {
+      const result = await triggerFullUpdate()
+      setFullUpdateResult(result)
+      alert('전체 업데이트가 완료되었습니다.')
+      loadMLData()
+    } catch (err) {
+      alert(err.message || '전체 업데이트 실패')
+    } finally {
+      setFullUpdating(false)
+    }
+  }
+
   const loadPerformanceData = async () => {
     setLoading(true)
     try {
@@ -755,6 +774,9 @@ function AdminPage() {
               mlLogs={mlLogs}
               retraining={retraining}
               handleRetrain={handleRetrain}
+              fullUpdating={fullUpdating}
+              handleFullUpdate={handleFullUpdate}
+              fullUpdateResult={fullUpdateResult}
             />
           )}
 

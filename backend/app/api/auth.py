@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.config import get_cookie_settings, settings
+from app.utils import now_kst
 from app.db.session import get_db
 from app.db.models import User, PasswordResetToken, Payment, Subscription, SmsVerification, OAuthOneTimeToken, SocialAccount, OAuthPendingSignup
 from app.services.auth import hash_password, verify_password, hash_token, verify_token
@@ -198,7 +199,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             if payload.sms_verified_token != verification.verified_token:
                 raise HTTPException(status_code=400, detail="인증 정보가 유효하지 않습니다.")
 
-            ten_min_ago = datetime.utcnow() - timedelta(minutes=10)
+            ten_min_ago = now_kst() - timedelta(minutes=10)
             if verification.verified_at < ten_min_ago:
                 raise HTTPException(status_code=400, detail="인증이 만료되었습니다. 다시 인증해주세요.")
 
@@ -227,7 +228,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
 
         access_token, refresh_token = _create_tokens(user.id, user.identifier)
         user.refresh_token_hash = hash_token(refresh_token)
-        user.refresh_token_updated_at = datetime.utcnow()
+        user.refresh_token_updated_at = now_kst()
         db.add(user)
         db.commit()
 
@@ -272,7 +273,7 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
 
     access_token, refresh_token = _create_tokens(user.id, user.identifier)
     user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
+    user.refresh_token_updated_at = now_kst()
     db.add(user)
     db.commit()
 
@@ -372,7 +373,7 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
 
     access_token, refresh_token = _create_tokens(user.id, identifier)
     user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
+    user.refresh_token_updated_at = now_kst()
     db.add(user)
     db.commit()
 
@@ -490,7 +491,7 @@ def signup_send_sms(request: Request, payload: SignupSmsRequest, db: Session = D
 
     # 새 인증코드 생성
     code = _generate_sms_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = now_kst() + timedelta(minutes=5)
 
     verification = SmsVerification(
         phone=phone,
@@ -536,7 +537,7 @@ def signup_verify_sms(request: Request, payload: SignupVerifyRequest, db: Sessio
         )
 
     # 만료 확인
-    if verification.expires_at < datetime.utcnow():
+    if verification.expires_at < now_kst():
         return SignupVerifyResponse(
             verified=False,
             message="인증코드가 만료되었습니다. 다시 요청해주세요.",
@@ -563,7 +564,7 @@ def signup_verify_sms(request: Request, payload: SignupVerifyRequest, db: Sessio
         )
 
     # 인증 성공
-    verification.verified_at = datetime.utcnow()
+    verification.verified_at = now_kst()
 
     # 인증 토큰 생성 (회원가입 시 검증용) - 별도 필드에 저장
     verified_token = secrets.token_urlsafe(32)
@@ -692,7 +693,7 @@ def send_sms_code(request: Request, payload: SendSmsCodeRequest, db: Session = D
 
     # 새 인증코드 생성
     code = _generate_sms_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=5)  # 5분 유효
+    expires_at = now_kst() + timedelta(minutes=5)  # 5분 유효
 
     verification = SmsVerification(
         phone=phone,
@@ -738,7 +739,7 @@ def verify_sms_code(request: Request, payload: VerifySmsCodeRequest, db: Session
         )
 
     # 만료 확인
-    if verification.expires_at < datetime.utcnow():
+    if verification.expires_at < now_kst():
         return VerifySmsCodeResponse(
             verified=False,
             message="인증코드가 만료되었습니다. 다시 요청해주세요.",
@@ -765,7 +766,7 @@ def verify_sms_code(request: Request, payload: VerifySmsCodeRequest, db: Session
         )
 
     # 인증 성공
-    verification.verified_at = datetime.utcnow()
+    verification.verified_at = now_kst()
     db.add(verification)
 
     # 사용자 조회
@@ -786,7 +787,7 @@ def verify_sms_code(request: Request, payload: VerifySmsCodeRequest, db: Session
 
     raw_token = _generate_reset_token()
     token_hash_value = hash_token(raw_token)
-    expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10분 유효
+    expires_at = now_kst() + timedelta(minutes=10)  # 10분 유효
 
     reset_token = PasswordResetToken(
         user_id=user.id,
@@ -826,7 +827,7 @@ def verify_reset_token(token: str, db: Session = Depends(get_db)):
         return VerifyResetTokenResponse(valid=False, message="이미 사용된 링크입니다. 비밀번호 찾기를 다시 시도해주세요.")
 
     # 만료된 토큰
-    if reset_token.expires_at < datetime.utcnow():
+    if reset_token.expires_at < now_kst():
         return VerifyResetTokenResponse(valid=False, message="링크가 만료되었습니다. 비밀번호 찾기를 다시 시도해주세요.")
 
     # 사용자 조회
@@ -873,7 +874,7 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
         raise HTTPException(status_code=400, detail="이미 사용된 링크입니다. 비밀번호 찾기를 다시 시도해주세요.")
 
     # 만료된 토큰
-    if reset_token.expires_at < datetime.utcnow():
+    if reset_token.expires_at < now_kst():
         raise HTTPException(status_code=400, detail="링크가 만료되었습니다. 비밀번호 찾기를 다시 시도해주세요.")
 
     # 사용자 조회
@@ -883,10 +884,10 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
 
     # 비밀번호 변경
     user.password_hash = hash_password(payload.new_password)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = now_kst()
 
     # 토큰 사용 처리
-    reset_token.used_at = datetime.utcnow()
+    reset_token.used_at = now_kst()
 
     # 보안: 기존 리프레시 토큰 무효화 (다른 기기 로그아웃)
     user.refresh_token_hash = None
@@ -977,7 +978,7 @@ def update_user_plan(
             detail=f"이미 {current_tier.upper()} 플랜을 이용 중입니다."
         )
 
-    now = datetime.utcnow()
+    now = now_kst()
     expires_at = now + timedelta(days=payload.duration_days)
 
     try:
@@ -1098,7 +1099,7 @@ def create_oauth_one_time_token(user_id: int, db: Session = None, is_new_user: b
 
     try:
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(minutes=5)
+        expires_at = now_kst() + timedelta(minutes=5)
 
         oauth_token = OAuthOneTimeToken(
             token=token,
@@ -1121,7 +1122,7 @@ def create_oauth_one_time_token(user_id: int, db: Session = None, is_new_user: b
 def _cleanup_expired_oauth_tokens(db: Session):
     """만료된 OAuth 토큰 정리"""
     try:
-        now = datetime.utcnow()
+        now = now_kst()
         db.query(OAuthOneTimeToken).filter(
             OAuthOneTimeToken.expires_at < now
         ).delete(synchronize_session=False)
@@ -1158,7 +1159,7 @@ def exchange_oauth_token(
         )
 
     # 만료 확인
-    if oauth_token.expires_at < datetime.utcnow():
+    if oauth_token.expires_at < now_kst():
         # 만료된 토큰 삭제
         db.delete(oauth_token)
         db.commit()
@@ -1300,7 +1301,7 @@ def complete_social_signup(
         )
 
     # 만료 확인
-    if pending.expires_at < datetime.utcnow():
+    if pending.expires_at < now_kst():
         db.delete(pending)
         db.commit()
         return CompleteSocialSignupResponse(
@@ -1324,7 +1325,7 @@ def complete_social_signup(
             access_token, refresh_token = _create_tokens(user.id, identifier)
             _set_auth_cookies(response, access_token, refresh_token)
             user.refresh_token_hash = hash_token(refresh_token)
-            user.refresh_token_updated_at = datetime.utcnow()
+            user.refresh_token_updated_at = now_kst()
             db.commit()
             return CompleteSocialSignupResponse(
                 success=True,
@@ -1346,7 +1347,7 @@ def complete_social_signup(
         name=pending.name,
         phone_number=pending.phone_number,
         profile_image_url=pending.profile_image_url,
-        last_login_at=datetime.utcnow(),
+        last_login_at=now_kst(),
         is_active=True,
         subscription_type="free",
     )
@@ -1374,7 +1375,7 @@ def complete_social_signup(
 
     # refresh_token_hash 저장
     user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
+    user.refresh_token_updated_at = now_kst()
     db.commit()
 
     logger.info("Social signup completed: user_id=%s, provider=%s, name=%s, phone=%s, marketing=%s",
@@ -1436,7 +1437,7 @@ def confirm_social_login(
         )
 
     # 만료 확인
-    if oauth_token.expires_at < datetime.utcnow():
+    if oauth_token.expires_at < now_kst():
         db.delete(oauth_token)
         db.commit()
         return ConfirmSocialLoginResponse(
@@ -1455,7 +1456,7 @@ def confirm_social_login(
         )
 
     # 토큰 사용 처리
-    oauth_token.used_at = datetime.utcnow()
+    oauth_token.used_at = now_kst()
     db.add(oauth_token)
 
     # JWT 생성
@@ -1467,7 +1468,7 @@ def confirm_social_login(
 
     # refresh_token_hash 저장
     user.refresh_token_hash = hash_token(refresh_token)
-    user.refresh_token_updated_at = datetime.utcnow()
+    user.refresh_token_updated_at = now_kst()
     db.commit()
 
     logger.info("Social login confirmed: user_id=%s", user.id)

@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.db.models import InAppNotification
 from app.api.auth import get_current_user
 from app.services.notification_service import NotificationService
+from app.utils import now_kst
 
 router = APIRouter(prefix="/api/notification", tags=["notification"])
 
@@ -296,7 +297,7 @@ def mark_notifications_as_read(
     """
     특정 알림들 읽음 처리
     """
-    now = datetime.utcnow()
+    now = now_kst()
     updated = (
         db.query(InAppNotification)
         .filter(
@@ -321,7 +322,7 @@ def mark_all_notifications_as_read(
     """
     모든 알림 읽음 처리
     """
-    now = datetime.utcnow()
+    now = now_kst()
     updated = (
         db.query(InAppNotification)
         .filter(InAppNotification.user_id == user.id, InAppNotification.is_read == False)
