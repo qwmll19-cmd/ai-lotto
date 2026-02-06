@@ -19,16 +19,16 @@ const isMobileDevice = () => {
   return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
 }
 
-// 은행 앱 딥링크 목록
+// 은행 앱 딥링크 목록 (iOS/Android 공용)
 const BANK_APPS = [
-  { id: 'toss', name: '토스', scheme: 'supertoss://send', color: '#0064FF', icon: 'T' },
-  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://transfer', color: '#FFCD00', textColor: '#191919', icon: 'K' },
-  { id: 'kbbank', name: 'KB국민', scheme: 'kbbank://transfer', color: '#FFBC00', textColor: '#191919', icon: 'KB' },
-  { id: 'shinhan', name: '신한', scheme: 'shinhan-sr-ansimclick://transfer', color: '#0046FF', icon: 'S' },
-  { id: 'hana', name: '하나', scheme: 'hanabank://transfer', color: '#009775', icon: 'H' },
-  { id: 'woori', name: '우리', scheme: 'wooribank://transfer', color: '#0066B3', icon: 'W' },
-  { id: 'nh', name: 'NH농협', scheme: 'nhbank://transfer', color: '#01579B', icon: 'NH' },
-  { id: 'ibk', name: 'IBK기업', scheme: 'ibkbank://transfer', color: '#0066B3', icon: 'IBK' },
+  { id: 'toss', name: '토스', scheme: 'supertoss://', color: '#0064FF', icon: '💙', hasDeeplink: true },
+  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', color: '#FFCD00', textColor: '#191919', icon: '🟡', hasDeeplink: true },
+  { id: 'kbbank', name: 'KB국민', scheme: 'kbstar://', color: '#FFBC00', textColor: '#191919', icon: '⭐', hasDeeplink: true },
+  { id: 'shinhan', name: '신한SOL', scheme: 'shinhan-sol-bank://', color: '#0046FF', icon: '🔵', hasDeeplink: true },
+  { id: 'hana', name: '하나원큐', scheme: 'hanabank1qmobile://', color: '#009775', icon: '🟢', hasDeeplink: true },
+  { id: 'woori', name: '우리WON', scheme: 'wooribank://', color: '#0066B3', icon: '🔷', hasDeeplink: true },
+  { id: 'nh', name: 'NH농협', scheme: 'nhsmartbanking://', color: '#01579B', icon: '🌾', hasDeeplink: true },
+  { id: 'ibk', name: 'IBK기업', scheme: 'ibkbox://', color: '#004A9C', icon: '🏢', hasDeeplink: true },
 ]
 
 // 클립보드 복사 텍스트 생성
@@ -62,7 +62,9 @@ function Checkout() {
   const [initializing, setInitializing] = useState(true)  // 구독 생성 로딩
   const [depositorName, setDepositorName] = useState('')
   const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptType, setReceiptType] = useState('phone')  // 'phone' 또는 'business'
   const [receiptPhone, setReceiptPhone] = useState('')
+  const [receiptBizNumber, setReceiptBizNumber] = useState('')  // 사업자번호
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [subscriptionId, setSubscriptionId] = useState(null)
@@ -241,7 +243,8 @@ function Checkout() {
           payment_method: 'bank_transfer',
           consent_terms: agreeTerms,
           depositor_name: depositorName.trim(),
-          receipt_phone: showReceipt && receiptPhone ? receiptPhone.replace(/-/g, '') : null,
+          receipt_phone: showReceipt && receiptType === 'phone' && receiptPhone ? receiptPhone.replace(/-/g, '') : null,
+          receipt_biz_number: showReceipt && receiptType === 'business' && receiptBizNumber ? receiptBizNumber.replace(/-/g, '') : null,
         }),
       })
 
@@ -414,7 +417,7 @@ function Checkout() {
                 <div className="checkout-section">
                   <h2>은행 앱 바로가기</h2>
                   <p className="checkout-section__hint">
-                    앱 아이콘을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
+                    버튼을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
                   </p>
 
                   <div className="checkout-bank-grid">
@@ -436,7 +439,7 @@ function Checkout() {
                   </div>
 
                   <p className="checkout-bank-notice">
-                    * 일부 기기에서는 동작하지 않을 수 있습니다
+                    * 일부 기기에서는 앱이 실행되지 않을 수 있습니다 (계좌번호는 복사됨)
                   </p>
                 </div>
               )}
@@ -470,16 +473,53 @@ function Checkout() {
 
                 {showReceipt && (
                   <div className="checkout-receipt">
-                    <div className="checkout-field">
-                      <label>소득공제용 전화번호</label>
-                      <input
-                        type="tel"
-                        value={receiptPhone}
-                        onChange={(e) => setReceiptPhone(e.target.value)}
-                        placeholder="010-1234-5678"
-                        maxLength={13}
-                      />
+                    {/* 발급 유형 선택 */}
+                    <div className="checkout-receipt-type">
+                      <label className={`checkout-receipt-type__option${receiptType === 'phone' ? ' checkout-receipt-type__option--active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="receiptType"
+                          value="phone"
+                          checked={receiptType === 'phone'}
+                          onChange={() => setReceiptType('phone')}
+                        />
+                        <span>소득공제 (개인)</span>
+                      </label>
+                      <label className={`checkout-receipt-type__option${receiptType === 'business' ? ' checkout-receipt-type__option--active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="receiptType"
+                          value="business"
+                          checked={receiptType === 'business'}
+                          onChange={() => setReceiptType('business')}
+                        />
+                        <span>지출증빙 (사업자)</span>
+                      </label>
                     </div>
+
+                    {receiptType === 'phone' ? (
+                      <div className="checkout-field">
+                        <label>휴대전화 번호</label>
+                        <input
+                          type="tel"
+                          value={receiptPhone}
+                          onChange={(e) => setReceiptPhone(e.target.value)}
+                          placeholder="010-1234-5678"
+                          maxLength={13}
+                        />
+                      </div>
+                    ) : (
+                      <div className="checkout-field">
+                        <label>사업자등록번호</label>
+                        <input
+                          type="text"
+                          value={receiptBizNumber}
+                          onChange={(e) => setReceiptBizNumber(e.target.value)}
+                          placeholder="123-45-67890"
+                          maxLength={12}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

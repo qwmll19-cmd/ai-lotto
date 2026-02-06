@@ -37,7 +37,8 @@ class SubscribeRequest(BaseModel):
     payment_method: str = Field(default="bank_transfer", description="card, bank_transfer, toss, kakao")
     consent_terms: bool = Field(..., description="약관 동의")
     depositor_name: str = Field(..., min_length=1, max_length=100, description="입금자명")
-    receipt_phone: Optional[str] = Field(default=None, description="현금영수증 발급 전화번호")
+    receipt_phone: Optional[str] = Field(default=None, description="현금영수증 발급 전화번호 (개인 소득공제)")
+    receipt_biz_number: Optional[str] = Field(default=None, description="현금영수증 발급 사업자번호 (지출증빙)")
 
     @validator("phone")
     def validate_phone(cls, value: str) -> str:
@@ -53,6 +54,15 @@ class SubscribeRequest(BaseModel):
         digits = "".join(ch for ch in value if ch.isdigit())
         if len(digits) < 10 or len(digits) > 11:
             raise ValueError("현금영수증 전화번호 형식이 올바르지 않습니다.")
+        return digits
+
+    @validator("receipt_biz_number")
+    def validate_receipt_biz_number(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        digits = "".join(ch for ch in value if ch.isdigit())
+        if len(digits) != 10:
+            raise ValueError("사업자등록번호는 10자리 숫자여야 합니다.")
         return digits
 
     @validator("plan_type")
@@ -142,9 +152,10 @@ def subscribe(
         ).first()
 
         if existing:
-            # 기존 pending 구독 재사용 (입금자명 업데이트)
+            # 기존 pending 구독 재사용 (입금자명/현금영수증 업데이트)
             existing.depositor_name = payload.depositor_name
             existing.receipt_phone = payload.receipt_phone
+            existing.receipt_biz_number = payload.receipt_biz_number
             db.commit()
 
             logger.info(
@@ -177,6 +188,7 @@ def subscribe(
             amount=plan["price"],
             depositor_name=payload.depositor_name,
             receipt_phone=payload.receipt_phone,
+            receipt_biz_number=payload.receipt_biz_number,
             payment_token=payment_token,
             payment_token_expires_at=token_expires_at,
         )

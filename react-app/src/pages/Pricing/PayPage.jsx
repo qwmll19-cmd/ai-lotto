@@ -2,16 +2,75 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useNotification } from '../../context/NotificationContext.jsx'
 
-// 은행 앱 딥링크 목록
+// 은행 앱 딥링크 목록 (iOS/Android 공용)
+// 딥링크가 없는 은행은 계좌번호 복사만 수행
 const BANK_APPS = [
-  { id: 'toss', name: '토스', scheme: 'supertoss://send', color: '#0064FF', icon: 'T' },
-  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://transfer', color: '#FFCD00', textColor: '#191919', icon: 'K' },
-  { id: 'kbbank', name: 'KB국민', scheme: 'kbbank://transfer', color: '#FFBC00', textColor: '#191919', icon: 'KB' },
-  { id: 'shinhan', name: '신한', scheme: 'shinhan-sr-ansimclick://transfer', color: '#0046FF', icon: 'S' },
-  { id: 'hana', name: '하나', scheme: 'hanabank://transfer', color: '#009775', icon: 'H' },
-  { id: 'woori', name: '우리', scheme: 'wooribank://transfer', color: '#0066B3', icon: 'W' },
-  { id: 'nh', name: 'NH농협', scheme: 'nhbank://transfer', color: '#01579B', icon: 'NH' },
-  { id: 'ibk', name: 'IBK기업', scheme: 'ibkbank://transfer', color: '#0066B3', icon: 'IBK' },
+  {
+    id: 'toss',
+    name: '토스',
+    scheme: 'supertoss://',
+    color: '#0064FF',
+    icon: '💙',
+    hasDeeplink: true
+  },
+  {
+    id: 'kakaobank',
+    name: '카카오뱅크',
+    scheme: 'kakaobank://',
+    color: '#FFCD00',
+    textColor: '#191919',
+    icon: '🟡',
+    hasDeeplink: true
+  },
+  {
+    id: 'kbbank',
+    name: 'KB국민',
+    scheme: 'kbstar://',
+    color: '#FFBC00',
+    textColor: '#191919',
+    icon: '⭐',
+    hasDeeplink: true
+  },
+  {
+    id: 'shinhan',
+    name: '신한SOL',
+    scheme: 'shinhan-sol-bank://',
+    color: '#0046FF',
+    icon: '🔵',
+    hasDeeplink: true
+  },
+  {
+    id: 'hana',
+    name: '하나원큐',
+    scheme: 'hanabank1qmobile://',
+    color: '#009775',
+    icon: '🟢',
+    hasDeeplink: true
+  },
+  {
+    id: 'woori',
+    name: '우리WON',
+    scheme: 'wooribank://',
+    color: '#0066B3',
+    icon: '🔷',
+    hasDeeplink: true
+  },
+  {
+    id: 'nh',
+    name: 'NH농협',
+    scheme: 'nhsmartbanking://',
+    color: '#01579B',
+    icon: '🌾',
+    hasDeeplink: true
+  },
+  {
+    id: 'ibk',
+    name: 'IBK기업',
+    scheme: 'ibkbox://',
+    color: '#004A9C',
+    icon: '🏢',
+    hasDeeplink: true
+  },
 ]
 
 function PayPage() {
@@ -247,7 +306,7 @@ function PayPage() {
             <div className="checkout-section">
               <h2>은행 앱 바로가기</h2>
               <p className="checkout-section__hint">
-                앱 아이콘을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
+                버튼을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
               </p>
 
               <div className="checkout-bank-grid">
@@ -269,7 +328,7 @@ function PayPage() {
               </div>
 
               <p className="checkout-bank-notice">
-                * 일부 기기에서는 동작하지 않을 수 있습니다
+                * 일부 기기에서는 앱이 실행되지 않을 수 있습니다 (계좌번호는 복사됨)
               </p>
             </div>
 

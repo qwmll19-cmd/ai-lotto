@@ -338,7 +338,8 @@ class Subscription(Base):
 
     # 입금 확인용 (송금 결제)
     depositor_name = Column(String(100), nullable=True)  # 입금자명
-    receipt_phone = Column(String(30), nullable=True)  # 현금영수증 발급 전화번호
+    receipt_phone = Column(String(30), nullable=True)  # 현금영수증 발급 전화번호 (개인 소득공제)
+    receipt_biz_number = Column(String(10), nullable=True)  # 현금영수증 발급 사업자번호 (지출증빙)
     receipt_issued = Column(Boolean, default=False)  # 현금영수증 발급 완료 여부
 
     # QR 결제용 토큰

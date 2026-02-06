@@ -7738,13 +7738,14 @@
 }
 
 .checkout-bank-btn__icon {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .checkout-bank-btn__name {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.3px;
 }
 
 .checkout-bank-notice {
@@ -7766,7 +7767,7 @@
   }
 
   .checkout-bank-btn__icon {
-    font-size: 12px;
+    font-size: 20px;
   }
 
   .checkout-bank-btn__name {
@@ -7823,6 +7824,45 @@
 .checkout-receipt {
   padding: 16px 20px;
   border-top: 1px solid #e5e7eb;
+}
+
+/* 현금영수증 유형 선택 */
+.checkout-receipt-type {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.checkout-receipt-type__option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkout-receipt-type__option input[type="radio"] {
+  display: none;
+}
+
+.checkout-receipt-type__option:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.checkout-receipt-type__option--active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #d97706;
+  font-weight: 500;
 }
 
 /* 입금 완료 대기 화면 */
