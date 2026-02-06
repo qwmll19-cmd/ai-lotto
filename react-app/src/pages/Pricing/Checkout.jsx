@@ -20,16 +20,15 @@ const isMobileDevice = () => {
 }
 
 // 은행 앱 딥링크 목록 (iOS/Android 공용)
-// 정확한 URL Scheme 적용 (2024년 기준)
+// Free4QR 참고하여 정확한 URL Scheme 적용
 const BANK_APPS = [
-  { id: 'toss', name: '토스', scheme: 'supertoss://', color: '#0064FF', logo: 'TOSS' },
-  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', color: '#FFEB00', textColor: '#3C1E1E', logo: 'KB' },
-  { id: 'kbbank', name: 'KB국민', scheme: 'kBbank://', color: '#FFBC00', textColor: '#5D4400', logo: 'KB' },
-  { id: 'shinhan', name: '신한SOL', scheme: 'smailapp://', color: '#0046FF', logo: 'SOL' },
-  { id: 'hana', name: '하나원큐', scheme: 'hanapush://', color: '#009775', logo: '1Q' },
-  { id: 'woori', name: '우리WON', scheme: 'wooribank://', color: '#0066B3', logo: 'WON' },
-  { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', color: '#02A65A', logo: 'NH' },
-  { id: 'ibk', name: 'IBK기업', scheme: 'ionebank://', color: '#004A9C', logo: 'IBK' },
+  { id: 'toss', name: '토스', scheme: 'supertoss://', androidPackage: 'viva.republica.toss', iosStoreId: '839333328', color: '#0064FF', logo: 'TOSS' },
+  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', androidPackage: 'com.kakaobank.channel', iosStoreId: '1258016944', color: '#FFEB00', textColor: '#3C1E1E', logo: 'kakao' },
+  { id: 'kbbank', name: 'KB국민', scheme: 'kBbank://', androidPackage: 'com.kbstar.kbbank', iosStoreId: '373742138', color: '#FFBC00', textColor: '#5D4400', logo: 'KB' },
+  { id: 'shinhan', name: '신한SOL', scheme: 'shinhan://', androidPackage: 'com.shinhan.sbanking', iosStoreId: '1546796614', color: '#0046FF', logo: 'SOL' },
+  { id: 'hana', name: '하나원큐', scheme: 'hanapush://', androidPackage: 'com.hanabank.ebk.channel.android.hananbank', iosStoreId: '1437633497', color: '#009775', logo: '1Q' },
+  { id: 'woori', name: '우리WON', scheme: 'wooribank://', androidPackage: 'com.wooribank.smart.npib', iosStoreId: '1470181651', color: '#0066B3', logo: 'WON' },
+  { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', androidPackage: 'nh.smart.banking', iosStoreId: '1445503830', color: '#02A65A', logo: 'NH' },
 ]
 
 // 클립보드 복사 텍스트 생성
@@ -200,20 +199,45 @@ function Checkout() {
     }
   }
 
-  // 은행 앱 버튼 클릭 (복사 + 앱 실행)
+  // iOS/Android 감지
+  const isIOS = typeof window !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase())
+  const isAndroid = typeof window !== 'undefined' && /android/i.test(navigator.userAgent.toLowerCase())
+
+  // 은행 앱 버튼 클릭 (복사 + 앱 실행, 미설치 시 스토어 이동)
   const handleBankAppClick = async (bank) => {
     try {
-      // 먼저 클립보드에 복사
       const copyText = getCopyText()
       await navigator.clipboard.writeText(copyText)
       success('계좌번호가 복사되었습니다. 앱에서 붙여넣기 하세요.', '복사 완료')
-
-      // 딥링크로 앱 실행 시도
-      window.location.href = bank.scheme
     } catch {
       // 복사 실패해도 앱 실행은 시도
-      window.location.href = bank.scheme
     }
+
+    // Android: Intent URL 사용 (앱 없으면 스토어로 이동)
+    if (isAndroid && bank.androidPackage) {
+      const intentUrl = `intent://#Intent;scheme=${bank.scheme.replace('://', '')};package=${bank.androidPackage};end`
+      window.location.href = intentUrl
+      return
+    }
+
+    // iOS: 앱 실행 시도 후 실패하면 스토어로 이동
+    if (isIOS && bank.iosStoreId) {
+      const appStoreUrl = `https://apps.apple.com/app/id${bank.iosStoreId}`
+
+      // 앱 실행 시도
+      window.location.href = bank.scheme
+
+      // 2초 후에도 페이지가 남아있으면 앱이 없는 것으로 간주하고 스토어로 이동
+      setTimeout(() => {
+        if (document.visibilityState !== 'hidden') {
+          window.location.href = appStoreUrl
+        }
+      }, 2000)
+      return
+    }
+
+    // 그 외: 단순 scheme 실행
+    window.location.href = bank.scheme
   }
 
   // 입금 완료 제출 (기존 pending 구독 업데이트)
