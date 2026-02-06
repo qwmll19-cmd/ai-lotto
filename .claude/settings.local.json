@@ -46,7 +46,8 @@
       "Bash(pip show:*)",
       "Bash(source .venv/bin/activate)",
       "Bash(npx web-push:*)",
-      "Bash(file:*)"
+      "Bash(file:*)",
+      "Bash(dig:*)"
     ]
   }
 }

@@ -69,23 +69,37 @@ def mask_name(name: str) -> str:
 
 def get_subscription_by_token(db: Session, token: str) -> Subscription:
     """토큰으로 구독 조회 + 유효성 검증"""
+    logger.info("get_subscription_by_token: token=%s", token[:16] if token else "None")
+
     subscription = db.query(Subscription).filter(
         Subscription.payment_token == token
     ).first()
 
     if not subscription:
+        logger.warning("get_subscription_by_token: subscription not found for token=%s", token[:16] if token else "None")
         raise HTTPException(status_code=404, detail="유효하지 않은 결제 링크입니다.")
+
+    logger.info(
+        "get_subscription_by_token: found subscription id=%s status=%s expires_at=%s",
+        subscription.id, subscription.status, subscription.payment_token_expires_at
+    )
 
     # 토큰 만료 확인
     now = now_kst()
     if subscription.payment_token_expires_at and subscription.payment_token_expires_at < now:
+        logger.warning(
+            "get_subscription_by_token: token expired. id=%s expires_at=%s now=%s",
+            subscription.id, subscription.payment_token_expires_at, now
+        )
         raise HTTPException(status_code=400, detail="결제 링크가 만료되었습니다. 다시 결제를 시도해주세요.")
 
     # 이미 처리된 구독 확인
     if subscription.status == "active":
+        logger.warning("get_subscription_by_token: subscription already active id=%s", subscription.id)
         raise HTTPException(status_code=400, detail="이미 결제가 완료된 구독입니다.")
 
     if subscription.status == "cancelled":
+        logger.warning("get_subscription_by_token: subscription cancelled id=%s", subscription.id)
         raise HTTPException(status_code=400, detail="취소된 구독입니다.")
 
     return subscription

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useNotification } from '../../context/NotificationContext.jsx'
+import { API_BASE_URL } from '../../api/client.js'
 
 // 은행 앱 딥링크 목록 (iOS/Android 공용)
 // Free4QR 참고하여 정확한 URL Scheme 적용
@@ -96,18 +97,24 @@ function PayPage() {
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       try {
-        const response = await fetch(`/api/pay/${token}`)
+        console.log('[PayPage] Fetching payment info for token:', token)
+        const response = await fetch(`${API_BASE_URL}/api/pay/${token}`)
         const data = await response.json()
+        console.log('[PayPage] Response:', response.status, data)
 
         if (!response.ok) {
-          setErrorMessage(data.detail || '결제 정보를 불러올 수 없습니다.')
+          // 서버에서 반환한 상세 에러 메시지 표시
+          const errorDetail = data.detail || '결제 정보를 불러올 수 없습니다.'
+          console.error('[PayPage] Error response:', errorDetail)
+          setErrorMessage(errorDetail)
           setLoading(false)
           return
         }
 
         setPaymentInfo(data)
         // 기존 입금자명이 있으면 (마스킹된 상태로) 표시하지 않고 새로 입력받음
-      } catch {
+      } catch (err) {
+        console.error('[PayPage] Fetch error:', err)
         setErrorMessage('결제 정보를 불러오는 중 오류가 발생했습니다.')
       } finally {
         setLoading(false)
@@ -116,6 +123,10 @@ function PayPage() {
 
     if (token) {
       fetchPaymentInfo()
+    } else {
+      console.error('[PayPage] No token provided')
+      setErrorMessage('결제 토큰이 없습니다.')
+      setLoading(false)
     }
   }, [token])
 
@@ -189,7 +200,7 @@ function PayPage() {
     setSubmitting(true)
 
     try {
-      const response = await fetch(`/api/pay/${token}/confirm`, {
+      const response = await fetch(`${API_BASE_URL}/api/pay/${token}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ depositor_name: depositorName.trim() }),
