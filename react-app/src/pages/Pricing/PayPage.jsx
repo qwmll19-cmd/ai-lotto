@@ -93,6 +93,11 @@ function PayPage() {
   const [submitted, setSubmitted] = useState(false)
   const [errorMessage, setErrorMessage] = useState(null)
 
+  // 현금영수증 관련 state
+  const [receiptType, setReceiptType] = useState('none')  // 'none', 'phone', 'business'
+  const [receiptPhone, setReceiptPhone] = useState('')
+  const [receiptBizNumber, setReceiptBizNumber] = useState('')
+
   // 결제 정보 조회
   useEffect(() => {
     const fetchPaymentInfo = async () => {
@@ -175,8 +180,21 @@ function PayPage() {
       // 앱 실행 시도
       window.location.href = bank.scheme
 
+      // 앱이 실행되면 (페이지가 hidden 되면) 타이머 취소
+      let storeTimerId = null
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden' && storeTimerId) {
+          clearTimeout(storeTimerId)
+          storeTimerId = null
+        }
+        // 앱에서 돌아왔을 때 리스너 제거
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+
       // 2초 후에도 페이지가 남아있으면 앱이 없는 것으로 간주하고 스토어로 이동
-      setTimeout(() => {
+      storeTimerId = setTimeout(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
         if (document.visibilityState !== 'hidden') {
           window.location.href = appStoreUrl
         }
@@ -200,10 +218,23 @@ function PayPage() {
     setSubmitting(true)
 
     try {
+      // 현금영수증 정보 구성
+      const receiptData = {}
+      if (receiptType === 'phone' && receiptPhone) {
+        receiptData.receipt_type = 'phone'
+        receiptData.receipt_phone = receiptPhone.replace(/-/g, '')
+      } else if (receiptType === 'business' && receiptBizNumber) {
+        receiptData.receipt_type = 'business'
+        receiptData.receipt_biz_number = receiptBizNumber.replace(/-/g, '')
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/pay/${token}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ depositor_name: depositorName.trim() }),
+        body: JSON.stringify({
+          depositor_name: depositorName.trim(),
+          ...receiptData,
+        }),
       })
 
       const data = await response.json()
@@ -395,6 +426,69 @@ function PayPage() {
                   은행 계좌에 등록된 실명을 입력해주세요 (입금 확인용)
                 </p>
               </div>
+            </div>
+
+            {/* 현금영수증 */}
+            <div className="checkout-section">
+              <h2>현금영수증</h2>
+              <div className="checkout-receipt-type">
+                <label className={`checkout-receipt-type__option${receiptType === 'none' ? ' checkout-receipt-type__option--active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="receiptType"
+                    value="none"
+                    checked={receiptType === 'none'}
+                    onChange={() => setReceiptType('none')}
+                  />
+                  <span>미발행</span>
+                </label>
+                <label className={`checkout-receipt-type__option${receiptType === 'phone' ? ' checkout-receipt-type__option--active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="receiptType"
+                    value="phone"
+                    checked={receiptType === 'phone'}
+                    onChange={() => setReceiptType('phone')}
+                  />
+                  <span>소득공제 (개인)</span>
+                </label>
+                <label className={`checkout-receipt-type__option${receiptType === 'business' ? ' checkout-receipt-type__option--active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="receiptType"
+                    value="business"
+                    checked={receiptType === 'business'}
+                    onChange={() => setReceiptType('business')}
+                  />
+                  <span>지출증빙 (사업자)</span>
+                </label>
+              </div>
+
+              {receiptType === 'phone' && (
+                <div className="checkout-field">
+                  <label>휴대전화 번호</label>
+                  <input
+                    type="tel"
+                    value={receiptPhone}
+                    onChange={(e) => setReceiptPhone(e.target.value)}
+                    placeholder="010-1234-5678"
+                    maxLength={13}
+                  />
+                </div>
+              )}
+
+              {receiptType === 'business' && (
+                <div className="checkout-field">
+                  <label>사업자등록번호</label>
+                  <input
+                    type="text"
+                    value={receiptBizNumber}
+                    onChange={(e) => setReceiptBizNumber(e.target.value)}
+                    placeholder="123-45-67890"
+                    maxLength={12}
+                  />
+                </div>
+              )}
             </div>
 
             {/* 입금 완료 버튼 */}

@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
-import { request } from '../../api/client.js'
+import { request, API_BASE_URL } from '../../api/client.js'
 
 // 결제 정보 (사업자 계좌)
 const PAYMENT_INFO = {
@@ -70,6 +70,8 @@ function Checkout() {
   const [submitted, setSubmitted] = useState(false)
   const [subscriptionId, setSubscriptionId] = useState(null)
   const [paymentToken, setPaymentToken] = useState(null)  // QR 결제용 토큰
+  const [mobileDepositorName, setMobileDepositorName] = useState(null)  // 모바일에서 입력한 입금자명
+  const pollingRef = useRef(null)  // 폴링 인터벌 참조
 
   const plans = {
     basic: {
@@ -189,6 +191,51 @@ function Checkout() {
     }
   }, [isAuthed, navigate, planId, isDowngrade, isSamePlan, showError])
 
+  // PC에서 QR 표시 중일 때 모바일 결제 완료 상태 폴링
+  useEffect(() => {
+    // 모바일이거나, 토큰이 없거나, 이미 제출됐으면 폴링 안함
+    if (isMobile || !paymentToken || submitted) {
+      return
+    }
+
+    const checkPaymentStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pay/${paymentToken}/status`)
+        if (!response.ok) return
+
+        const data = await response.json()
+
+        // 모바일에서 입금 완료 제출됨
+        if (data.deposit_submitted) {
+          // 폴링 중지
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+          }
+
+          // 모바일에서 입력한 입금자명 저장 (마스킹된 상태)
+          setMobileDepositorName(data.depositor_name)
+          setSubmitted(true)
+          success('모바일에서 입금 확인 요청이 완료되었습니다.', '신청 완료')
+        }
+      } catch {
+        // 폴링 에러는 무시 (네트워크 일시 오류 등)
+      }
+    }
+
+    // 즉시 한 번 체크 후 5초마다 상태 체크
+    checkPaymentStatus()
+    pollingRef.current = setInterval(checkPaymentStatus, 5000)
+
+    // 컴포넌트 언마운트 시 폴링 중지
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [isMobile, paymentToken, submitted, success])
+
   // 계좌번호 복사 (은행명 포함)
   const handleCopyAccount = async () => {
     try {
@@ -228,8 +275,21 @@ function Checkout() {
       // 앱 실행 시도
       window.location.href = bank.scheme
 
+      // 앱이 실행되면 (페이지가 hidden 되면) 타이머 취소
+      let storeTimerId = null
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden' && storeTimerId) {
+          clearTimeout(storeTimerId)
+          storeTimerId = null
+        }
+        // 앱에서 돌아왔을 때 리스너 제거
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+
       // 2초 후에도 페이지가 남아있으면 앱이 없는 것으로 간주하고 스토어로 이동
-      setTimeout(() => {
+      storeTimerId = setTimeout(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
         if (document.visibilityState !== 'hidden') {
           window.location.href = appStoreUrl
         }
@@ -326,12 +386,14 @@ function Checkout() {
                 </div>
                 <div className="checkout-pending__row">
                   <span>입금자명</span>
-                  <span>{depositorName}</span>
+                  <span>{mobileDepositorName || depositorName}</span>
                 </div>
-                <div className="checkout-pending__row">
-                  <span>신청번호</span>
-                  <span>#{subscriptionId}</span>
-                </div>
+                {subscriptionId && (
+                  <div className="checkout-pending__row">
+                    <span>신청번호</span>
+                    <span>#{subscriptionId}</span>
+                  </div>
+                )}
               </div>
 
               <button

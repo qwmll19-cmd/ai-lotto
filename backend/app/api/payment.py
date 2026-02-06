@@ -43,12 +43,22 @@ class PaymentInfoResponse(BaseModel):
 class ConfirmPaymentRequest(BaseModel):
     """입금 확인 요청"""
     depositor_name: str = Field(..., min_length=1, max_length=100, description="입금자명")
+    receipt_type: Optional[str] = Field(None, description="현금영수증 유형: phone, business")
+    receipt_phone: Optional[str] = Field(None, max_length=20, description="현금영수증 휴대전화")
+    receipt_biz_number: Optional[str] = Field(None, max_length=20, description="현금영수증 사업자번호")
 
 
 class ConfirmPaymentResponse(BaseModel):
     """입금 확인 응답"""
     ok: bool
     message: str
+
+
+class PaymentStatusResponse(BaseModel):
+    """결제 상태 조회 응답 (PC 폴링용)"""
+    status: str  # pending, active, cancelled
+    deposit_submitted: bool  # 모바일에서 입금 완료 제출 여부
+    depositor_name: Optional[str] = None  # 마스킹 처리
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -156,6 +166,15 @@ def confirm_payment(
         # 입금자명 저장 + 입금 완료 제출 플래그 설정
         subscription.depositor_name = payload.depositor_name.strip()
         subscription.deposit_submitted = True
+
+        # 현금영수증 정보 저장
+        if payload.receipt_type == 'phone' and payload.receipt_phone:
+            subscription.receipt_phone = payload.receipt_phone.strip()
+            subscription.receipt_biz_number = None
+        elif payload.receipt_type == 'business' and payload.receipt_biz_number:
+            subscription.receipt_biz_number = payload.receipt_biz_number.strip()
+            subscription.receipt_phone = None
+
         db.commit()
 
         logger.info(
@@ -171,4 +190,32 @@ def confirm_payment(
     return ConfirmPaymentResponse(
         ok=True,
         message="입금 확인 요청이 완료되었습니다. 관리자 확인 후 1시간 이내 구독이 활성화됩니다."
+    )
+
+
+@router.get("/{token}/status", response_model=PaymentStatusResponse)
+def get_payment_status(
+    token: str,
+    db: Session = Depends(get_db)
+) -> PaymentStatusResponse:
+    """
+    결제 상태 조회 (PC 폴링용)
+
+    PC에서 QR 표시 중 모바일에서 입금 완료했는지 확인합니다.
+    deposit_submitted가 True면 모바일에서 완료 처리됨.
+    """
+    subscription = db.query(Subscription).filter(
+        Subscription.payment_token == token
+    ).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="유효하지 않은 결제 링크입니다.")
+
+    # 입금자명 마스킹
+    masked_depositor = mask_name(subscription.depositor_name) if subscription.depositor_name else None
+
+    return PaymentStatusResponse(
+        status=subscription.status,
+        deposit_submitted=subscription.deposit_submitted or False,
+        depositor_name=masked_depositor,
     )
