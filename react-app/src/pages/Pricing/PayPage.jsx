@@ -70,6 +70,15 @@ const BANK_APPS = [
     color: '#02A65A',
     logo: 'NH',
   },
+  {
+    id: 'ibk',
+    name: 'IBK기업',
+    scheme: 'ibksmartbanking://',
+    androidPackage: 'com.ibk.android.ionebank',
+    iosStoreId: '390031953',
+    color: '#004A9C',
+    logo: 'IBK',
+  },
 ]
 
 function PayPage() {

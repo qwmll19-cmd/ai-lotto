@@ -29,6 +29,7 @@ const BANK_APPS = [
   { id: 'hana', name: '하나원큐', scheme: 'hanapush://', androidPackage: 'com.hanabank.ebk.channel.android.hananbank', iosStoreId: '1437633497', color: '#009775', logo: '1Q' },
   { id: 'woori', name: '우리WON', scheme: 'wooribank://', androidPackage: 'com.wooribank.smart.npib', iosStoreId: '1470181651', color: '#0066B3', logo: 'WON' },
   { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', androidPackage: 'nh.smart.banking', iosStoreId: '1445503830', color: '#02A65A', logo: 'NH' },
+  { id: 'ibk', name: 'IBK기업', scheme: 'ibksmartbanking://', androidPackage: 'com.ibk.android.ionebank', iosStoreId: '390031953', color: '#004A9C', logo: 'IBK' },
 ]
 
 // 클립보드 복사 텍스트 생성
