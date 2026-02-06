@@ -486,7 +486,7 @@ def complete_pending_signup(db: Session, pending_token: str) -> User:
         User: 생성된 사용자
 
     Raises:
-        OAuthError: 토큰 만료, 유효하지 않음 등
+        OAuthError: 토큰 만료, 유효하지 않음, 중복 전화번호 등
     """
     # 토큰으로 pending 조회
     pending = db.query(OAuthPendingSignup).filter(
@@ -514,6 +514,19 @@ def complete_pending_signup(db: Session, pending_token: str) -> User:
         if user:
             return user
         raise OAuthError("계정 연동 오류가 발생했습니다.", "data_error")
+
+    # 전화번호 중복 확인
+    if pending.phone_number:
+        existing_user = db.query(User).filter(
+            User.phone_number == pending.phone_number
+        ).first()
+        if existing_user:
+            db.delete(pending)
+            db.commit()
+            raise OAuthError(
+                "이미 가입된 전화번호입니다. 기존 계정으로 로그인해주세요.",
+                "duplicate_phone"
+            )
 
     # User 생성
     user = User(

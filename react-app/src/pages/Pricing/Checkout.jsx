@@ -133,16 +133,27 @@ function Checkout() {
         return
       }
 
+      // 이름과 전화번호가 있어야 구독 생성 가능
+      const userName = user.name || depositorName || '미입력'
+      const userPhone = user.phone_number || '01000000000'  // 폴백용 더미 번호
+
+      // 필수 필드 검증 (name 최소 1자, phone 최소 8자)
+      if (!userName || userName.length < 1 || !userPhone || userPhone.length < 8) {
+        console.warn('Missing required user info for subscription:', { userName, userPhone })
+        setInitializing(false)
+        return
+      }
+
       try {
         const result = await request('/api/subscribe', {
           method: 'POST',
           body: JSON.stringify({
-            name: user.name || '',
-            phone: user.phone_number || '',
+            name: userName,
+            phone: userPhone,
             plan_type: selectedPlan.id,
             payment_method: 'bank_transfer',
             consent_terms: true,  // 임시 동의 (최종 제출 시 다시 확인)
-            depositor_name: user.name || '미입력',
+            depositor_name: userName,
             receipt_phone: null,
           }),
         })
@@ -160,7 +171,7 @@ function Checkout() {
     }
 
     createPendingSubscription()
-  }, [isAuthed, user, selectedPlan.id, isDowngrade, isSamePlan])
+  }, [isAuthed, user, selectedPlan.id, isDowngrade, isSamePlan, depositorName])
 
   useEffect(() => {
     if (!isAuthed) {
@@ -432,17 +443,17 @@ function Checkout() {
 
               {/* 입금자명 (항상 열림) */}
               <div className="checkout-section">
-                <h2>입금자명</h2>
+                <h2>입금자명 <span className="checkout-section__required">*필수</span></h2>
                 <div className="checkout-field">
                   <input
                     type="text"
                     value={depositorName}
                     onChange={(e) => setDepositorName(e.target.value)}
-                    placeholder="홍길동"
+                    placeholder="홍길동 (은행 계좌 실명)"
                     maxLength={50}
                   />
-                  <p className="checkout-field__hint">
-                    송금 시 표시되는 이름이 다르면 수정해주세요
+                  <p className="checkout-field__hint checkout-field__hint--important">
+                    은행 계좌에 등록된 실명을 입력해주세요 (입금 확인용)
                   </p>
                 </div>
               </div>

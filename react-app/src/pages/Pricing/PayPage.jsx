@@ -275,17 +275,17 @@ function PayPage() {
 
             {/* 입금자명 입력 */}
             <div className="checkout-section">
-              <h2>입금자명</h2>
+              <h2>입금자명 <span className="checkout-section__required">*필수</span></h2>
               <div className="checkout-field">
                 <input
                   type="text"
                   value={depositorName}
                   onChange={(e) => setDepositorName(e.target.value)}
-                  placeholder="홍길동"
+                  placeholder="홍길동 (은행 계좌 실명)"
                   maxLength={50}
                 />
-                <p className="checkout-field__hint">
-                  송금 시 표시되는 이름을 입력해주세요
+                <p className="checkout-field__hint checkout-field__hint--important">
+                  은행 계좌에 등록된 실명을 입력해주세요 (입금 확인용)
                 </p>
               </div>
             </div>

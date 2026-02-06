@@ -1342,6 +1342,19 @@ def complete_social_signup(
             message="계정 연동 오류가 발생했습니다.",
         )
 
+    # 전화번호 중복 확인
+    if pending.phone_number:
+        existing_phone_user = db.query(User).filter(
+            User.phone_number == pending.phone_number
+        ).first()
+        if existing_phone_user:
+            db.delete(pending)
+            db.commit()
+            return CompleteSocialSignupResponse(
+                success=False,
+                message="이미 가입된 전화번호입니다. 기존 계정으로 로그인해주세요.",
+            )
+
     # User 생성 (동의 완료 후에만 생성!)
     user = User(
         email=pending.email,

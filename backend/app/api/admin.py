@@ -257,8 +257,12 @@ def delete_user(
     if user.id == admin.id:
         raise HTTPException(status_code=400, detail="자기 자신은 삭제할 수 없습니다.")
 
+    # 연결된 소셜 계정도 명시적으로 삭제 (재가입 시 동의 페이지가 나오도록)
+    db.query(SocialAccount).filter(SocialAccount.user_id == user_id).delete()
+
     db.delete(user)
     db.commit()
+    logger.info("User deleted: user_id=%s by admin_id=%s", user_id, admin.id)
     return {"ok": True, "message": "사용자가 삭제되었습니다."}
 
 

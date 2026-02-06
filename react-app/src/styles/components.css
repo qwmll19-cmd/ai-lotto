@@ -7781,6 +7781,19 @@
   margin: 0;
 }
 
+.checkout-field__hint--important {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+/* 필수 표시 */
+.checkout-section__required {
+  font-size: 12px;
+  color: #ef4444;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
 /* 접힘 가능 섹션 */
 .checkout-section--collapsible {
   border: 1px solid #e5e7eb;
