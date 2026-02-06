@@ -91,12 +91,29 @@ class PoolService:
 
     def _get_log(self, user_id: int, target_draw_no: int,
                  plan_type: str) -> Optional[LottoRecommendLog]:
-        """추천 로그 조회"""
+        """추천 로그 조회 - 현재 플랜으로 조회"""
         return self.db.query(LottoRecommendLog).filter(
             LottoRecommendLog.account_user_id == user_id,
             LottoRecommendLog.target_draw_no == target_draw_no,
             LottoRecommendLog.plan_type == plan_type,
         ).first()
+
+    def _get_lower_plan_log(self, user_id: int, target_draw_no: int,
+                            plan_type: str) -> Optional[LottoRecommendLog]:
+        """하위 플랜 로그 조회 (업그레이드 케이스용)"""
+        tier_order = ['free', 'basic', 'premium', 'vip']
+        current_idx = tier_order.index(plan_type) if plan_type in tier_order else 0
+
+        # 하위 플랜들을 역순으로 조회 (가장 높은 하위 플랜 우선)
+        for lower_tier in reversed(tier_order[:current_idx]):
+            old_log = self.db.query(LottoRecommendLog).filter(
+                LottoRecommendLog.account_user_id == user_id,
+                LottoRecommendLog.target_draw_no == target_draw_no,
+                LottoRecommendLog.plan_type == lower_tier,
+            ).first()
+            if old_log:
+                return old_log
+        return None
 
     def _build_stats(self) -> Optional[dict]:
         """통계 데이터 생성 (번호 생성에 필요)"""
@@ -222,6 +239,7 @@ class PoolService:
         - 기존 풀이 있고 설정이 같으면 재사용
         - 설정이 다르면 새 풀 생성 (기존 풀 교체)
         - 풀이 없으면 새로 생성
+        - 업그레이드 시 기존 번호 유지 + 추가 번호 생성
         """
         exclude = sorted(exclude or [])
         fixed = sorted(fixed or [])
@@ -257,7 +275,51 @@ class PoolService:
             self.db.commit()
             return log
 
-        # 새 로그 생성
+        # 업그레이드 케이스: 하위 플랜 로그 확인
+        old_log = self._get_lower_plan_log(user_id, target_draw_no, plan_type)
+        if old_log:
+            logger.info(f"플랜 업그레이드 감지: user={user_id}, {old_log.plan_type} → {plan_type}")
+
+            existing_pool = self.from_json(old_log.pool_lines, [])
+            existing_revealed = self.from_json(old_log.revealed_indices, [])
+            existing_lines = self.from_json(old_log.lines, [])
+
+            # 이전 플랜과 새 플랜의 줄 수 차이 계산
+            old_max = PLAN_LINE_LIMITS.get(old_log.plan_type, 1)
+            new_max = PLAN_LINE_LIMITS.get(plan_type, 1)
+            additional_count = new_max - old_max
+
+            # 추가 번호 생성
+            if additional_count > 0 and existing_pool:
+                stats = self._build_stats()
+                # 새 플랜 기준으로 추가 줄만 생성
+                additional_lines = self._generate_pool(plan_type, stats, exclude, fixed)
+                # 기존 풀에 추가 (중복 방지)
+                for line in additional_lines:
+                    if line not in existing_pool and len(existing_pool) < new_max:
+                        existing_pool.append(line)
+
+            # 새 로그 생성 (기존 번호 유지 + 추가 번호)
+            log = LottoRecommendLog(
+                user_id=user_id,
+                account_user_id=user_id,
+                target_draw_no=target_draw_no,
+                lines=self.to_json(existing_lines),  # 기존 공개된 번호 유지
+                recommend_time=now_kst(),
+                plan_type=plan_type,
+                pool_lines=existing_pool,
+                revealed_indices=list(existing_revealed),  # 기존 공개 인덱스 유지
+                settings_data=self.to_json(settings),
+                is_matched=False,
+            )
+            self.db.add(log)
+            self.db.commit()
+            self.db.refresh(log)
+
+            logger.info(f"업그레이드 풀 생성 완료: {old_max}줄 → {len(existing_pool)}줄, 공개={len(existing_revealed)}줄")
+            return log
+
+        # 새 로그 생성 (업그레이드 아닌 경우)
         logger.info(f"새 풀 생성: user={user_id}, plan={plan_type}")
         stats = self._build_stats()
         pool = self._generate_pool(plan_type, stats, exclude, fixed)

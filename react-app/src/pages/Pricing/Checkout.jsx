@@ -122,10 +122,10 @@ function Checkout() {
         setUser(prev => prev ? { ...prev, tier: result.plan_type } : null)
         success(`${selectedPlan.name} 플랜 구독이 완료되었습니다!`, '결제 완료')
 
-        // 약간의 지연 후 페이지 이동
+        // React Router로 페이지 이동 (전체 리로드 없이 상태 유지)
         setTimeout(() => {
-          window.location.href = '/mypage?tab=subscription'
-        }, 100)
+          navigate('/mypage?tab=subscription')
+        }, 500)
       } else {
         throw new Error(result.message || '플랜 업데이트에 실패했습니다.')
       }
