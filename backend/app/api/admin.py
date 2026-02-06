@@ -491,6 +491,9 @@ def get_subscriptions(
 
     if status:
         query = query.filter(Subscription.status == status)
+        # pending 상태일 때는 입금 완료 버튼을 누른 것만 표시
+        if status == "pending":
+            query = query.filter(Subscription.deposit_submitted == True)
     if plan_type:
         query = query.filter(Subscription.plan_type == plan_type)
 

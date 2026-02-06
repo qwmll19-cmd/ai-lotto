@@ -156,6 +156,7 @@ def subscribe(
             existing.depositor_name = payload.depositor_name
             existing.receipt_phone = payload.receipt_phone
             existing.receipt_biz_number = payload.receipt_biz_number
+            existing.deposit_submitted = True  # 입금 완료 제출 플래그
             db.commit()
 
             logger.info(
@@ -187,6 +188,7 @@ def subscribe(
             payment_status="pending",
             amount=plan["price"],
             depositor_name=payload.depositor_name,
+            deposit_submitted=True,  # 입금 완료 제출 플래그
             receipt_phone=payload.receipt_phone,
             receipt_biz_number=payload.receipt_biz_number,
             payment_token=payment_token,

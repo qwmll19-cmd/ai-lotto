@@ -139,8 +139,9 @@ def confirm_payment(
     subscription = get_subscription_by_token(db, token)
 
     try:
-        # 입금자명 저장
+        # 입금자명 저장 + 입금 완료 제출 플래그 설정
         subscription.depositor_name = payload.depositor_name.strip()
+        subscription.deposit_submitted = True
         db.commit()
 
         logger.info(

@@ -4818,6 +4818,19 @@
   background: white;
   border-radius: 12px;
   border: 1px solid var(--border-soft);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .history-card__line {
+    gap: 8px;
+  }
+
+  .history-card__line-result {
+    width: 100%;
+    text-align: right;
+    margin-top: 4px;
+  }
 }
 
 .history-card__line--win {
@@ -6480,15 +6493,32 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .auth-form__input-group input {
   flex: 1;
+  min-width: 0;
 }
 
 .auth-form__input-group .btn {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .auth-form__input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-form__input-group input {
+    width: 100%;
+  }
+
+  .auth-form__input-group .btn {
+    width: 100%;
+  }
 }
 
 .auth-form__verified {
