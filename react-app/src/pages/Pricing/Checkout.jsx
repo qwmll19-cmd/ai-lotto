@@ -2,10 +2,34 @@ import { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
-import { updateUserPlan } from '../../api/authApi.js'
+import { request } from '../../api/client.js'
+
+// 결제 정보 (사업자 계좌)
+const PAYMENT_INFO = {
+  bankName: '토스뱅크',
+  accountNumber: '100242176511',
+  accountHolder: '팡팡기획',
+}
+
+// 은행 앱 딥링크 목록
+const BANK_APPS = [
+  { id: 'toss', name: '토스', scheme: 'supertoss://send', color: '#0064FF', icon: 'T' },
+  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://transfer', color: '#FFCD00', textColor: '#191919', icon: 'K' },
+  { id: 'kbbank', name: 'KB국민', scheme: 'kbbank://transfer', color: '#FFBC00', textColor: '#191919', icon: 'KB' },
+  { id: 'shinhan', name: '신한', scheme: 'shinhan-sr-ansimclick://transfer', color: '#0046FF', icon: 'S' },
+  { id: 'hana', name: '하나', scheme: 'hanabank://transfer', color: '#009775', icon: 'H' },
+  { id: 'woori', name: '우리', scheme: 'wooribank://transfer', color: '#0066B3', icon: 'W' },
+  { id: 'nh', name: 'NH농협', scheme: 'nhbank://transfer', color: '#01579B', icon: 'NH' },
+  { id: 'ibk', name: 'IBK기업', scheme: 'ibkbank://transfer', color: '#0066B3', icon: 'IBK' },
+]
+
+// 클립보드 복사 텍스트 생성
+const getCopyText = () => {
+  return `토스뱅크 ${PAYMENT_INFO.accountNumber}`
+}
 
 function Checkout() {
-  const { isAuthed, user, setUser } = useAuth()
+  const { isAuthed, user } = useAuth()
   const { success, error: showError } = useNotification()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -21,16 +45,21 @@ function Checkout() {
   // 다운그레이드 또는 동일 플랜 체크
   const isDowngrade = planIndex < currentIndex
   const isSamePlan = planIndex === currentIndex && userTier !== 'FREE'
+
+  // 상태
   const [loading, setLoading] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState('card')
+  const [depositorName, setDepositorName] = useState('')
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptPhone, setReceiptPhone] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
-  const [agreeRefundPolicy, setAgreeRefundPolicy] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [subscriptionId, setSubscriptionId] = useState(null)
 
   const plans = {
     basic: {
       id: 'basic',
       name: 'Basic',
-      price: 4900,
+      price: 4900,  // VAT 포함
       period: '월',
       description: '더 많은 추천이 필요한 분께',
       features: [
@@ -43,7 +72,7 @@ function Checkout() {
     premium: {
       id: 'premium',
       name: 'Premium',
-      price: 9900,
+      price: 8900,  // VAT 포함
       period: '월',
       description: '본격적인 분석이 필요한 분께',
       features: [
@@ -57,7 +86,7 @@ function Checkout() {
     vip: {
       id: 'vip',
       name: 'VIP',
-      price: 13900,
+      price: 11900,  // VAT 포함
       period: '월',
       description: '프로 사용자를 위한 최고의 선택',
       features: [
@@ -73,15 +102,20 @@ function Checkout() {
 
   const selectedPlan = plans[planId] || plans.basic
 
-  // VAT 계산 (10%)
-  const vatAmount = Math.round(selectedPlan.price * 0.1)
-  const totalWithVat = selectedPlan.price + vatAmount
+  // 초기값 설정
+  useEffect(() => {
+    if (user?.name) {
+      setDepositorName(user.name)
+    }
+    if (user?.phone_number) {
+      setReceiptPhone(user.phone_number)
+    }
+  }, [user])
 
   useEffect(() => {
     if (!isAuthed) {
       navigate('/login', { state: { from: { pathname: `/checkout?plan=${planId}` } } })
     } else if (isDowngrade || isSamePlan) {
-      // 다운그레이드 또는 동일 플랜 결제 시도 시 요금제 페이지로 리다이렉트
       showError(
         isDowngrade
           ? '현재 플랜보다 낮은 플랜으로 변경할 수 없습니다.'
@@ -92,45 +126,72 @@ function Checkout() {
     }
   }, [isAuthed, navigate, planId, isDowngrade, isSamePlan, showError])
 
+  // 계좌번호 복사 (은행명 포함)
+  const handleCopyAccount = async () => {
+    try {
+      const copyText = getCopyText()
+      await navigator.clipboard.writeText(copyText)
+      success('계좌번호가 복사되었습니다.', '복사 완료')
+    } catch {
+      showError('복사에 실패했습니다.', '오류')
+    }
+  }
+
+  // 은행 앱 버튼 클릭 (복사 + 앱 실행)
+  const handleBankAppClick = async (bank) => {
+    try {
+      // 먼저 클립보드에 복사
+      const copyText = getCopyText()
+      await navigator.clipboard.writeText(copyText)
+      success('계좌번호가 복사되었습니다. 앱에서 붙여넣기 하세요.', '복사 완료')
+
+      // 딥링크로 앱 실행 시도
+      window.location.href = bank.scheme
+    } catch {
+      // 복사 실패해도 앱 실행은 시도
+      window.location.href = bank.scheme
+    }
+  }
+
+  // 입금 완료 제출
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (!agreeTerms) {
-      showError('이용약관 및 개인정보처리방침에 동의해주세요.', '오류')
+    if (!depositorName.trim()) {
+      showError('입금자명을 입력해주세요.', '오류')
       return
     }
 
-    if (!agreeRefundPolicy) {
-      showError('청약철회 제한 사항에 동의해주세요.', '오류')
+    if (!agreeTerms) {
+      showError('이용약관에 동의해주세요.', '오류')
       return
     }
 
     setLoading(true)
 
-    // 결제 처리 (실제로는 PG 연동 필요)
     try {
-      // 결제 처리 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const result = await request('/api/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: user?.name || depositorName,
+          phone: user?.phone_number || '',
+          plan_type: selectedPlan.id,
+          payment_method: 'bank_transfer',
+          consent_terms: agreeTerms,
+          depositor_name: depositorName.trim(),
+          receipt_phone: showReceipt && receiptPhone ? receiptPhone.replace(/-/g, '') : null,
+        }),
+      })
 
-      // 플랜 업데이트 API 호출 (결제수단, 30일 구독 기간 전달)
-      const result = await updateUserPlan(selectedPlan.id, paymentMethod, 30)
-      console.log('플랜 업데이트 결과:', result)
-
-      // API 응답의 success 필드 확인 후에만 상태 업데이트
-      if (result.success) {
-        // AuthContext의 setUser를 통해 업데이트 (로컬스토리지도 자동 동기화)
-        setUser(prev => prev ? { ...prev, tier: result.plan_type } : null)
-        success(`${selectedPlan.name} 플랜 구독이 완료되었습니다!`, '결제 완료')
-
-        // React Router로 페이지 이동 (전체 리로드 없이 상태 유지)
-        setTimeout(() => {
-          navigate('/mypage?tab=subscription')
-        }, 500)
+      if (result.subscription_id) {
+        setSubscriptionId(result.subscription_id)
+        setSubmitted(true)
+        success('입금 확인 요청이 완료되었습니다.', '신청 완료')
       } else {
-        throw new Error(result.message || '플랜 업데이트에 실패했습니다.')
+        throw new Error(result.message || '신청에 실패했습니다.')
       }
     } catch (err) {
-      showError(err?.message || '결제 처리 중 오류가 발생했습니다.', '오류')
+      showError(err?.message || '신청 처리 중 오류가 발생했습니다.', '오류')
     } finally {
       setLoading(false)
     }
@@ -138,6 +199,60 @@ function Checkout() {
 
   if (!isAuthed || isDowngrade || isSamePlan) {
     return null
+  }
+
+  // 제출 완료 후 대기 화면
+  if (submitted) {
+    return (
+      <div className="page checkout-page">
+        <section className="checkout-hero">
+          <div className="checkout-hero__inner">
+            <h1>입금 확인 중</h1>
+            <p>{selectedPlan.name} 플랜 구독 신청이 완료되었습니다</p>
+          </div>
+        </section>
+
+        <section className="checkout-content">
+          <div className="checkout-content__inner checkout-content__inner--centered">
+            <div className="checkout-pending">
+              <div className="checkout-pending__icon">⏳</div>
+              <h2>입금 확인 대기 중</h2>
+              <p>관리자 확인 후 1시간 이내 구독이 활성화됩니다.</p>
+
+              <div className="checkout-pending__info">
+                <div className="checkout-pending__row">
+                  <span>신청 플랜</span>
+                  <span>{selectedPlan.name}</span>
+                </div>
+                <div className="checkout-pending__row">
+                  <span>결제 금액</span>
+                  <span>₩{selectedPlan.price.toLocaleString()}</span>
+                </div>
+                <div className="checkout-pending__row">
+                  <span>입금자명</span>
+                  <span>{depositorName}</span>
+                </div>
+                <div className="checkout-pending__row">
+                  <span>신청번호</span>
+                  <span>#{subscriptionId}</span>
+                </div>
+              </div>
+
+              <button
+                className="btn btn--primary btn--full"
+                onClick={() => navigate('/mypage?tab=subscription')}
+              >
+                마이페이지에서 확인하기
+              </button>
+
+              <p className="checkout-pending__help">
+                문의사항이 있으신가요? <Link to="/support">고객센터</Link>
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
   }
 
   return (
@@ -151,92 +266,117 @@ function Checkout() {
 
       <section className="checkout-content">
         <div className="checkout-content__inner">
-          {/* 테스트 모드 안내 */}
-          <div className="checkout-test-mode">
-            <strong>테스트 모드</strong>
-            <p>현재 테스트 모드로 운영 중입니다. 실제 결제가 진행되지 않으며, 플랜이 즉시 적용됩니다.</p>
-          </div>
-
           {/* 왼쪽: 결제 폼 */}
           <div className="checkout-form-area">
             <form className="checkout-form" onSubmit={handleSubmit}>
-              {/* 결제 수단 선택 */}
+              {/* 결제 정보 */}
               <div className="checkout-section">
-                <h2>결제 수단</h2>
-                <div className="checkout-methods">
-                  <label className={`checkout-method ${paymentMethod === 'card' ? 'checkout-method--active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="card"
-                      checked={paymentMethod === 'card'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                    />
-                    <span className="checkout-method__icon">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                        <line x1="1" y1="10" x2="23" y2="10" />
-                      </svg>
-                    </span>
-                    <span className="checkout-method__text">신용/체크카드</span>
-                  </label>
+                <h2>입금 정보</h2>
 
-                  <label className={`checkout-method ${paymentMethod === 'kakao' ? 'checkout-method--active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="kakao"
-                      checked={paymentMethod === 'kakao'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                    />
-                    <span className="checkout-method__icon checkout-method__icon--kakao">K</span>
-                    <span className="checkout-method__text">카카오페이</span>
-                  </label>
+                <div className="checkout-account checkout-account--main">
+                  <div className="checkout-account__row">
+                    <span className="checkout-account__label">은행명</span>
+                    <span className="checkout-account__value">{PAYMENT_INFO.bankName}</span>
+                  </div>
+                  <div className="checkout-account__row">
+                    <span className="checkout-account__label">계좌번호</span>
+                    <span className="checkout-account__value checkout-account__value--account">{PAYMENT_INFO.accountNumber}</span>
+                  </div>
+                  <div className="checkout-account__row">
+                    <span className="checkout-account__label">예금주</span>
+                    <span className="checkout-account__value">{PAYMENT_INFO.accountHolder}</span>
+                  </div>
+                  <div className="checkout-account__row checkout-account__row--amount">
+                    <span className="checkout-account__label">입금 금액</span>
+                    <span className="checkout-account__value checkout-account__value--price">₩{selectedPlan.price.toLocaleString()}</span>
+                  </div>
+                </div>
 
-                  <label className={`checkout-method ${paymentMethod === 'naver' ? 'checkout-method--active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="naver"
-                      checked={paymentMethod === 'naver'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                    />
-                    <span className="checkout-method__icon checkout-method__icon--naver">N</span>
-                    <span className="checkout-method__text">네이버페이</span>
-                  </label>
+                {/* 계좌번호 복사 버튼 */}
+                <button
+                  type="button"
+                  className="checkout-copy-btn"
+                  onClick={handleCopyAccount}
+                >
+                  계좌번호 복사하기
+                </button>
+                <p className="checkout-copy-hint">
+                  복사 버튼을 누른 뒤 모바일 뱅킹 앱에서 붙여넣기 하세요
+                </p>
+              </div>
+
+              {/* 은행 앱 바로가기 */}
+              <div className="checkout-section">
+                <h2>은행 앱 바로가기</h2>
+                <p className="checkout-section__hint">
+                  앱 아이콘을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
+                </p>
+
+                <div className="checkout-bank-grid">
+                  {BANK_APPS.map((bank) => (
+                    <button
+                      key={bank.id}
+                      type="button"
+                      className="checkout-bank-btn"
+                      style={{
+                        backgroundColor: bank.color,
+                        color: bank.textColor || 'white',
+                      }}
+                      onClick={() => handleBankAppClick(bank)}
+                    >
+                      <span className="checkout-bank-btn__icon">{bank.icon}</span>
+                      <span className="checkout-bank-btn__name">{bank.name}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <p className="checkout-bank-notice">
+                  * 일부 기기에서는 동작하지 않을 수 있습니다
+                </p>
+              </div>
+
+              {/* 입금자명 (항상 열림) */}
+              <div className="checkout-section">
+                <h2>입금자명</h2>
+                <div className="checkout-field">
+                  <input
+                    type="text"
+                    value={depositorName}
+                    onChange={(e) => setDepositorName(e.target.value)}
+                    placeholder="홍길동"
+                    maxLength={50}
+                  />
+                  <p className="checkout-field__hint">
+                    송금 시 표시되는 이름이 다르면 수정해주세요
+                  </p>
                 </div>
               </div>
 
-              {/* 카드 정보 입력 (카드 결제 시) */}
-              {paymentMethod === 'card' && (
-                <div className="checkout-section">
-                  <h2>카드 정보</h2>
-                  <div className="checkout-card-form">
+              {/* 현금영수증 (클릭 시 펼침) */}
+              <div className="checkout-section checkout-section--collapsible">
+                <button
+                  type="button"
+                  className="checkout-toggle"
+                  onClick={() => setShowReceipt(!showReceipt)}
+                >
+                  <span>{showReceipt ? '▼' : '▶'} 현금영수증 신청</span>
+                </button>
+
+                {showReceipt && (
+                  <div className="checkout-receipt">
                     <div className="checkout-field">
-                      <label>카드 번호</label>
+                      <label>소득공제용 전화번호</label>
                       <input
-                        type="text"
-                        placeholder="0000 0000 0000 0000"
-                        maxLength={19}
+                        type="tel"
+                        value={receiptPhone}
+                        onChange={(e) => setReceiptPhone(e.target.value)}
+                        placeholder="010-1234-5678"
+                        maxLength={13}
                       />
                     </div>
-                    <div className="checkout-field-row">
-                      <div className="checkout-field">
-                        <label>유효기간</label>
-                        <input type="text" placeholder="MM/YY" maxLength={5} />
-                      </div>
-                      <div className="checkout-field">
-                        <label>CVC</label>
-                        <input type="text" placeholder="000" maxLength={4} />
-                      </div>
-                    </div>
-                    <div className="checkout-field">
-                      <label>카드 소유자</label>
-                      <input type="text" placeholder="홍길동" />
-                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* 약관 동의 */}
               <div className="checkout-section">
@@ -248,24 +388,12 @@ function Checkout() {
                   />
                   <span>
                     <Link to="/terms" target="_blank">이용약관</Link> 및{' '}
-                    <Link to="/privacy" target="_blank">개인정보처리방침</Link>,{' '}
-                    정기결제 약관에 동의합니다
-                  </span>
-                </label>
-                <label className="checkout-agree">
-                  <input
-                    type="checkbox"
-                    checked={agreeRefundPolicy}
-                    onChange={(e) => setAgreeRefundPolicy(e.target.checked)}
-                  />
-                  <span>
-                    AI 추천 번호(디지털 콘텐츠)를 열람한 경우 해당 회차에 대해
-                    청약철회가 제한됨을 확인하였습니다
+                    <Link to="/privacy" target="_blank">개인정보처리방침</Link>에 동의합니다
                   </span>
                 </label>
               </div>
 
-              {/* 결제 버튼 */}
+              {/* 입금 완료 버튼 */}
               <button
                 type="submit"
                 className="btn btn--primary btn--full btn--lg"
@@ -274,15 +402,19 @@ function Checkout() {
                 {loading ? (
                   <>
                     <span className="spinner" />
-                    결제 처리 중...
+                    처리 중...
                   </>
                 ) : (
-                  `₩${totalWithVat.toLocaleString()} 결제하기`
+                  '입금 완료했어요'
                 )}
               </button>
 
               <p className="checkout-note">
-                7일 이내 청약철회 가능 (번호 열람 시 해당분 제외) · 언제든 구독 취소 가능
+                관리자 확인 후 1시간 이내 구독이 활성화됩니다
+              </p>
+
+              <p className="checkout-help">
+                입금했는데 활성화가 안 되나요? <Link to="/support">고객센터 문의</Link>
               </p>
             </form>
           </div>
@@ -310,26 +442,14 @@ function Checkout() {
 
               <div className="checkout-summary__divider" />
 
-              <div className="checkout-summary__row">
-                <span>플랜 가격 (VAT 별도)</span>
+              <div className="checkout-summary__row checkout-summary__row--total">
+                <span>결제 금액 (VAT 포함)</span>
                 <span>₩{selectedPlan.price.toLocaleString()}</span>
               </div>
 
-              <div className="checkout-summary__row">
-                <span>부가세 (VAT 10%)</span>
-                <span>₩{vatAmount.toLocaleString()}</span>
-              </div>
-
-              <div className="checkout-summary__divider" />
-
-              <div className="checkout-summary__row checkout-summary__row--total">
-                <span>총 결제 금액 (VAT 포함)</span>
-                <span>₩{totalWithVat.toLocaleString()}</span>
-              </div>
-
               <div className="checkout-summary__info">
-                <p>다음 결제일: {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}</p>
-                <p>구독 갱신 전 이메일로 알림을 보내드립니다.</p>
+                <p>구독 기간: 30일</p>
+                <p>구독 갱신 전 알림을 보내드립니다.</p>
               </div>
 
               <Link to="/pricing" className="checkout-summary__back">

@@ -929,12 +929,13 @@ class UpdatePlanResponse(BaseModel):
     expires_at: Optional[datetime] = None
 
 
-# 플랜별 가격 설정
+# 플랜별 가격 설정 (constants에서 import)
+from app.config.constants import PLAN_CONFIG as _PLAN_CONFIG
+
+# free 플랜 추가하여 사용
 PLAN_CONFIG = {
     "free": {"price": 0, "line_count": 1, "name": "FREE"},
-    "basic": {"price": 4900, "line_count": 5, "name": "BASIC"},
-    "premium": {"price": 9900, "line_count": 10, "name": "PREMIUM"},
-    "vip": {"price": 13900, "line_count": 20, "name": "VIP"},
+    **_PLAN_CONFIG,
 }
 
 

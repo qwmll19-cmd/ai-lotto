@@ -4,9 +4,9 @@
 # 구독 플랜 설정
 # ============================================
 PLAN_CONFIG = {
-    "basic": {"line_count": 5, "price": 4900, "name": "베이직"},
-    "premium": {"line_count": 10, "price": 9900, "name": "프리미엄"},
-    "vip": {"line_count": 20, "price": 13900, "name": "VIP"},
+    "basic": {"line_count": 5, "price": 4900, "name": "베이직"},      # VAT 포함
+    "premium": {"line_count": 10, "price": 8900, "name": "프리미엄"},  # VAT 포함
+    "vip": {"line_count": 20, "price": 11900, "name": "VIP"},         # VAT 포함
 }
 
 PLAN_TYPES = ("free", "basic", "premium", "vip")

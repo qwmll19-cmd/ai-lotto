@@ -16,6 +16,7 @@ from fastapi import Header
 from app.api.auth import get_current_user, require_admin
 from app.utils import now_kst
 from app.config import settings
+from app.config.constants import PLAN_CONFIG
 from app.db.models import (
     User, FreeTrialApplication, Payment, Subscription,
     LottoDraw, LottoRecommendLog, LottoStatsCache,
@@ -189,8 +190,8 @@ def update_user(
 
         # 구독 타입이 free가 아닌 유료로 변경되면 Subscription 레코드 생성/업데이트
         if payload.subscription_type != "free" and payload.subscription_type != old_type:
-            plan_line_counts = {"basic": 5, "premium": 10, "vip": 20}
-            line_count = plan_line_counts.get(payload.subscription_type, 5)
+            plan_config = PLAN_CONFIG.get(payload.subscription_type, {})
+            line_count = plan_config.get("line_count", 5)
 
             # 기존 활성 구독이 있으면 업데이트, 없으면 생성
             existing_sub = db.query(Subscription).filter(
@@ -447,6 +448,10 @@ class SubscriptionListItem(BaseModel):
     last_sent_at: Optional[datetime] = None
     total_sent_count: int = 0
     created_at: Optional[datetime] = None
+    # 송금 결제 관련
+    depositor_name: Optional[str] = None
+    receipt_phone: Optional[str] = None
+    receipt_issued: bool = False
 
     class Config:
         from_attributes = True
@@ -458,6 +463,7 @@ class SubscriptionListResponse(PaginatedResponse):
 
 class SubscriptionApproveRequest(BaseModel):
     duration_days: int = 30
+    user_id: Optional[int] = None  # 연결할 회원 ID (선택)
 
 
 class SubscriptionRejectRequest(BaseModel):
@@ -531,6 +537,13 @@ def approve_subscription(
     subscription.approved_at = now
     subscription.started_at = now
     subscription.expires_at = now + timedelta(days=payload.duration_days)
+
+    # 관리자가 회원 ID를 지정한 경우 연결
+    if payload.user_id:
+        target_user = db.query(User).filter(User.id == payload.user_id).first()
+        if not target_user:
+            raise HTTPException(status_code=400, detail=f"회원 ID {payload.user_id}를 찾을 수 없습니다.")
+        subscription.user_id = payload.user_id
 
     # 연동된 사용자가 있으면 구독 정보 업데이트
     if subscription.user_id:
@@ -630,6 +643,67 @@ def cancel_subscription_admin(
     db.commit()
 
     return {"ok": True, "message": "구독이 취소되었습니다.", "subscription_id": subscription_id}
+
+
+@router.put("/subscriptions/{subscription_id}/receipt-issued")
+def update_receipt_issued(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """현금영수증 발급 완료 처리 (관리자)"""
+    subscription = db.query(Subscription).filter(Subscription.id == subscription_id).first()
+    if not subscription:
+        raise HTTPException(status_code=404, detail="구독 정보를 찾을 수 없습니다.")
+
+    if not subscription.receipt_phone:
+        raise HTTPException(status_code=400, detail="현금영수증 신청 정보가 없습니다.")
+
+    subscription.receipt_issued = True
+    db.commit()
+
+    return {"ok": True, "message": "현금영수증 발급 완료 처리되었습니다.", "subscription_id": subscription_id}
+
+
+@router.get("/subscriptions/export-receipt")
+def export_receipt_csv(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """현금영수증 발급 대상 CSV 내보내기 (관리자)"""
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+
+    # 현금영수증 신청했고 아직 발급 안 된 승인 건
+    subscriptions = db.query(Subscription).filter(
+        Subscription.status == "active",
+        Subscription.receipt_phone.isnot(None),
+        Subscription.receipt_issued == False
+    ).order_by(Subscription.approved_at.desc()).all()
+
+    # CSV 생성
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "승인일", "입금자명", "전화번호", "금액", "플랜"])
+
+    for sub in subscriptions:
+        writer.writerow([
+            sub.id,
+            sub.approved_at.strftime("%Y-%m-%d %H:%M") if sub.approved_at else "",
+            sub.depositor_name or sub.name,
+            sub.receipt_phone,
+            sub.amount,
+            sub.plan_type
+        ])
+
+    output.seek(0)
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=receipt_list.csv"}
+    )
 
 
 # ============================================

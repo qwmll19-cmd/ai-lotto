@@ -30,14 +30,25 @@ class SubscribeRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     phone: str = Field(..., min_length=8, max_length=30)
     plan_type: str = Field(..., description="basic, premium, vip")
-    payment_method: str = Field(default="bank_transfer", description="card, bank_transfer")
+    payment_method: str = Field(default="bank_transfer", description="card, bank_transfer, toss, kakao")
     consent_terms: bool = Field(..., description="약관 동의")
+    depositor_name: str = Field(..., min_length=1, max_length=100, description="입금자명")
+    receipt_phone: Optional[str] = Field(default=None, description="현금영수증 발급 전화번호")
 
     @validator("phone")
     def validate_phone(cls, value: str) -> str:
         digits = "".join(ch for ch in value if ch.isdigit())
         if len(digits) < 10 or len(digits) > 11:
             raise ValueError("전화번호 형식이 올바르지 않습니다.")
+        return digits
+
+    @validator("receipt_phone")
+    def validate_receipt_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or value == "":
+            return None
+        digits = "".join(ch for ch in value if ch.isdigit())
+        if len(digits) < 10 or len(digits) > 11:
+            raise ValueError("현금영수증 전화번호 형식이 올바르지 않습니다.")
         return digits
 
     @validator("plan_type")
@@ -104,8 +115,12 @@ def _generate_subscription_lines(db: Session, plan_type: str) -> List[List[int]]
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @router.post("/api/subscribe", response_model=SubscribeResponse)
-def subscribe(payload: SubscribeRequest, db: Session = Depends(get_db)) -> SubscribeResponse:
-    """구독 신청"""
+def subscribe(
+    payload: SubscribeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> SubscribeResponse:
+    """구독 신청 (로그인 필수)"""
     if not payload.consent_terms:
         raise HTTPException(status_code=400, detail="약관 동의가 필요합니다.")
 
@@ -113,6 +128,7 @@ def subscribe(payload: SubscribeRequest, db: Session = Depends(get_db)) -> Subsc
 
     try:
         subscription = Subscription(
+            user_id=current_user.id,  # 로그인 사용자와 연결
             name=payload.name,
             phone=payload.phone,
             plan_type=payload.plan_type,
@@ -121,14 +137,16 @@ def subscribe(payload: SubscribeRequest, db: Session = Depends(get_db)) -> Subsc
             payment_method=payload.payment_method,
             payment_status="pending",
             amount=plan["price"],
+            depositor_name=payload.depositor_name,
+            receipt_phone=payload.receipt_phone,
         )
         db.add(subscription)
         db.commit()
         db.refresh(subscription)
 
         logger.info(
-            "subscribe created id=%s plan=%s phone=%s",
-            subscription.id, payload.plan_type, payload.phone[-4:]
+            "subscribe created id=%s user_id=%s plan=%s depositor=%s",
+            subscription.id, current_user.id, payload.plan_type, payload.depositor_name
         )
 
     except Exception as exc:
@@ -151,13 +169,16 @@ def get_subscription_status(
     current_user: User = Depends(get_current_user)
 ) -> SubscriptionStatusResponse:
     """내 구독 상태 조회 (인증 필요)"""
-    # 현재 로그인한 사용자의 전화번호로 구독 조회
-    if not current_user.phone_number:
-        raise HTTPException(status_code=400, detail="등록된 전화번호가 없습니다.")
-
+    # user_id로 조회 (우선), 없으면 phone으로 조회 (레거시 호환)
     subscription = db.query(Subscription).filter(
-        Subscription.phone == current_user.phone_number
+        Subscription.user_id == current_user.id
     ).order_by(Subscription.created_at.desc()).first()
+
+    # user_id로 못 찾으면 phone으로 조회 (레거시 데이터 호환)
+    if not subscription and current_user.phone_number:
+        subscription = db.query(Subscription).filter(
+            Subscription.phone == current_user.phone_number
+        ).order_by(Subscription.created_at.desc()).first()
 
     if not subscription:
         raise HTTPException(status_code=404, detail="구독 정보를 찾을 수 없습니다.")

@@ -336,6 +336,11 @@ class Subscription(Base):
     last_sent_at = Column(DateTime, nullable=True)  # 마지막 번호 발송 시간
     total_sent_count = Column(Integer, default=0)  # 총 발송 횟수
 
+    # 입금 확인용 (송금 결제)
+    depositor_name = Column(String(100), nullable=True)  # 입금자명
+    receipt_phone = Column(String(30), nullable=True)  # 현금영수증 발급 전화번호
+    receipt_issued = Column(Boolean, default=False)  # 현금영수증 발급 완료 여부
+
     created_at = Column(DateTime, default=now_kst)
     updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 

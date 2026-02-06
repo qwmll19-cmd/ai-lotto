@@ -50,7 +50,7 @@ function Pricing() {
       id: 'premium',
       tier: 'PREMIUM',
       name: 'Premium',
-      price: 9900,
+      price: 8900,
       period: '월',
       description: '본격적인 AI 분석이 필요한 분께',
       subDescription: 'AI 정밀 분석 10줄 + AI 핵심 1줄 포함',
@@ -69,7 +69,7 @@ function Pricing() {
       id: 'vip',
       tier: 'VIP',
       name: 'VIP',
-      price: 13900,
+      price: 11900,
       period: '월',
       description: '최대 당첨 확률을 원하는 분께',
       subDescription: 'AI 정밀 분석 + 풀커버리지, AI 핵심 2줄 포함',
@@ -124,7 +124,7 @@ function Pricing() {
         <div className="pricing-hero__inner">
           <h1>요금제 안내</h1>
           <p>나에게 맞는 플랜을 선택하고 AI 추천 번호를 받아보세요.</p>
-          <p className="pricing-hero__vat">모든 가격은 VAT 별도입니다.</p>
+          <p className="pricing-hero__vat">모든 가격은 VAT 포함입니다.</p>
         </div>
       </section>
 
@@ -305,8 +305,8 @@ function Pricing() {
             <div className="pricing-faq__item">
               <h3>결제 수단은 무엇이 있나요?</h3>
               <p>
-                신용카드, 체크카드, 카카오페이, 네이버페이 등
-                다양한 결제 수단을 지원합니다.
+                계좌이체(무통장입금)를 지원합니다.
+                입금 확인 후 1시간 이내 구독이 활성화됩니다.
               </p>
             </div>
             <div className="pricing-faq__item">

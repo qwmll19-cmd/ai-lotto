@@ -53,7 +53,7 @@ function Home() {
         <div className="pricing-preview__inner">
           <h2>요금제</h2>
           <p className="pricing-preview__desc">나에게 맞는 플랜을 선택하세요.</p>
-          <p className="pricing-preview__vat">모든 가격은 VAT 별도입니다.</p>
+          <p className="pricing-preview__vat">모든 가격은 VAT 포함입니다.</p>
 
           <div className="pricing-preview__grid">
             {/* Free */}
@@ -125,7 +125,7 @@ function Home() {
                   <h3>Premium</h3>
                   <p className="pricing-preview__subtitle">본격적인 AI 분석이 필요한 분께</p>
                   <div className="pricing-preview__price">
-                    <span className="pricing-preview__amount">₩9,900</span>
+                    <span className="pricing-preview__amount">₩8,900</span>
                     <span className="pricing-preview__period">/월</span>
                   </div>
                   <ul className="pricing-preview__features">
@@ -153,7 +153,7 @@ function Home() {
                   <h3>VIP</h3>
                   <p className="pricing-preview__subtitle">최대 당첨 확률을 원하는 분께</p>
                   <div className="pricing-preview__price">
-                    <span className="pricing-preview__amount">₩13,900</span>
+                    <span className="pricing-preview__amount">₩11,900</span>
                     <span className="pricing-preview__period">/월</span>
                   </div>
                   <ul className="pricing-preview__features">
