@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { request } from '../../api/client.js'
@@ -9,6 +10,13 @@ const PAYMENT_INFO = {
   bankName: '토스뱅크',
   accountNumber: '100242176511',
   accountHolder: '팡팡기획',
+}
+
+// 모바일 기기 감지
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera
+  return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
 }
 
 // 은행 앱 딥링크 목록
@@ -46,14 +54,19 @@ function Checkout() {
   const isDowngrade = planIndex < currentIndex
   const isSamePlan = planIndex === currentIndex && userTier !== 'FREE'
 
+  // 모바일 여부
+  const isMobile = useMemo(() => isMobileDevice(), [])
+
   // 상태
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)  // 구독 생성 로딩
   const [depositorName, setDepositorName] = useState('')
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptPhone, setReceiptPhone] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [subscriptionId, setSubscriptionId] = useState(null)
+  const [paymentToken, setPaymentToken] = useState(null)  // QR 결제용 토큰
 
   const plans = {
     basic: {
@@ -112,6 +125,43 @@ function Checkout() {
     }
   }, [user])
 
+  // 페이지 진입 시 구독 생성 (토큰 발급) - PC용 QR 코드 생성을 위해
+  useEffect(() => {
+    const createPendingSubscription = async () => {
+      if (!isAuthed || !user || isDowngrade || isSamePlan) {
+        setInitializing(false)
+        return
+      }
+
+      try {
+        const result = await request('/api/subscribe', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: user.name || '',
+            phone: user.phone_number || '',
+            plan_type: selectedPlan.id,
+            payment_method: 'bank_transfer',
+            consent_terms: true,  // 임시 동의 (최종 제출 시 다시 확인)
+            depositor_name: user.name || '미입력',
+            receipt_phone: null,
+          }),
+        })
+
+        if (result.subscription_id && result.payment_token) {
+          setSubscriptionId(result.subscription_id)
+          setPaymentToken(result.payment_token)
+        }
+      } catch (err) {
+        // 구독 생성 실패해도 계속 진행 (QR만 안 보임)
+        console.error('Failed to create pending subscription:', err)
+      } finally {
+        setInitializing(false)
+      }
+    }
+
+    createPendingSubscription()
+  }, [isAuthed, user, selectedPlan.id, isDowngrade, isSamePlan])
+
   useEffect(() => {
     if (!isAuthed) {
       navigate('/login', { state: { from: { pathname: `/checkout?plan=${planId}` } } })
@@ -153,7 +203,7 @@ function Checkout() {
     }
   }
 
-  // 입금 완료 제출
+  // 입금 완료 제출 (기존 pending 구독 업데이트)
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -170,6 +220,7 @@ function Checkout() {
     setLoading(true)
 
     try {
+      // 기존 pending 구독이 있으면 재사용 (입금자명 업데이트)
       const result = await request('/api/subscribe', {
         method: 'POST',
         body: JSON.stringify({
@@ -196,6 +247,11 @@ function Checkout() {
       setLoading(false)
     }
   }
+
+  // QR 코드 URL 생성
+  const qrCodeUrl = paymentToken
+    ? `${window.location.origin}/pay/${paymentToken}`
+    : null
 
   if (!isAuthed || isDowngrade || isSamePlan) {
     return null
@@ -305,35 +361,74 @@ function Checkout() {
                 </p>
               </div>
 
-              {/* 은행 앱 바로가기 */}
-              <div className="checkout-section">
-                <h2>은행 앱 바로가기</h2>
-                <p className="checkout-section__hint">
-                  앱 아이콘을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
-                </p>
+              {/* PC: QR 코드 표시 */}
+              {!isMobile && (
+                <div className="checkout-section">
+                  <h2>모바일로 결제하기</h2>
+                  <p className="checkout-section__hint">
+                    스마트폰으로 QR 코드를 스캔하면 간편하게 결제할 수 있습니다
+                  </p>
 
-                <div className="checkout-bank-grid">
-                  {BANK_APPS.map((bank) => (
-                    <button
-                      key={bank.id}
-                      type="button"
-                      className="checkout-bank-btn"
-                      style={{
-                        backgroundColor: bank.color,
-                        color: bank.textColor || 'white',
-                      }}
-                      onClick={() => handleBankAppClick(bank)}
-                    >
-                      <span className="checkout-bank-btn__icon">{bank.icon}</span>
-                      <span className="checkout-bank-btn__name">{bank.name}</span>
-                    </button>
-                  ))}
+                  <div className="checkout-qr">
+                    {initializing ? (
+                      <div className="checkout-qr__loading">
+                        <span className="spinner" />
+                        <p>QR 코드 생성 중...</p>
+                      </div>
+                    ) : qrCodeUrl ? (
+                      <>
+                        <div className="checkout-qr__code">
+                          <QRCodeSVG
+                            value={qrCodeUrl}
+                            size={180}
+                            level="M"
+                            includeMargin={true}
+                          />
+                        </div>
+                        <p className="checkout-qr__hint">
+                          카메라 앱으로 QR 코드를 스캔하세요
+                        </p>
+                      </>
+                    ) : (
+                      <p className="checkout-qr__error">
+                        QR 코드를 생성할 수 없습니다. 직접 입금해주세요.
+                      </p>
+                    )}
+                  </div>
                 </div>
+              )}
 
-                <p className="checkout-bank-notice">
-                  * 일부 기기에서는 동작하지 않을 수 있습니다
-                </p>
-              </div>
+              {/* 모바일: 은행 앱 바로가기 */}
+              {isMobile && (
+                <div className="checkout-section">
+                  <h2>은행 앱 바로가기</h2>
+                  <p className="checkout-section__hint">
+                    앱 아이콘을 누르면 계좌가 복사되고 해당 앱이 실행됩니다
+                  </p>
+
+                  <div className="checkout-bank-grid">
+                    {BANK_APPS.map((bank) => (
+                      <button
+                        key={bank.id}
+                        type="button"
+                        className="checkout-bank-btn"
+                        style={{
+                          backgroundColor: bank.color,
+                          color: bank.textColor || 'white',
+                        }}
+                        onClick={() => handleBankAppClick(bank)}
+                      >
+                        <span className="checkout-bank-btn__icon">{bank.icon}</span>
+                        <span className="checkout-bank-btn__name">{bank.name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="checkout-bank-notice">
+                    * 일부 기기에서는 동작하지 않을 수 있습니다
+                  </p>
+                </div>
+              )}
 
               {/* 입금자명 (항상 열림) */}
               <div className="checkout-section">

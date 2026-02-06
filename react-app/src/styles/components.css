@@ -7889,6 +7889,52 @@
   color: var(--primary);
 }
 
+/* QR 코드 섹션 (PC용) */
+.checkout-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: #f9fafb;
+  border-radius: 16px;
+  margin-top: 16px;
+}
+
+.checkout-qr__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.checkout-qr__loading .spinner {
+  width: 32px;
+  height: 32px;
+}
+
+.checkout-qr__code {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.checkout-qr__hint {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.checkout-qr__error {
+  font-size: 14px;
+  color: #ef4444;
+  text-align: center;
+  padding: 20px;
+}
+
 /* 반응형: 송금 결제 UI */
 @media (max-width: 480px) {
   .checkout-transfer-btn {

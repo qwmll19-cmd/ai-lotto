@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +19,9 @@ from app.services.lotto.generator import generate_basic_lines, generate_premium_
 from app.services.sms import SmsSendRequest, get_sms_client
 from app.config.constants import PLAN_CONFIG
 from app.utils import now_kst
+
+# QR 결제 토큰 유효기간 (24시간)
+PAYMENT_TOKEN_EXPIRES_HOURS = 24
 
 router = APIRouter()
 logger = logging.getLogger("subscription")
@@ -64,6 +68,7 @@ class SubscribeResponse(BaseModel):
     plan_type: str
     amount: int
     status: str
+    payment_token: Optional[str] = None  # QR 결제용 토큰
 
 
 class SubscriptionStatusResponse(BaseModel):
@@ -125,10 +130,43 @@ def subscribe(
         raise HTTPException(status_code=400, detail="약관 동의가 필요합니다.")
 
     plan = PLAN_CONFIG[payload.plan_type]
+    now = now_kst()
 
     try:
+        # 기존 pending 구독 확인 (같은 user + plan + 24시간 이내)
+        existing = db.query(Subscription).filter(
+            Subscription.user_id == current_user.id,
+            Subscription.plan_type == payload.plan_type,
+            Subscription.status == "pending",
+            Subscription.payment_token_expires_at > now
+        ).first()
+
+        if existing:
+            # 기존 pending 구독 재사용 (입금자명 업데이트)
+            existing.depositor_name = payload.depositor_name
+            existing.receipt_phone = payload.receipt_phone
+            db.commit()
+
+            logger.info(
+                "subscribe reused existing id=%s user_id=%s plan=%s",
+                existing.id, current_user.id, payload.plan_type
+            )
+
+            return SubscribeResponse(
+                message=f"{plan['name']} 플랜 구독 신청이 완료되었습니다. 입금 확인 후 서비스가 시작됩니다.",
+                subscription_id=existing.id,
+                plan_type=payload.plan_type,
+                amount=plan["price"],
+                status=existing.status,
+                payment_token=existing.payment_token,
+            )
+
+        # 새 구독 생성 + QR 결제 토큰 발급
+        payment_token = secrets.token_hex(16)  # 32자 hex (128bit)
+        token_expires_at = now + timedelta(hours=PAYMENT_TOKEN_EXPIRES_HOURS)
+
         subscription = Subscription(
-            user_id=current_user.id,  # 로그인 사용자와 연결
+            user_id=current_user.id,
             name=payload.name,
             phone=payload.phone,
             plan_type=payload.plan_type,
@@ -139,14 +177,16 @@ def subscribe(
             amount=plan["price"],
             depositor_name=payload.depositor_name,
             receipt_phone=payload.receipt_phone,
+            payment_token=payment_token,
+            payment_token_expires_at=token_expires_at,
         )
         db.add(subscription)
         db.commit()
         db.refresh(subscription)
 
         logger.info(
-            "subscribe created id=%s user_id=%s plan=%s depositor=%s",
-            subscription.id, current_user.id, payload.plan_type, payload.depositor_name
+            "subscribe created id=%s user_id=%s plan=%s depositor=%s token=%s",
+            subscription.id, current_user.id, payload.plan_type, payload.depositor_name, payment_token[:8]
         )
 
     except Exception as exc:
@@ -160,6 +200,7 @@ def subscribe(
         plan_type=payload.plan_type,
         amount=plan["price"],
         status=subscription.status,
+        payment_token=subscription.payment_token,
     )
 
 

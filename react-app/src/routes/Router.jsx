@@ -23,6 +23,7 @@ import Privacy from '../pages/Info/Privacy.jsx'
 import Youth from '../pages/Info/Youth.jsx'
 import Pricing from '../pages/Pricing/Pricing.jsx'
 import Checkout from '../pages/Pricing/Checkout.jsx'
+import PayPage from '../pages/Pricing/PayPage.jsx'
 import AdminPage from '../pages/Admin/AdminPage.jsx'
 import NotFound from '../pages/NotFound/NotFound.jsx'
 
@@ -71,6 +72,8 @@ function Router() {
               </RequireAuth>
             }
           />
+          {/* QR 결제 페이지 (비로그인 접근 가능) */}
+          <Route path="/pay/:token" element={<PayPage />} />
           {/* 404 페이지 */}
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -341,6 +341,10 @@ class Subscription(Base):
     receipt_phone = Column(String(30), nullable=True)  # 현금영수증 발급 전화번호
     receipt_issued = Column(Boolean, default=False)  # 현금영수증 발급 완료 여부
 
+    # QR 결제용 토큰
+    payment_token = Column(String(64), nullable=True, unique=True, index=True)
+    payment_token_expires_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=now_kst)
     updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 

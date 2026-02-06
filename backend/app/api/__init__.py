@@ -7,6 +7,7 @@ from app.api.subscription import router as subscription_router
 from app.api.oauth import router as oauth_router
 from app.api.guest import router as guest_router
 from app.api.notification import router as notification_router
+from app.api.payment import router as payment_router
 
 __all__ = [
     "auth_router",
@@ -18,4 +19,5 @@ __all__ = [
     "oauth_router",
     "guest_router",
     "notification_router",
+    "payment_router",
 ]
