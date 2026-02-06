@@ -39,6 +39,7 @@ class SubscribeRequest(BaseModel):
     depositor_name: str = Field(..., min_length=1, max_length=100, description="입금자명")
     receipt_phone: Optional[str] = Field(default=None, description="현금영수증 발급 전화번호 (개인 소득공제)")
     receipt_biz_number: Optional[str] = Field(default=None, description="현금영수증 발급 사업자번호 (지출증빙)")
+    is_final_submit: bool = Field(default=False, description="최종 입금완료 제출 여부 (QR용 생성 vs 실제 제출 구분)")
 
     @validator("phone")
     def validate_phone(cls, value: str) -> str:
@@ -152,16 +153,18 @@ def subscribe(
         ).first()
 
         if existing:
-            # 기존 pending 구독 재사용 (입금자명/현금영수증 업데이트)
-            existing.depositor_name = payload.depositor_name
-            existing.receipt_phone = payload.receipt_phone
-            existing.receipt_biz_number = payload.receipt_biz_number
-            existing.deposit_submitted = True  # 입금 완료 제출 플래그
-            db.commit()
+            # 기존 pending 구독 재사용
+            if payload.is_final_submit:
+                # 최종 제출: 입금자명/현금영수증 업데이트 + 플래그 설정
+                existing.depositor_name = payload.depositor_name
+                existing.receipt_phone = payload.receipt_phone
+                existing.receipt_biz_number = payload.receipt_biz_number
+                existing.deposit_submitted = True
+                db.commit()
 
             logger.info(
-                "subscribe reused existing id=%s user_id=%s plan=%s",
-                existing.id, current_user.id, payload.plan_type
+                "subscribe reused existing id=%s user_id=%s plan=%s final=%s",
+                existing.id, current_user.id, payload.plan_type, payload.is_final_submit
             )
 
             return SubscribeResponse(
@@ -188,7 +191,7 @@ def subscribe(
             payment_status="pending",
             amount=plan["price"],
             depositor_name=payload.depositor_name,
-            deposit_submitted=True,  # 입금 완료 제출 플래그
+            deposit_submitted=payload.is_final_submit,  # QR용이면 False, 최종 제출이면 True
             receipt_phone=payload.receipt_phone,
             receipt_biz_number=payload.receipt_biz_number,
             payment_token=payment_token,

@@ -20,15 +20,16 @@ const isMobileDevice = () => {
 }
 
 // 은행 앱 딥링크 목록 (iOS/Android 공용)
+// 정확한 URL Scheme 적용 (2024년 기준)
 const BANK_APPS = [
-  { id: 'toss', name: '토스', scheme: 'supertoss://', color: '#0064FF', icon: '💙', hasDeeplink: true },
-  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', color: '#FFCD00', textColor: '#191919', icon: '🟡', hasDeeplink: true },
-  { id: 'kbbank', name: 'KB국민', scheme: 'kbstar://', color: '#FFBC00', textColor: '#191919', icon: '⭐', hasDeeplink: true },
-  { id: 'shinhan', name: '신한SOL', scheme: 'shinhan-sol-bank://', color: '#0046FF', icon: '🔵', hasDeeplink: true },
-  { id: 'hana', name: '하나원큐', scheme: 'hanabank1qmobile://', color: '#009775', icon: '🟢', hasDeeplink: true },
-  { id: 'woori', name: '우리WON', scheme: 'wooribank://', color: '#0066B3', icon: '🔷', hasDeeplink: true },
-  { id: 'nh', name: 'NH농협', scheme: 'nhsmartbanking://', color: '#01579B', icon: '🌾', hasDeeplink: true },
-  { id: 'ibk', name: 'IBK기업', scheme: 'ibkbox://', color: '#004A9C', icon: '🏢', hasDeeplink: true },
+  { id: 'toss', name: '토스', scheme: 'supertoss://', color: '#0064FF', logo: 'TOSS' },
+  { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', color: '#FFEB00', textColor: '#3C1E1E', logo: 'KB' },
+  { id: 'kbbank', name: 'KB국민', scheme: 'kBbank://', color: '#FFBC00', textColor: '#5D4400', logo: 'KB' },
+  { id: 'shinhan', name: '신한SOL', scheme: 'smailapp://', color: '#0046FF', logo: 'SOL' },
+  { id: 'hana', name: '하나원큐', scheme: 'hanapush://', color: '#009775', logo: '1Q' },
+  { id: 'woori', name: '우리WON', scheme: 'wooribank://', color: '#0066B3', logo: 'WON' },
+  { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', color: '#02A65A', logo: 'NH' },
+  { id: 'ibk', name: 'IBK기업', scheme: 'ionebank://', color: '#004A9C', logo: 'IBK' },
 ]
 
 // 클립보드 복사 텍스트 생성
@@ -117,14 +118,12 @@ function Checkout() {
 
   const selectedPlan = plans[planId] || plans.basic
 
-  // 초기값 설정
+  // 초기값 설정 (입금자명만 자동입력, 현금영수증은 사용자가 직접 입력)
   useEffect(() => {
     if (user?.name) {
       setDepositorName(user.name)
     }
-    if (user?.phone_number) {
-      setReceiptPhone(user.phone_number)
-    }
+    // 현금영수증 전화번호는 자동 입력하지 않음 (사용자가 명시적으로 입력해야 신청됨)
   }, [user])
 
   // 페이지 진입 시 구독 생성 (토큰 발급) - PC용 QR 코드 생성을 위해
@@ -157,6 +156,7 @@ function Checkout() {
             consent_terms: true,  // 임시 동의 (최종 제출 시 다시 확인)
             depositor_name: userName,
             receipt_phone: null,
+            is_final_submit: false,  // QR용 생성 (최종 제출 아님)
           }),
         })
 
@@ -233,7 +233,7 @@ function Checkout() {
     setLoading(true)
 
     try {
-      // 기존 pending 구독이 있으면 재사용 (입금자명 업데이트)
+      // 최종 제출: 입금자명/현금영수증 업데이트 + deposit_submitted 플래그 설정
       const result = await request('/api/subscribe', {
         method: 'POST',
         body: JSON.stringify({
@@ -245,6 +245,7 @@ function Checkout() {
           depositor_name: depositorName.trim(),
           receipt_phone: showReceipt && receiptType === 'phone' && receiptPhone ? receiptPhone.replace(/-/g, '') : null,
           receipt_biz_number: showReceipt && receiptType === 'business' && receiptBizNumber ? receiptBizNumber.replace(/-/g, '') : null,
+          is_final_submit: true,  // 최종 입금완료 제출
         }),
       })
 
@@ -432,7 +433,7 @@ function Checkout() {
                         }}
                         onClick={() => handleBankAppClick(bank)}
                       >
-                        <span className="checkout-bank-btn__icon">{bank.icon}</span>
+                        <span className="checkout-bank-btn__logo">{bank.logo}</span>
                         <span className="checkout-bank-btn__name">{bank.name}</span>
                       </button>
                     ))}

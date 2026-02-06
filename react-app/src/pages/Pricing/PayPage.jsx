@@ -3,73 +3,65 @@ import { useParams, Link } from 'react-router-dom'
 import { useNotification } from '../../context/NotificationContext.jsx'
 
 // 은행 앱 딥링크 목록 (iOS/Android 공용)
-// 딥링크가 없는 은행은 계좌번호 복사만 수행
+// 정확한 URL Scheme 적용 (2024년 기준)
 const BANK_APPS = [
   {
     id: 'toss',
     name: '토스',
     scheme: 'supertoss://',
     color: '#0064FF',
-    icon: '💙',
-    hasDeeplink: true
+    logo: 'TOSS',
   },
   {
     id: 'kakaobank',
     name: '카카오뱅크',
     scheme: 'kakaobank://',
-    color: '#FFCD00',
-    textColor: '#191919',
-    icon: '🟡',
-    hasDeeplink: true
+    color: '#FFEB00',
+    textColor: '#3C1E1E',
+    logo: 'KB',
   },
   {
     id: 'kbbank',
     name: 'KB국민',
-    scheme: 'kbstar://',
+    scheme: 'kBbank://',
     color: '#FFBC00',
-    textColor: '#191919',
-    icon: '⭐',
-    hasDeeplink: true
+    textColor: '#5D4400',
+    logo: 'KB',
   },
   {
     id: 'shinhan',
     name: '신한SOL',
-    scheme: 'shinhan-sol-bank://',
+    scheme: 'smailapp://',
     color: '#0046FF',
-    icon: '🔵',
-    hasDeeplink: true
+    logo: 'SOL',
   },
   {
     id: 'hana',
     name: '하나원큐',
-    scheme: 'hanabank1qmobile://',
+    scheme: 'hanapush://',
     color: '#009775',
-    icon: '🟢',
-    hasDeeplink: true
+    logo: '1Q',
   },
   {
     id: 'woori',
     name: '우리WON',
     scheme: 'wooribank://',
     color: '#0066B3',
-    icon: '🔷',
-    hasDeeplink: true
+    logo: 'WON',
   },
   {
     id: 'nh',
     name: 'NH농협',
-    scheme: 'nhsmartbanking://',
-    color: '#01579B',
-    icon: '🌾',
-    hasDeeplink: true
+    scheme: 'newnhsmartbanking://',
+    color: '#02A65A',
+    logo: 'NH',
   },
   {
     id: 'ibk',
     name: 'IBK기업',
-    scheme: 'ibkbox://',
+    scheme: 'ionebank://',
     color: '#004A9C',
-    icon: '🏢',
-    hasDeeplink: true
+    logo: 'IBK',
   },
 ]
 
@@ -321,7 +313,7 @@ function PayPage() {
                     }}
                     onClick={() => handleBankAppClick(bank)}
                   >
-                    <span className="checkout-bank-btn__icon">{bank.icon}</span>
+                    <span className="checkout-bank-btn__logo">{bank.logo}</span>
                     <span className="checkout-bank-btn__name">{bank.name}</span>
                   </button>
                 ))}

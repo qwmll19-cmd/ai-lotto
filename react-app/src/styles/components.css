@@ -7772,6 +7772,13 @@
   line-height: 1;
 }
 
+.checkout-bank-btn__logo {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
 .checkout-bank-btn__name {
   font-size: 11px;
   font-weight: 600;
@@ -7798,6 +7805,10 @@
 
   .checkout-bank-btn__icon {
     font-size: 20px;
+  }
+
+  .checkout-bank-btn__logo {
+    font-size: 12px;
   }
 
   .checkout-bank-btn__name {
