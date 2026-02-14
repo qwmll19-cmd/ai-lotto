@@ -18,11 +18,11 @@ const BANK_APPS = [
   { id: 'toss', name: '토스', scheme: 'supertoss://', androidPackage: 'viva.republica.toss', iosStoreId: '839333328', color: '#0064FF', logo: 'TOSS' },
   { id: 'kakaobank', name: '카카오뱅크', scheme: 'kakaobank://', androidPackage: 'com.kakaobank.channel', iosStoreId: '1258016944', color: '#FFEB00', textColor: '#3C1E1E', logo: 'kakao' },
   { id: 'kbbank', name: 'KB국민', scheme: 'kBbank://', androidPackage: 'com.kbstar.kbbank', iosStoreId: '373742138', color: '#FFBC00', textColor: '#5D4400', logo: 'KB' },
-  { id: 'shinhan', name: '신한SOL', scheme: 'shinhan://', androidPackage: 'com.shinhan.sbanking', iosStoreId: '1546796614', color: '#0046FF', logo: 'SOL' },
-  { id: 'hana', name: '하나원큐', scheme: 'hanapush://', androidPackage: 'com.hanabank.ebk.channel.android.hananbank', iosStoreId: '1437633497', color: '#009775', logo: '1Q' },
+  { id: 'shinhan', name: '신한SOL', scheme: 'shinhan://', androidPackage: 'com.shinhan.sbanking', iosStoreId: '357484932', color: '#0046FF', logo: 'SOL' },
+  { id: 'hana', name: '하나원큐', scheme: 'hanapush://', androidPackage: 'com.kebhana.hanapush', iosStoreId: '1362508015', color: '#009775', logo: '1Q' },
   { id: 'woori', name: '우리WON', scheme: 'wooribank://', androidPackage: 'com.wooribank.smart.npib', iosStoreId: '1470181651', color: '#0066B3', logo: 'WON' },
-  { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', androidPackage: 'nh.smart.banking', iosStoreId: '1445503830', color: '#02A65A', logo: 'NH' },
-  { id: 'ibk', name: 'IBK기업', scheme: 'ibksmartbanking://', androidPackage: 'com.ibk.android.ionebank', iosStoreId: '390031953', color: '#004A9C', logo: 'IBK' },
+  { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', androidPackage: 'nh.smart.banking', iosStoreId: '1444712671', color: '#02A65A', logo: 'NH' },
+  { id: 'ibk', name: 'IBK기업', scheme: 'ibksmartbanking://', androidPackage: 'com.ibk.android.ionebank', iosStoreId: '1460543865', color: '#004A9C', logo: 'IBK' },
 ]
 
 function Checkout() {
