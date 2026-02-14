@@ -1,5 +1,6 @@
 """한국 시간대 유틸리티"""
 from datetime import datetime, timezone, timedelta
+import os
 
 # 한국 표준시 (UTC+9)
 KST = timezone(timedelta(hours=9))
@@ -15,4 +16,5 @@ def now_kst() -> datetime:
 
     TODO: 함수명을 now_utc로 변경하거나, DB 저장 방식을 KST로 통일 필요
     """
-    return datetime.utcnow()
+    offset_seconds = int(os.getenv("AI_LOTTO_TIME_OFFSET_SECONDS", "0"))
+    return datetime.utcnow() + timedelta(seconds=offset_seconds)

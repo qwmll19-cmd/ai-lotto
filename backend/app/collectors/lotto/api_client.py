@@ -185,7 +185,7 @@ class LottoAPIClient:
             if len(raw_date) == 8:
                 draw_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
             else:
-                draw_date = now_kst().date().isoformat()
+                return None
 
             result = {
                 "draw_no": api_draw_no,
@@ -358,9 +358,11 @@ class LottoAPIClient:
                             draw_date = dt.date().isoformat()
                 except Exception:
                     draw_date = None
+                if not draw_date:
+                    return None
                 return {
                     "draw_no": draw_no,
-                    "date": draw_date or now_kst().date().isoformat(),
+                    "date": draw_date,
                     "n1": nums[0],
                     "n2": nums[1],
                     "n3": nums[2],

@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -522,26 +522,18 @@ def latest_draw(db: Session = Depends(get_db)):
             "draw_date": None,
         }
 
-    today_str = now_kst().date().isoformat()
-    draw_date = draw.draw_date or ""
-    if draw_date and draw_date > today_str:
-        # 미래 날짜가 저장된 경우, 오늘 이전 회차로 폴백
-        fallback = (
-            db.query(LottoDraw)
-            .filter(LottoDraw.draw_date <= today_str)
-            .order_by(desc(LottoDraw.draw_no))
-            .first()
-        )
-        if fallback:
-            draw = fallback
-            draw_date = fallback.draw_date
+    base_date = date(2002, 12, 7)
+    expected_date = (base_date + timedelta(days=7 * (draw.draw_no - 1))).isoformat()
+    draw_date = draw.draw_date or expected_date
+    if draw_date != expected_date:
+        draw_date = expected_date
 
     numbers = [draw.n1, draw.n2, draw.n3, draw.n4, draw.n5, draw.n6]
     return {
         "draw_no": draw.draw_no,
         "numbers": numbers,
         "bonus": draw.bonus,
-        "draw_date": draw_date or draw.draw_date,
+        "draw_date": draw_date,
     }
 
 
