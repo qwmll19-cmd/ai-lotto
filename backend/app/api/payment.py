@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -179,6 +179,7 @@ def get_payment_info(
 @router.post("/{token}/confirm", response_model=ConfirmPaymentResponse)
 @limiter.limit("5/minute")
 def confirm_payment(
+    request: Request,
     token: str,
     payload: ConfirmPaymentRequest,
     db: Session = Depends(get_db)
@@ -225,6 +226,7 @@ def confirm_payment(
 @router.get("/{token}/status", response_model=PaymentStatusResponse)
 @limiter.limit("30/minute")
 def get_payment_status(
+    request: Request,
     token: str,
     db: Session = Depends(get_db)
 ) -> PaymentStatusResponse:
