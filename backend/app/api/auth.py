@@ -183,7 +183,7 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             raise HTTPException(status_code=400, detail="올바른 휴대폰 번호를 입력해주세요.")
 
         # SMS 인증 토큰 검증
-        # dev 환경에서만 SMS_SKIP_VERIFICATION=true로 우회 가능
+        # SMS_SKIP_VERIFICATION=true일 때만 임시 토큰 우회 허용
         skip_sms = settings.SMS_SKIP_VERIFICATION and payload.sms_verified_token.startswith("temp_token_")
         if not skip_sms:
             verification = db.query(SmsVerification).filter(
@@ -202,6 +202,8 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
             ten_min_ago = now_kst() - timedelta(minutes=10)
             if verification.verified_at < ten_min_ago:
                 raise HTTPException(status_code=400, detail="인증이 만료되었습니다. 다시 인증해주세요.")
+        else:
+            logger.warning("SMS verification skipped for signup: identifier=%s phone=%s", identifier[:3] + "***", phone_digits[:3] + "***")
 
         # 아이디 중복 확인
         existing_id = db.query(User).filter(User.identifier == identifier).first()

@@ -6213,12 +6213,28 @@
   /* 매칭 결과 모바일 */
   .mypage-lines__match-numbers {
     gap: 4px;
+    flex-wrap: wrap;
   }
 
   .mypage-lines__match-numbers .lotto-ball {
     width: 30px;
     height: 30px;
     font-size: 12px;
+  }
+
+  .mypage-lines__match-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mypage-lines__match-label {
+    min-width: auto;
+  }
+
+  .mypage-lines__match-count {
+    min-width: 0;
+    width: 100%;
+    text-align: left;
   }
 
   .mypage-lines__result-numbers {
@@ -6506,7 +6522,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .auth-form__input-group {
     flex-direction: column;
     align-items: stretch;
@@ -6518,6 +6534,11 @@
 
   .auth-form__input-group .btn {
     width: 100%;
+  }
+
+  .auth-form__verified {
+    width: 100%;
+    text-align: center;
   }
 }
 
@@ -10357,4 +10378,3 @@
     flex-wrap: wrap;
   }
 }
-

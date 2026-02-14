@@ -12,6 +12,7 @@ from app.db.models import Subscription
 from app.db.session import get_db
 from app.config.constants import PLAN_CONFIG
 from app.utils import now_kst
+from app.rate_limit import limiter
 
 router = APIRouter(prefix="/api/pay", tags=["payment"])
 logger = logging.getLogger("payment")
@@ -59,6 +60,13 @@ class PaymentStatusResponse(BaseModel):
     status: str  # pending, active, cancelled
     deposit_submitted: bool  # 모바일에서 입금 완료 제출 여부
     depositor_name: Optional[str] = None  # 마스킹 처리
+
+
+class PaymentAccountResponse(BaseModel):
+    """결제 계좌 정보 응답"""
+    bank_name: str
+    account_number: str
+    account_holder: str
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -119,6 +127,16 @@ def get_subscription_by_token(db: Session, token: str) -> Subscription:
 # API 엔드포인트
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+@router.get("/account", response_model=PaymentAccountResponse)
+def get_payment_account() -> PaymentAccountResponse:
+    """결제 계좌 정보 조회 (비로그인)"""
+    return PaymentAccountResponse(
+        bank_name=PAYMENT_ACCOUNT["bank_name"],
+        account_number=PAYMENT_ACCOUNT["account_number"],
+        account_holder=PAYMENT_ACCOUNT["account_holder"],
+    )
+
+
 @router.get("/{token}", response_model=PaymentInfoResponse)
 def get_payment_info(
     token: str,
@@ -149,6 +167,7 @@ def get_payment_info(
 
 
 @router.post("/{token}/confirm", response_model=ConfirmPaymentResponse)
+@limiter.limit("5/minute")
 def confirm_payment(
     token: str,
     payload: ConfirmPaymentRequest,
@@ -194,6 +213,7 @@ def confirm_payment(
 
 
 @router.get("/{token}/status", response_model=PaymentStatusResponse)
+@limiter.limit("30/minute")
 def get_payment_status(
     token: str,
     db: Session = Depends(get_db)
@@ -210,6 +230,10 @@ def get_payment_status(
 
     if not subscription:
         raise HTTPException(status_code=404, detail="유효하지 않은 결제 링크입니다.")
+
+    now = now_kst()
+    if subscription.payment_token_expires_at and subscription.payment_token_expires_at < now:
+        raise HTTPException(status_code=400, detail="결제 링크가 만료되었습니다. 다시 결제를 시도해주세요.")
 
     # 입금자명 마스킹
     masked_depositor = mask_name(subscription.depositor_name) if subscription.depositor_name else None

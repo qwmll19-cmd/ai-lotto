@@ -5,13 +5,6 @@ import { useAuth } from '../../context/AuthContext.jsx'
 import { useNotification } from '../../context/NotificationContext.jsx'
 import { request, API_BASE_URL } from '../../api/client.js'
 
-// 결제 정보 (사업자 계좌)
-const PAYMENT_INFO = {
-  bankName: '토스뱅크',
-  accountNumber: '100242176511',
-  accountHolder: '팡팡기획',
-}
-
 // 모바일 기기 감지
 const isMobileDevice = () => {
   if (typeof window === 'undefined') return false
@@ -31,11 +24,6 @@ const BANK_APPS = [
   { id: 'nh', name: 'NH농협', scheme: 'newnhsmartbanking://', androidPackage: 'nh.smart.banking', iosStoreId: '1445503830', color: '#02A65A', logo: 'NH' },
   { id: 'ibk', name: 'IBK기업', scheme: 'ibksmartbanking://', androidPackage: 'com.ibk.android.ionebank', iosStoreId: '390031953', color: '#004A9C', logo: 'IBK' },
 ]
-
-// 클립보드 복사 텍스트 생성
-const getCopyText = () => {
-  return `토스뱅크 ${PAYMENT_INFO.accountNumber}`
-}
 
 function Checkout() {
   const { isAuthed, user } = useAuth()
@@ -61,6 +49,7 @@ function Checkout() {
   // 상태
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)  // 구독 생성 로딩
+  const [accountInfo, setAccountInfo] = useState(null)
   const [depositorName, setDepositorName] = useState('')
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptType, setReceiptType] = useState('phone')  // 'phone' 또는 'business'
@@ -72,6 +61,12 @@ function Checkout() {
   const [paymentToken, setPaymentToken] = useState(null)  // QR 결제용 토큰
   const [mobileDepositorName, setMobileDepositorName] = useState(null)  // 모바일에서 입력한 입금자명
   const pollingRef = useRef(null)  // 폴링 인터벌 참조
+
+  // 클립보드 복사 텍스트 생성
+  const getCopyText = () => {
+    if (!accountInfo) return ''
+    return `${accountInfo.bankName} ${accountInfo.accountNumber}`
+  }
 
   const plans = {
     basic: {
@@ -128,6 +123,32 @@ function Checkout() {
     // 현금영수증 전화번호는 자동 입력하지 않음 (사용자가 명시적으로 입력해야 신청됨)
   }, [user])
 
+  // 결제 계좌 정보 로드
+  useEffect(() => {
+    let active = true
+
+    const loadAccountInfo = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pay/account`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (!active) return
+        setAccountInfo({
+          bankName: data.bank_name,
+          accountNumber: data.account_number,
+          accountHolder: data.account_holder,
+        })
+      } catch {
+        // 계좌 정보 로드 실패 시 화면은 기본 상태 유지
+      }
+    }
+
+    loadAccountInfo()
+    return () => {
+      active = false
+    }
+  }, [])
+
   // 페이지 진입 시 구독 생성 (토큰 발급) - PC용 QR 코드 생성을 위해
   useEffect(() => {
     const createPendingSubscription = async () => {
@@ -137,12 +158,13 @@ function Checkout() {
       }
 
       // 이름과 전화번호가 있어야 구독 생성 가능
-      const userName = user.name || depositorName || '미입력'
-      const userPhone = user.phone_number || '01000000000'  // 폴백용 더미 번호
+      const userName = user.name || depositorName || ''
+      const userPhone = user.phone_number || ''
 
       // 필수 필드 검증 (name 최소 1자, phone 최소 8자)
       if (!userName || userName.length < 1 || !userPhone || userPhone.length < 8) {
         console.warn('Missing required user info for subscription:', { userName, userPhone })
+        showError('이름/전화번호 정보가 필요합니다. 마이페이지에서 정보를 먼저 등록해주세요.', '결제 불가')
         setInitializing(false)
         return
       }
@@ -175,7 +197,7 @@ function Checkout() {
     }
 
     createPendingSubscription()
-  }, [isAuthed, user, selectedPlan.id, isDowngrade, isSamePlan, depositorName])
+  }, [isAuthed, user, selectedPlan.id, isDowngrade, isSamePlan, depositorName, showError])
 
   useEffect(() => {
     if (!isAuthed) {
@@ -238,6 +260,10 @@ function Checkout() {
 
   // 계좌번호 복사 (은행명 포함)
   const handleCopyAccount = async () => {
+    if (!accountInfo) {
+      showError('계좌 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.', '오류')
+      return
+    }
     try {
       const copyText = getCopyText()
       await navigator.clipboard.writeText(copyText)
@@ -253,6 +279,10 @@ function Checkout() {
 
   // 은행 앱 버튼 클릭 (복사 + 앱 실행, 미설치 시 스토어 이동)
   const handleBankAppClick = async (bank) => {
+    if (!accountInfo) {
+      showError('계좌 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.', '오류')
+      return
+    }
     try {
       const copyText = getCopyText()
       await navigator.clipboard.writeText(copyText)
@@ -309,6 +339,10 @@ function Checkout() {
       showError('입금자명을 입력해주세요.', '오류')
       return
     }
+    if (!user?.phone_number) {
+      showError('전화번호 정보가 필요합니다. 마이페이지에서 정보를 먼저 등록해주세요.', '오류')
+      return
+    }
 
     if (!agreeTerms) {
       showError('이용약관에 동의해주세요.', '오류')
@@ -323,7 +357,7 @@ function Checkout() {
         method: 'POST',
         body: JSON.stringify({
           name: user?.name || depositorName,
-          phone: user?.phone_number || '',
+          phone: user?.phone_number,
           plan_type: selectedPlan.id,
           payment_method: 'bank_transfer',
           consent_terms: agreeTerms,
@@ -434,15 +468,15 @@ function Checkout() {
                 <div className="checkout-account checkout-account--main">
                   <div className="checkout-account__row">
                     <span className="checkout-account__label">은행명</span>
-                    <span className="checkout-account__value">{PAYMENT_INFO.bankName}</span>
+                    <span className="checkout-account__value">{accountInfo?.bankName || '계좌 준비중'}</span>
                   </div>
                   <div className="checkout-account__row">
                     <span className="checkout-account__label">계좌번호</span>
-                    <span className="checkout-account__value checkout-account__value--account">{PAYMENT_INFO.accountNumber}</span>
+                    <span className="checkout-account__value checkout-account__value--account">{accountInfo?.accountNumber || '-'}</span>
                   </div>
                   <div className="checkout-account__row">
                     <span className="checkout-account__label">예금주</span>
-                    <span className="checkout-account__value">{PAYMENT_INFO.accountHolder}</span>
+                    <span className="checkout-account__value">{accountInfo?.accountHolder || '-'}</span>
                   </div>
                   <div className="checkout-account__row checkout-account__row--amount">
                     <span className="checkout-account__label">입금 금액</span>
