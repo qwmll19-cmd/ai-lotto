@@ -127,10 +127,10 @@ function Checkout() {
   useEffect(() => {
     let active = true
 
-    const loadAccountInfo = async () => {
+  const loadAccountInfo = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/pay/account`)
-        if (!response.ok) return
+        const response = await fetch(`${API_BASE_URL}/api/pay/account-info`)
+        if (!response.ok) throw new Error('account-info failed')
         const data = await response.json()
         if (!active) return
         setAccountInfo({
@@ -139,7 +139,19 @@ function Checkout() {
           accountHolder: data.account_holder,
         })
       } catch {
-        // 계좌 정보 로드 실패 시 화면은 기본 상태 유지
+        try {
+          const fallback = await fetch(`${API_BASE_URL}/api/pay/account`)
+          if (!fallback.ok) return
+          const data = await fallback.json()
+          if (!active) return
+          setAccountInfo({
+            bankName: data.bank_name,
+            accountNumber: data.account_number,
+            accountHolder: data.account_holder,
+          })
+        } catch {
+          // 계좌 정보 로드 실패 시 화면은 기본 상태 유지
+        }
       }
     }
 

@@ -137,6 +137,16 @@ def get_payment_account() -> PaymentAccountResponse:
     )
 
 
+@router.get("/account-info", response_model=PaymentAccountResponse)
+def get_payment_account_info() -> PaymentAccountResponse:
+    """결제 계좌 정보 조회 (비로그인, 라우트 충돌 회피용)"""
+    return PaymentAccountResponse(
+        bank_name=PAYMENT_ACCOUNT["bank_name"],
+        account_number=PAYMENT_ACCOUNT["account_number"],
+        account_holder=PAYMENT_ACCOUNT["account_holder"],
+    )
+
+
 @router.get("/{token}", response_model=PaymentInfoResponse)
 def get_payment_info(
     token: str,
